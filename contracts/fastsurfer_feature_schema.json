@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "patient_id",
+    "scan_id",
+    "fastsurfer_version",
+    "feature_set_version",
+    "qc"
+  ],
+  "properties": {
+    "patient_id": {
+      "type": "string"
+    },
+    "scan_id": {
+      "type": "string"
+    },
+    "fastsurfer_version": {
+      "type": "string"
+    },
+    "feature_set_version": {
+      "const": "dkt-compact-seg-v1"
+    },
+    "qc": {
+      "enum": [
+        "passed",
+        "pending_review",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "hippocampus_left_mm3": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0,
+      "description": "Volume mm^3"
+    },
+    "hippocampus_right_mm3": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0,
+      "description": "Volume mm^3"
+    },
+    "ventricle_left_mm3": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0,
+      "description": "Volume mm^3"
+    },
+    "ventricle_right_mm3": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0,
+      "description": "Volume mm^3"
+    },
+    "entorhinal_left_mm3": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0,
+      "description": "Volume mm^3"
+    },
+    "entorhinal_right_mm3": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0,
+      "description": "Volume mm^3"
+    }
+  }
+}

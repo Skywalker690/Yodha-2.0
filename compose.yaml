@@ -30,6 +30,7 @@ services:
       - ./storage:/app/storage
       - ./dataset:/app/dataset:ro
       - ./data:/app/data
+      - ./artifacts:/app/artifacts:ro
     depends_on:
       postgres:
         condition: service_healthy

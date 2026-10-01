@@ -1,5 +1,31 @@
 # Implementation Status
 
+## Baseline FastSurfer study extension 2026-10-02
+
+The new PRD is implemented as a baseline-only study layer in `src/`, with source audit,
+85 CDR-zero baseline records, censoring-aware labels, a frozen 61/12/12 subject split,
+actual clinical-only 36-month training/reload, pinned isolated FastSurfer runner,
+label/unit/provenance parser and visual-review gate, matched Tier A/B experiment code,
+shared prediction adapter, local Streamlit dashboard, owned API and separate Next.js panel.
+Existing MRI, database/account records, original manifests and historical checkpoints
+are preserved. The source Word PRD and vendor repository are not modified.
+
+**Not complete:** the real five-scan FastSurfer pilot timed out waiting for Docker's
+Linux engine; anatomy is unavailable for all 85 rows. Real Tier B training/comparison,
+surface measurements and optional CNN training are not completed. Zero 12-month events,
+one training event at 24 months and zero known test events at 36 months prevent a
+validated all-horizon forecast. The fitted 36-month clinical model is experimental
+and uncalibrated, not a validated Alzheimer predictor. See [blockers](blockers.md).
+
+Verification: 141 Python tests pass, including 39 new synthetic forecast/runner
+tests and Streamlit AppTest; strict TypeScript, 44 frontend tests,
+production Next.js build, no dependency conflicts, Alembic no pending schema changes,
+and all seven Edge browser workflows pass (six retained workflows plus the new
+forecast null-horizon/no-fallback check). Documentation link checks found zero broken
+links. Streamlit readiness endpoint returns
+ok at loopback 8501; backend/frontend respond locally. No real segmentation accuracy,
+fresh-environment container execution or MRI-added-value validation is claimed.
+
 Verified locally on 2026-10-01. The documented research-prototype MVP is implemented. This is software workflow verification, not clinical or predictive-model validation.
 
 The subsequently requested strict MCI-to-Alzheimer forecasting PRD is **not implemented or trained**. The endpoint and authorized-data acquisition plan are now documented in [13 Strict forecasting data](13-strict-forecasting-data.md). ADNI access, a compliant processing environment, the actual cohort and horizon support remain unverified; no dataset download has been completed. The MVP verification below does not establish compliance with this new forecasting specification.

@@ -1,5 +1,15 @@
 # ML and Explainability Plan
 
+## Current FastSurfer baseline study
+
+The October 2 PRD defines a separate baseline-only OASIS study, implemented in `src/`.
+The compact Tier A/B logistic models use known labels only and train-only preprocessing;
+FastSurfer is a pinned, offline anatomical processor. The old CNN/MLP/LSTM remains a
+retrospective historical experiment, not a source of horizon probabilities. See
+[architecture](15-fastsurfer-architecture.md), [endpoint](cohort_definition.md),
+[evaluation](evaluation.md) and [blockers](blockers.md). The strict objective below
+is historical/separate and must not be conflated with observed CDR conversion.
+
 ## MVP strategy
 
 Build a credible end-to-end research pipeline, not a publishable clinical model. Use a pretrained or lightweight 3D encoder, a small temporal LSTM, and cached demo outputs when full training is incomplete.

@@ -3,6 +3,7 @@ import re
 import time
 from collections import defaultdict
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
@@ -17,6 +18,7 @@ from backend.app.models import Analysis, Biomarker, Heatmap, Patient, User, Visi
 from backend.app.schemas.contracts import AnalysisCreate, AnalysisOut, Login, PatientCreate, VisitCreate
 from backend.app.services.analysis import enqueue, latest_completed, trained_model_version
 from backend.app.services.reports import build_report
+from backend.app.services.forecast import patient_forecast
 from backend.app.services.storage import new_key, resolve_key
 from ml.contracts import MODEL_VERSION
 from ml.preprocessing import render_preview
@@ -39,6 +41,13 @@ def owned_visit(db: Session, user: User, visit_id: str) -> Visit:
         raise HTTPException(404, "Visit not found.")
     owned_patient(db, user, visit.patient_id)
     return visit
+
+
+@router.get("/patients/{patient_id}/forecast")
+def forecast(patient_id: str, model_kind: Literal["clinical", "clinical_matched", "clinical_fastsurfer"] = "clinical",
+             db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    patient = owned_patient(db, user, patient_id)
+    return camel(patient_forecast(patient.code, patient.source, model_kind))
 
 
 def owned_analysis(db: Session, user: User, analysis_id: str) -> Analysis:

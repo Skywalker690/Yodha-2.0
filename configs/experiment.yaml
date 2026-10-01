@@ -1,0 +1,9 @@
+metadata: dataset/oasis_longitudinal_demographics-8d83e569fa2e2d30.xlsx
+dataset_root: dataset
+processed_dir: data/forecast_v2
+artifact_dir: artifacts/forecast_v2
+seed: 20261002
+target: observed_cdr_conversion
+min_train_per_class: 5
+min_validation_per_class: 2
+regularization_c: 0.1

@@ -1,5 +1,19 @@
 # Decision Log
 
+## D023 Baseline OASIS forecast with pinned FastSurfer
+
+Accepted 2026-10-02 following the user-supplied FastSurfer Rewired v2 PRD.
+The new `src/` study uses baseline CDR-zero subjects and first observed later CDR>0,
+named `observed_cdr_conversion`, not MCI-to-Alzheimer diagnosis. MR Delay establishes
+observation timing, not biological onset or exact clinical diagnosis dates. Unknown
+horizons remain null. Historical 40/8/8 experiments and the functioning full-stack
+application are preserved; the PRD's local Streamlit study workspace is added separately.
+FastSurfer is an isolated, release-pinned anatomical processor, not another patient dataset.
+Tier A/B models are compact logistic regressions with training-only preprocessing and
+matched-subject comparisons. Tier C remains optional and unavailable until viable.
+Missing runtime, insufficient event support, absent anatomy or unreviewed segmentation
+must block the affected output, never silently generate a measurement or probability.
+
 ## D001: Full-stack product architecture
 
 Status: Accepted

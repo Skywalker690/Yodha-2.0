@@ -1,5 +1,38 @@
 # Full-Stack Architecture
 
+## Current architecture baseline forecast plus preserved longitudinal product
+
+The current user-supplied FastSurfer v2 PRD is specified in
+[15 Baseline forecast architecture](15-fastsurfer-architecture.md). The architecture
+separates patient data, pretrained anatomical processing and outcome modeling:
+
+```text
+OASIS-2 workbook → baseline predictors ────────────────────────────────┐
+OASIS-2 baseline full-head T1 → isolated pinned FastSurfer → reviewed anatomy
+                                                                    │
+Follow-up records → censored horizon labels → frozen subject split ──┤
+                                                                    ▼
+                           Tier A / Tier B training and matched evaluation
+                                                                    ▼
+                            safe JSON models → src.risk.predict adapter
+                                         ├→ loopback Streamlit study UI
+                                         └→ owned FastAPI endpoint → Next.js forecast panel
+
+Existing MRI visits → PostgreSQL asynchronous worker → historical longitudinal results
+                                  └→ original voxel viewer / retrospective reports
+```
+
+No demographic or follow-up data is sent to FastSurfer; it receives the one baseline
+T1. It supplies measurements, not forecast labels. No future visit enters the new
+predictor. CLI processing and training are outside HTTP; tabular prediction is cheap
+CPU inference. All patient files/parameters are ignored local artifacts. Runtime,
+anatomy QC and outcome support failures remain explicit. The existing authenticated
+product and host-local PostgreSQL remain intact; no new queue or database service.
+
+The real FastSurfer pilot and Tier B model are currently blocked; see
+[blockers](blockers.md). The sections below document the retained longitudinal
+product, not a claim that its retrospective neural model supplies future probabilities.
+
 ## Design goal
 
 Build a genuine full-stack clinical research platform while keeping the number of services small enough for a hackathon. The complete MVP runs locally.

@@ -1,5 +1,15 @@
 # Local Full-Stack Development
 
+## Baseline forecast study added 2026-10-02
+
+Install `requirements-base.txt` in the local Python environment for the separate
+Streamlit/logistic study. The existing web app stays on port 3000, backend on 8000,
+and host PostgreSQL is unchanged. Streamlit runs on loopback 8501 with usage telemetry
+disabled. FastSurfer requires a responsive Docker Linux engine and a pulled release-pinned
+image; the source folder alone is insufficient. Follow the complete staged commands
+in [15 Architecture](15-fastsurfer-architecture.md). Models/derived data are ignored,
+immutable run outputs; missing real anatomy currently blocks Tier B. See [blockers](blockers.md).
+
 ## Prerequisites
 
 - Node.js 22.14+

@@ -1,5 +1,25 @@
 # NeuroPredict AI
 
+## Baseline forecasting with FastSurfer
+
+The new FastSurfer Rewired v2 study is implemented in `src/`, with baseline-only
+clinical/compact anatomy models, censored 12/24/36-month labels, one prediction adapter,
+a local Streamlit dashboard and a separate forecast panel in the existing app.
+Read [current architecture](docs/15-fastsurfer-architecture.md) and [completion blockers](docs/blockers.md)
+before running. Real FastSurfer processing/Tier B training are not completed: Docker
+readiness failed, and the source's outcome counts cannot support all three horizons.
+Only an experimental 36-month clinical head has been fitted; it has no known positive
+test outcomes and is not an independently validated Alzheimer forecast.
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements-base.txt
+.\.venv\Scripts\python -m streamlit run src/app/app.py --server.address 127.0.0.1 --server.port 8501 --browser.gatherUsageStats false
+```
+
+The existing local database, MRI uploads, accounts and historical 40-subject checkpoint
+are preserved. The downloaded FastSurfer source is a dependency reference, not another
+patient dataset. Forecast artifacts/data remain outside Git.
+
 NeuroPredict AI is a full-stack clinical research platform for analyzing longitudinal brain MRI scans and presenting structural-change metrics, progression-risk estimates, MRI comparisons, explainability visualizations, and research reports.
 
 The project is based on the supplied project deck:

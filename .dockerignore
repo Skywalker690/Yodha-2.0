@@ -6,6 +6,8 @@ data
 storage
 tmp
 output
+artifacts
+FastSurfer-dev
 frontend/node_modules
 frontend/.next
 frontend/test-results

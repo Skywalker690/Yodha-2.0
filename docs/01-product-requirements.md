@@ -2,6 +2,19 @@
 
 ## Product
 
+## Current baseline forecasting direction requested 2026-10-02
+
+The FastSurfer Rewired v2 PRD adds the primary **baseline-only OASIS observed CDR
+conversion** study: one earliest CDR-zero baseline per subject, later observations
+for labels only, clinical reference and compact reviewed anatomical features,
+12/24/36-month estimates only where supported. This is not strict MCI-to-Alzheimer
+forecasting. That earlier objective remains unfulfilled and separately documented.
+Preserve the existing Next.js/FastAPI/PostgreSQL product and historical models; add
+the requested Streamlit study workspace through one shared predictor adapter.
+No validated all-horizon default is claimed before runtime, QC, event support and
+matched evaluation gates pass. See [15 Architecture](15-fastsurfer-architecture.md)
+and [current blockers](blockers.md).
+
 NeuroPredict AI is a clinical research platform that analyzes repeated MRI scans from the same subject and presents an understandable progression story over time.
 
 ## Primary user

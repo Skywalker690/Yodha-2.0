@@ -18,5 +18,10 @@ This folder is the working specification for the full-stack NeuroPredict AI plat
 | [12 Multimodal training](12-multimodal-training.md) | Saved subject split, covariates, audited retraining commands and evaluation limits |
 | [13 Strict forecasting data](13-strict-forecasting-data.md) | Documented MCI-to-Alzheimer target, authorized ADNI acquisition, privacy and training-readiness gates |
 | [14 Trained inference](14-trained-inference.md) | Experimental checkpoint integration, frozen cohort, input eligibility and honest prediction limits |
+| [15 FastSurfer architecture](15-fastsurfer-architecture.md) | New baseline-only OASIS forecast study, compact anatomy layer and single prediction adapter |
+| [Cohort definition](cohort_definition.md) | Observed CDR conversion, horizon censoring and inspected event counts |
+| [FastSurfer dictionary](fastsurfer_feature_dictionary.md) | Exact versioned labels, physical units and visual-review gate |
+| [Forecast evaluation](evaluation.md) | Matched comparisons, unsupported metrics and monotonic risk semantics |
+| [Completion blockers](blockers.md) | Runtime, outcome support and uncompleted real-data work |
 
 The supplied PPT defines the product concept. The current architecture plan defines the implementation direction. If they conflict, preserve the deck's central longitudinal-analysis idea and record the decision before coding.

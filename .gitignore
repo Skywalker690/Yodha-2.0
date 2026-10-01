@@ -9,6 +9,9 @@ data/
 storage/
 tmp/
 output/
+artifacts/
+FastSurfer-dev/**/checkpoints/
+.streamlit/secrets.toml
 *.db
 *.log
 frontend/node_modules/

@@ -1,5 +1,17 @@
 # Data Contract
 
+## New baseline-only forecast contract
+
+The current FastSurfer study uses separate `baseline.csv`, `manifest.csv`, `labels.csv`,
+`split.csv` and `fastsurfer_features.csv` under ignored `data/forecast_v2`.
+See [data dictionary](../contracts/data_dictionary.md) and [feature dictionary](fastsurfer_feature_dictionary.md).
+`PredictionRequest`/`PredictionResult` are validated in `src/contracts.py`, with exported
+JSON schemas under `contracts/`. Every horizon is present and unsupported probabilities
+are null. Future records and Group are forbidden predictors. Calendar dates unavailable
+in the source remain null. `GET /patients/{id}/forecast` preserves researcher ownership
+and returns a separate baseline prediction, reviewed anatomy and QC, without raw paths.
+No existing longitudinal analysis contract or database record is relabeled or replaced.
+
 ## Dataset and storage
 
 The initial dataset is OASIS-2 longitudinal MRI data. Raw archives remain outside source control. MRI files and generated artifacts live on the local filesystem or in a local S3-compatible adapter such as MinIO. PostgreSQL stores metadata and analysis records.

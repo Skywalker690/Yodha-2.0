@@ -71,6 +71,24 @@ A change is complete only after relevant automated tests, manual checks, and doc
 
 ## Executable checks
 
+For the baseline forecast extension also run:
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements-base.txt
+.\.venv\Scripts\python -m pytest tests/test_forecast_v2.py -q
+.\.venv\Scripts\python -m ruff check src backend ml scripts tests
+.\.venv\Scripts\python -m scripts.export_forecast_contracts
+```
+
+Synthetic checks cover horizon boundaries/gaps/reversions, unknown masks, fixed subject
+split, train-only preprocessing/reload, exact FastSurfer label/unit parsing, no silent
+fallback, matched model training/evaluation, changed-source rejection, owned API access
+and unavailable UI cards. These do not constitute real segmentation validation.
+The five-scan real pilot, visual anatomy QC, fresh-environment image execution and
+matched real-data evaluation remain required and currently blocked; record actual
+completion separately. Never turn a class-unavailable ROC-AUC into zero or report
+development AUC from five subjects as validated prediction performance.
+
 From the repository root:
 
 ```powershell

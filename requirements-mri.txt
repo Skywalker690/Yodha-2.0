@@ -1,0 +1,5 @@
+-r requirements-base.txt
+nibabel>=5.3,<6
+Pillow>=11,<12
+# FastSurfer runs in a pinned isolated container, not this environment.
+# Optional CNN also requires torch/MONAI; it is not the default predictor.

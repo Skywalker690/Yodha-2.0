@@ -1,5 +1,15 @@
 # Next.js UI Specification
 
+## Separate baseline forecast panel
+
+Imported OASIS patient workspaces also display a separate baseline forecast panel.
+Its clinical, clinical-matched and clinical+FastSurfer choices call the same adapter
+as the requested local Streamlit workspace. Keep the retrospective analysis and
+baseline-only CDR conversion target visibly separate. Unsupported horizons show
+Unavailable, not 0%. Missing models/anatomy/QC never silently fall back. Show MRI
+usage, versions, QC, uncalibrated status, missing test support and feature associations.
+This panel does not rewrite the existing PDF report's retrospective result.
+
 ## Product feel
 
 The application should feel like a clinical research platform, not an ML notebook. Use dark navy surfaces, restrained cyan accents, clear typography, accessible contrast, and dense but readable data views.

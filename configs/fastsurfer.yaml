@@ -1,0 +1,10 @@
+processed_dir: data/forecast_v2
+output_dir: storage/fastsurfer_v2
+image: deepmi/fastsurfer:cuda-v2.5.4
+version: 2.5.4
+device: cuda
+viewagg_device: cpu
+threads: 4
+timeout_seconds: 3600
+surface: false
+license_path: null

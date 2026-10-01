@@ -18,6 +18,7 @@ import { Button } from "./ui/button";
 import { Empty, ErrorState, ModeBadge } from "./common";
 import { TrajectoryChart } from "./trajectory-chart";
 import { VolumeExplorer } from "./volume-explorer";
+import { BaselineForecast } from "./baseline-forecast";
 
 function VisitForm({
   patient,
@@ -215,6 +216,7 @@ export function AnalysisWorkspace({
         </Button>
       </div>
       {patient.notes && <p className="patient-notes">{patient.notes}</p>}
+      {patient.source === "oasis-2" && <BaselineForecast key={patient.id} patientId={patient.id} />}
       {addVisit && (
         <section className="panel form-panel">
           <h3>Add a chronological visit</h3>
