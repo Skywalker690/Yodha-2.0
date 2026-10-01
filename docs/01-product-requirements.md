@@ -1,0 +1,52 @@
+# Product Requirements
+
+## Product
+
+NeuroPredict AI is a clinical research platform that analyzes repeated MRI scans from the same subject and presents an understandable progression story over time.
+
+## Primary user
+
+The primary user is a researcher or clinician reviewing longitudinal cases. The application is not patient-facing.
+
+## MVP capabilities
+
+- Researcher login using JWT.
+- Patient list and patient creation.
+- MRI visit creation and upload.
+- MRI storage in local filesystem or local S3-compatible storage.
+- Asynchronous analysis jobs.
+- Three or more chronological visits per case.
+- Progression-risk trajectory.
+- Structural-change metrics.
+- MRI and explanation comparison.
+- Interactive 3D MRI volume exploration, multiplanar slices, cutaway clipping and linked longitudinal comparison (user-requested extension, 2026-10-01).
+- Short, cautious interpretation.
+- Research report generation and download.
+- Explicit output provenance: demo, precomputed, or inference.
+- Persistent research-prototype disclaimer.
+
+## Explicit non-goals
+
+- Autonomous diagnosis or treatment recommendations
+- Production clinical deployment
+- EHR integration
+- Patient self-service
+- Full OASIS-2 processing during a live demo
+- Clinical validation claims
+- Kubernetes, Kafka, Redis, service mesh, or unnecessary microservices
+
+## Demo acceptance criteria
+
+Within one minute, a reviewer can sign in, select or create a patient, see three visits, start analysis, observe job progress, view the risk trajectory, inspect structural metrics and a heatmap, and download a research report.
+
+## Product language
+
+Use “progression-risk estimate” and “research visualization.” Avoid “diagnosis,” “clinically proven,” “medical recommendation,” and unsupported certainty.
+
+## Strict forecasting extension (requested 2026-10-01)
+
+The user selected the strict MCI-to-Alzheimer forecasting direction from the supplied October 2026 complete PRD. The new research task uses a documented MCI baseline and future study-defined Alzheimer dementia diagnoses at 12, 24 and 36 months. Do not infer MCI from CDR alone, MRI appearance or the OASIS-2 Group field. Do not equate any dementia diagnosis with Alzheimer dementia without documented source semantics.
+
+Acquire an authorized longitudinal dataset and audit eligibility, event counts, follow-up and MRI linkage before training. Unknown/censored horizons remain unknown. Fit baseline models before the advanced MRI/fusion branch; suppress unsupported horizons. Baseline inputs must not contain future visits or features computed using them. Follow-up visits establish outcomes, not baseline predictors.
+
+This changes the research objective, not the deployed application immediately. Existing OASIS cases, split manifests, checkpoints and analyses remain intact and explicitly historical/demo or retrospective. They do not satisfy the strict forecasting requirement. Preserve the local Next.js/FastAPI/PostgreSQL architecture; the supplied PRD's alternative stack is a suggestion, not a requirement to replace functioning services. See [13 Strict forecasting data](13-strict-forecasting-data.md) for the acquisition gates and current limitations.

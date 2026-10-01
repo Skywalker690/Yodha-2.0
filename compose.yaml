@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: neuropredict
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python scripts/setup_env.py first}
+      POSTGRES_DB: neuropredict
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuropredict -d neuropredict"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    image: neuropredict-backend:local
+    build:
+      context: .
+      dockerfile: infra/backend.Dockerfile
+    env_file: .env
+    environment: &runtime
+      DATABASE_URL: postgresql+psycopg://neuropredict:${POSTGRES_PASSWORD}@postgres:5432/neuropredict
+      STORAGE_ROOT: /app/storage
+      DATASET_ROOT: /app/dataset
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes: &data_volumes
+      - ./storage:/app/storage
+      - ./dataset:/app/dataset:ro
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && python -m scripts.seed && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  worker:
+    image: neuropredict-backend:local
+    env_file: .env
+    environment: *runtime
+    volumes: *data_volumes
+    command: ["python", "-m", "backend.app.workers.runner"]
+    depends_on:
+      backend:
+        condition: service_healthy
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/frontend.Dockerfile
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  postgres_data:

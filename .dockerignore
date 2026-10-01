@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+dataset
+data
+storage
+tmp
+output
+frontend/node_modules
+frontend/.next
+frontend/test-results
+**/__pycache__
+*.pptx
