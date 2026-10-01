@@ -4,6 +4,7 @@ import { ArrowUpRight, UserRound } from "lucide-react";
 import type { Patient } from "@/types";
 import { ModeBadge, Empty } from "./common";
 import { percent } from "@/lib/utils";
+import { formatModelScore } from "./trained-prediction";
 
 export function PatientTable({ patients }: { patients: Patient[] }) {
   if (!patients.length)
@@ -19,7 +20,7 @@ export function PatientTable({ patients }: { patients: Patient[] }) {
           <tr>
             <th>Patient</th>
             <th>Visits</th>
-            <th>Latest estimate</th>
+            <th>Latest research output</th>
             <th>Analysis status</th>
             <th>Provenance</th>
             <th>
@@ -50,11 +51,37 @@ export function PatientTable({ patients }: { patients: Patient[] }) {
                 </span>{" "}
                 <span className="muted">visits</span>
               </td>
-              <td>
-                {p.latestCompleted?.score != null ? (
-                  <strong className="numeric">
-                    {percent(p.latestCompleted.score)}
-                  </strong>
+              <td className="research-score">
+                {p.latestCompleted?.outputMode === "trained" ? (
+                  <>
+                    <strong className="numeric">
+                      {formatModelScore(
+                        p.latestCompleted.resultJson?.prediction?.score,
+                      )}
+                    </strong>
+                    <small className="muted">
+                      Experimental observed-CDR-increase score · not disease
+                      probability
+                    </small>
+                    {p.latestCompleted.resultJson?.prediction?.cohortRole ===
+                      "train" && (
+                      <small className="muted">
+                        In-sample · not accuracy evidence
+                      </small>
+                    )}
+                  </>
+                ) : p.latestCompleted?.score != null &&
+                  Number.isFinite(p.latestCompleted.score) ? (
+                  <>
+                    <strong className="numeric">
+                      {percent(p.latestCompleted.score)}
+                    </strong>
+                    <small className="muted">
+                      {p.latestCompleted.outputMode === "demo"
+                        ? "Illustrative index"
+                        : "Baseline structural-change index"}
+                    </small>
+                  </>
                 ) : (
                   <span className="muted">Not analyzed</span>
                 )}

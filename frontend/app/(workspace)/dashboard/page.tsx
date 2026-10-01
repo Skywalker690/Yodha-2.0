@@ -35,6 +35,8 @@ export default function Dashboard() {
     patients.find(
       (p) => (p.latestCompleted?.resultJson?.visitIds.length || 0) >= 3,
     ) || patients.find((p) => p.latestCompleted?.resultJson);
+  const trainedFeatured =
+    featured?.latestCompleted?.resultJson?.outputMode === "trained";
   const stats = [
     {
       label: "Research patients",
@@ -96,8 +98,16 @@ export default function Dashboard() {
         <section className="panel">
           <div className="panel-heading">
             <div>
-              <div className="eyebrow">LONGITUDINAL INSIGHTS</div>
-              <h2>Progression-risk trajectory</h2>
+              <div className="eyebrow">
+                {trainedFeatured
+                  ? "RETROSPECTIVE MODEL"
+                  : "LONGITUDINAL INSIGHTS"}
+              </div>
+              <h2>
+                {trainedFeatured
+                  ? "Experimental sequence classification"
+                  : "Progression-risk trajectory"}
+              </h2>
             </div>
             {featured?.latestCompleted && (
               <ModeBadge mode={featured.latestCompleted.outputMode} />
@@ -120,8 +130,9 @@ export default function Dashboard() {
               <TrajectoryChart result={featured.latestCompleted.resultJson} />
             </>
           ) : (
-            <Empty title="Your first trajectory starts here">
-              Complete an analysis to compare observations over time.
+            <Empty title="Your first research result starts here">
+              Complete an analysis to review sequence classification or baseline
+              image comparisons.
             </Empty>
           )}
         </section>

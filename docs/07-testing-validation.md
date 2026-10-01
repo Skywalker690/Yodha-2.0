@@ -17,6 +17,8 @@
 - Exclusion of identifiers and outcome-derived labels from model inputs
 - MRI and demographic gradients, padding invariance, exact subject/visit coverage in bounded batches
 - Saved-split validation and fresh-checkpoint prediction round-trip
+- Experimental trained inference uses the saved weights/scaler/threshold, pins the full bundle, rejects changed/missing models and incomplete covariates, and never falls back silently
+- Trained result/UI/PDF expose one retrospective sequence score, empty neural trajectory, poor reused-holdout performance and in-sample cohort disclosure
 
 ### Backend
 

@@ -15,9 +15,10 @@ from backend.app.core.security import create_token, current_user, hash_password,
 from backend.app.db.session import get_db
 from backend.app.models import Analysis, Biomarker, Heatmap, Patient, User, Visit
 from backend.app.schemas.contracts import AnalysisCreate, AnalysisOut, Login, PatientCreate, VisitCreate
-from backend.app.services.analysis import enqueue, latest_completed
+from backend.app.services.analysis import enqueue, latest_completed, trained_model_version
 from backend.app.services.reports import build_report
 from backend.app.services.storage import new_key, resolve_key
+from ml.contracts import MODEL_VERSION
 from ml.preprocessing import render_preview
 
 router = APIRouter()
@@ -105,11 +106,18 @@ def health(db: Session = Depends(get_db)) -> dict:
     db.execute(text("SELECT 1"))
     heartbeat = resolve_key("worker-heartbeat.txt")
     worker = heartbeat.exists() and time.time() - heartbeat.stat().st_mtime < 120
+    try:
+        trained_version = trained_model_version()
+    except HTTPException:
+        trained_version = None
     return {
         "status": "online",
         "database": "connected",
         "worker": "online" if worker else "offline",
-        "modelVersion": "feature-delta-v1",
+        "modelVersion": MODEL_VERSION,
+        "baselineModelVersion": MODEL_VERSION,
+        "trainedModelVersion": trained_version,
+        "trainedModelReady": trained_version is not None,
         "storage": "local filesystem",
     }
 
@@ -283,8 +291,10 @@ def volume(visit_id: str, db: Session = Depends(get_db), user: User = Depends(cu
         raise HTTPException(404, "MRI volume is unavailable.")
     suffix = ".nii.gz" if visit.mri_key.endswith(".nii.gz") else ".nii"
     return FileResponse(
-        resolve_key(visit.mri_key), media_type="application/octet-stream",
-        filename=f"research-mri{suffix}", content_disposition_type="inline",
+        resolve_key(visit.mri_key),
+        media_type="application/octet-stream",
+        filename=f"research-mri{suffix}",
+        content_disposition_type="inline",
         headers={"Cache-Control": "private, no-store"},
     )
 
@@ -329,7 +339,9 @@ def difference_volume(
     if not path.is_file():
         raise HTTPException(404, "3D difference volume is unavailable. Run local inference again.")
     return FileResponse(
-        path, media_type="application/octet-stream", filename="research-difference.nii.gz",
+        path,
+        media_type="application/octet-stream",
+        filename="research-difference.nii.gz",
         content_disposition_type="inline",
         headers={"Cache-Control": "private, no-store"},
     )

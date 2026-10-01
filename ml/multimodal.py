@@ -104,7 +104,10 @@ class DemographicPreprocessor:
             raise ValueError("Invalid demographic preprocessing statistics")
         if (arrays[2] <= 0).any():
             raise ValueError("Demographic scales must be positive")
-        return cls(*arrays, np.asarray(state["all_missing_training_features"], dtype=bool))
+        missing = np.asarray(state["all_missing_training_features"], dtype=bool)
+        if missing.shape != (len(NUMERIC_FEATURES),):
+            raise ValueError("Invalid demographic missingness schema")
+        return cls(*arrays, missing)
 
 
 class MultimodalClassifier(nn.Module):

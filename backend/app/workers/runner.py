@@ -7,8 +7,8 @@ from sqlalchemy import select, text, update
 
 from backend.app.core.config import get_settings
 from backend.app.db.session import SessionLocal, engine
-from backend.app.models import Analysis, Biomarker, Heatmap
-from backend.app.services.analysis import cache_key
+from backend.app.models import Analysis, Biomarker, Heatmap, Patient
+from backend.app.services.analysis import cache_key, trained_model_version
 from backend.app.services.storage import resolve_key
 from ml.contracts import ProgressionResult, VisitInput
 from ml.inference import run_pipeline
@@ -26,6 +26,7 @@ def update_progress(analysis_id: str, progress: int, stage: str) -> None:
 
 def execute(analysis_id: str) -> None:
     """Run outside the HTTP process; only validated results are persisted as completed."""
+    failure_message = "Analysis could not be completed. Verify the MRI files and local worker, then retry."
     try:
         with SessionLocal() as db:
             job = db.get(Analysis, analysis_id)
@@ -34,8 +35,62 @@ def execute(analysis_id: str) -> None:
             job.status, job.progress, job.stage = "processing", 5, "Loading chronological visits"
             db.commit()
             snapshot, patient_id, mode = job.input_json, job.patient_id, job.output_mode
+            pinned_version = job.model_version
+            subject_code = None
+            if mode == "trained":
+                failure_message = "Trained analysis inputs are unavailable. No baseline fallback is used."
+                patient = db.get(Patient, patient_id)
+                if patient is None:
+                    raise ValueError("Patient is unavailable")
+                subject_code = patient.code
         artifact_prefix = f"derived/{analysis_id}"
-        if mode == "precomputed":
+        if mode == "trained":
+            failure_message = (
+                "The trained checkpoint is unavailable, invalid, or changed since enqueue. "
+                "Restore the pinned checkpoint and retry. No baseline fallback is used."
+            )
+            if trained_model_version() != pinned_version:
+                raise ValueError("Checkpoint no longer matches queued version")
+            from ml.trained_inference import run_trained_pipeline, validate_covariates
+
+            failure_message = (
+                "Trained analysis failed: verify the recorded visit covariates, chronological MRI inputs, "
+                "and pinned checkpoint. No baseline fallback is used."
+            )
+            inputs = [
+                VisitInput(
+                    visit_id=item["visit_id"],
+                    days_from_baseline=item["days_from_baseline"],
+                    mri_path=str(resolve_key(item["mri_key"])),
+                    covariates=item["covariates"],
+                )
+                for item in snapshot
+            ]
+            validate_covariates(inputs)
+            raw_result = run_trained_pipeline(
+                patient_id=patient_id,
+                visits=inputs,
+                output_dir=resolve_key(artifact_prefix),
+                checkpoint_path=get_settings().trained_model_path,
+                expected_version=pinned_version,
+                subject_code=subject_code,
+                progress=lambda p, s: update_progress(analysis_id, p, s),
+            )
+            result = ProgressionResult.model_validate(
+                raw_result.model_dump() if isinstance(raw_result, ProgressionResult) else raw_result
+            )
+            if (
+                result.output_mode != "trained"
+                or result.model_version != pinned_version
+                or result.patient_id != patient_id
+                or result.visit_ids != [item["visit_id"] for item in snapshot]
+                or result.days_from_baseline != [item["days_from_baseline"] for item in snapshot]
+                or result.selected_visit != snapshot[-1]["visit_id"]
+                or result.prediction is None
+                or result.risk_scores
+            ):
+                raise ValueError("Trained result does not match pinned job inputs")
+        elif mode == "precomputed":
             payload = json.loads(resolve_key(cache_key(snapshot)).read_text(encoding="utf-8"))
             result = ProgressionResult.model_validate(payload["result"])
             if result.patient_id != patient_id or result.visit_ids != [s["visit_id"] for s in snapshot]:
@@ -91,7 +146,8 @@ def execute(analysis_id: str) -> None:
                 )
             result.heatmap_url = f"/api/analysis/{job.id}/visits/{result.selected_visit}/overlay"
             job.result_json = result.model_dump()
-            job.score = result.risk_scores[-1]
+            job.score = result.prediction.score if result.prediction else result.risk_scores[-1]
+            job.model_version = result.model_version
             job.confidence = result.confidence
             job.status, job.progress, job.stage = "completed", 100, "Analysis complete"
             db.commit()
@@ -101,9 +157,7 @@ def execute(analysis_id: str) -> None:
             job = db.get(Analysis, analysis_id)
             if job:
                 job.status, job.stage = "failed", "Analysis failed"
-                job.error = (
-                    "Analysis could not be completed. Verify the MRI files and local worker, then retry."
-                )
+                job.error = failure_message
                 db.commit()
 
 

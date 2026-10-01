@@ -50,7 +50,7 @@ Every result includes `output_mode`: `demo`, `precomputed`, or `inference`. The 
 
 ## Implemented baseline: feature-delta-v1
 
-The default local inference follows the permitted transparent-baseline tier:
+The explicitly selected legacy baseline inference follows the permitted transparent-baseline tier:
 
 1. NiBabel validation and canonical RAS orientation.
 2. Clip at 1st/99.5th intensity percentiles and scale to [0, 1].
@@ -63,7 +63,7 @@ The default local inference follows the permitted transparent-baseline tier:
 
 Observed OASIS nWBV/eTIV are source-attributed and shown separately. CDR/MMSE are optional observed metadata, not fabricated risk targets. No diagnostic accuracy, ROC-AUC or calibration numbers are calculated or displayed.
 
-Small CNN (`SpatialEncoder`) and LSTM (`TemporalModel`) interfaces are included and tensor-tested. Offline MRI-only and multimodal training runners now save experimental checkpoints. The application continues to use `feature-delta-v1`; trained-checkpoint integration and model-specific Grad-CAM remain separate work.
+Small CNN (`SpatialEncoder`) and LSTM (`TemporalModel`) interfaces are included and tensor-tested. Offline MRI-only and multimodal training runners save experimental checkpoints. The audited multimodal checkpoint is now integrated through explicitly experimental `trained` mode, initially selected in the workspace; legacy baseline/demo/precomputed modes and historical results remain available. It returns one retrospective sequence score, not a disease probability or future trajectory. Model-specific Grad-CAM remains separate work. See [14 Trained inference](14-trained-inference.md).
 
 The demonstration training runner is now provided by `scripts/train_longitudinal_model.py`. It caches all visits for the 56 subjects with at least three visits, uses a deterministic stratified 40/8/8 subject split, and trains `SpatialEncoder(32)+LSTM(16)` against the research-only observed CDR-increase target. Its checkpoint and metrics are local artifacts under `data/training/`; they are not clinical validation evidence.
 

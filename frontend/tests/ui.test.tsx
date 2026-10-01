@@ -13,6 +13,10 @@ describe("research UI states", () => {
     expect(screen.getByText("Output mode: Inference")).toBeVisible();
     rerender(<ModeBadge mode="precomputed" />);
     expect(screen.getByText("Output mode: Precomputed")).toBeVisible();
+    rerender(<ModeBadge mode="trained" />);
+    expect(
+      screen.getByText("Output mode: Trained · experimental"),
+    ).toBeVisible();
   });
   it("exposes accessible loading and recoverable errors", () => {
     const retry = vi.fn();

@@ -61,6 +61,8 @@ Risk scores are normalized to 0–1 internally and displayed as percentages only
 
 The implementation also includes `days_from_baseline` and `model_version`. All series lengths match; visits are unique and chronological. Confidence is null for the baseline. Analyses persist ordered input snapshots, progress and the validated result. API responses exclude snapshots, host paths, storage keys and password hashes. Observed visit metadata keeps original source field names (`nWBV`, `eTIV`, `CDR`, `MMSE`, `ASF`). Patients have researcher ownership, optional age/sex, notes and source.
 
+Experimental `trained` output adds an optional structured `prediction` (score, saved validation threshold, classification, checkpoint fingerprint, cohort role and aggregate reused-holdout evidence). It provides one retrospective sequence prediction and an empty `risk_scores`, not a fabricated visit trajectory. Other modes retain their existing aligned score series. Trained input snapshots additionally contain only the eleven source covariates; CDR/Group/identifiers are excluded. Confidence remains null. See [14 Trained inference](14-trained-inference.md).
+
 Report PDF/JSON artifacts persist under generated keys in `storage/reports/`, with researcher ownership checks on list/download. No extra database tables are needed.
 
 ## 3D visualization artifacts

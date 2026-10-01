@@ -167,6 +167,23 @@ describe("volume safety and geometry controls", () => {
 });
 
 describe("research volume explorer", () => {
+  it("does not present trained-mode intensity differences as neural attribution", () => {
+    render(
+      <VolumeExplorer
+        patient={patient}
+        visit={visits[2]}
+        analysis={{ ...analysis, outputMode: "trained" }}
+        onSelectVisit={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(/not attribution for the trained classifier/),
+    ).toBeVisible();
+    fireEvent.click(screen.getByLabelText("3D difference overlay"));
+    expect(
+      screen.getByText("Output mode: Trained · experimental"),
+    ).toBeVisible();
+  });
   it("keeps legacy results honest and navigation connected to the visit timeline", () => {
     const onSelectVisit = vi.fn();
     render(

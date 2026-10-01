@@ -467,6 +467,58 @@ small {
   background: #352d23;
   border-color: #5d4b32;
 }
+.mode-trained {
+  color: #f1c897;
+  background: #352b23;
+  border-color: #7b5936;
+  white-space: normal;
+}
+.prediction-panel {
+  padding: 0 23px 23px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.prediction-panel p {
+  margin: 12px 0;
+}
+.prediction-panel h3 {
+  margin: 20px 0 10px;
+  font-size: 13px;
+}
+.prediction-warning {
+  padding: 12px;
+  border: 1px solid #7b5936;
+  border-radius: 7px;
+  background: #352b23;
+  color: #f1c897;
+}
+.prediction-warning p {
+  margin-bottom: 0;
+}
+.prediction-summary,
+.prediction-evidence {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+.prediction-panel dt {
+  color: #b1c3d4;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+.prediction-panel dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.checkpoint-hash {
+  word-break: break-all;
+}
+.research-score small {
+  display: block;
+  max-width: 230px;
+  margin-top: 4px;
+}
 .chart-identity {
   display: flex;
   align-items: center;

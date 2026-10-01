@@ -9,8 +9,25 @@ import {
   YAxis,
 } from "recharts";
 import type { Result } from "@/types";
+import { Empty } from "./common";
+import { TrainedPredictionPanel } from "./trained-prediction";
 
 export function TrajectoryChart({ result }: { result: Result }) {
+  if (result.outputMode === "trained") {
+    return <TrainedPredictionPanel result={result} />;
+  }
+  if (
+    !result.visitIds.length ||
+    result.riskScores.length !== result.visitIds.length ||
+    result.daysFromBaseline.length !== result.visitIds.length ||
+    result.riskScores.some((score) => !Number.isFinite(score))
+  ) {
+    return (
+      <Empty title="Trajectory unavailable">
+        No complete per-visit score series is available. Run analysis again.
+      </Empty>
+    );
+  }
   const data = result.visitIds.map((id, i) => ({
     id,
     day: result.daysFromBaseline[i],

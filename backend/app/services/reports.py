@@ -18,8 +18,22 @@ def build_report(patient: Patient, analysis: Analysis, visits: list[Visit], over
     path = resolve_key(f"reports/{report_id}.pdf")
     path.parent.mkdir(parents=True, exist_ok=True)
     result = analysis.result_json
+    prediction = result.get("prediction")
+    trained = analysis.output_mode == "trained"
+    if trained and not prediction:
+        raise ValueError("Trained report requires a sequence prediction")
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle("Kicker", fontSize=9, textColor=colors.HexColor("#117b8a"), spaceAfter=12))
+    styles.add(
+        ParagraphStyle(
+            "Warning",
+            parent=styles["BodyText"],
+            textColor=colors.HexColor("#922b21"),
+            backColor=colors.HexColor("#fff0ed"),
+            borderPadding=8,
+            spaceAfter=12,
+        )
+    )
     doc = SimpleDocTemplate(
         str(path), pagesize=(595, 842), rightMargin=42, leftMargin=42, topMargin=40, bottomMargin=45
     )
@@ -28,32 +42,86 @@ def build_report(patient: Patient, analysis: Analysis, visits: list[Visit], over
         Paragraph(escape(patient.code), styles["Title"]),
         Paragraph("Research Prototype | Not a medical diagnosis", styles["Heading2"]),
         Paragraph(
-            f"Output mode: {analysis.output_mode.title()} | Model: {analysis.model_version}", styles["Normal"]
+            f"Output mode: {escape(analysis.output_mode.title())} | Model: {escape(analysis.model_version)}",
+            styles["Normal"],
         ),
         Paragraph(f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M UTC}", styles["Normal"]),
         Spacer(1, 16),
-        Paragraph("Longitudinal progression-risk estimates", styles["Heading2"]),
-        Paragraph(
-            "Uncalibrated structural-change index shown as a percentage; not a probability of disease. "
-            "All changes refer to the earliest included visit.",
-            styles["BodyText"],
-        ),
-        Spacer(1, 10),
     ]
+    if trained:
+        classification = (
+            "Observed CDR increase" if prediction["predicted_increase"] else "No observed CDR increase"
+        )
+        story.extend(
+            [
+                Paragraph("Experimental trained sequence classification", styles["Heading2"]),
+                Paragraph(
+                    "POOR HELD-OUT PERFORMANCE / RESEARCH ONLY. This checkpoint failed to generalize. "
+                    "It recognizes observed first-to-last CDR change retrospectively using all included visits; "
+                    "it does not forecast future Alzheimer's disease. Training-cohort predictions are in-sample "
+                    "demonstrations, not accuracy evidence. Not clinically validated.",
+                    styles["Warning"],
+                ),
+                Paragraph(
+                    f"One uncalibrated sequence score: {prediction['score']:.6f}. "
+                    f"Validation-selected threshold: {prediction['decision_threshold']:.6f}. "
+                    f"Classification: {classification}. This score is not a disease probability.",
+                    styles["BodyText"],
+                ),
+                Paragraph(
+                    f"Cohort role: {escape(prediction['cohort_role'])}. "
+                    f"Training: {prediction['training_subjects']} subjects / {prediction['training_visits']} visits. "
+                    f"Reused test holdout: {prediction['test_subjects']} subjects; "
+                    f"accuracy {prediction['test_accuracy'] * 100:.1f}%, "
+                    f"balanced accuracy {prediction['test_balanced_accuracy'] * 100:.1f}%, "
+                    f"ROC-AUC {prediction['test_roc_auc']:.4f}; "
+                    f"majority-class baseline accuracy {prediction['majority_baseline_accuracy'] * 100:.1f}%.",
+                    styles["BodyText"],
+                ),
+                Paragraph(
+                    f"Checkpoint SHA-256: {escape(prediction['checkpoint_sha256'])}", styles["BodyText"]
+                ),
+                Spacer(1, 14),
+                Paragraph("Per-visit image-proxy metrics (not neural predictions)", styles["Heading2"]),
+                Paragraph(
+                    "Foreground fraction and feature change are intensity-derived proxies, not segmented anatomy, "
+                    "measured atrophy or model attribution. No per-visit trained scores are generated.",
+                    styles["BodyText"],
+                ),
+                Spacer(1, 10),
+            ]
+        )
+    else:
+        story.extend(
+            [
+                Paragraph("Longitudinal progression-risk estimates", styles["Heading2"]),
+                Paragraph(
+                    "Uncalibrated structural-change index shown as a percentage; not a probability of disease. "
+                    "All changes refer to the earliest included visit.",
+                    styles["BodyText"],
+                ),
+                Spacer(1, 10),
+            ]
+        )
     lookup = {v.id: v for v in visits}
-    rows = [["Visit", "Day", "Estimate", "Foreground proxy", "Feature change"]]
+    rows = [["Visit", "Day", *([] if trained else ["Estimate"]), "Foreground proxy", "Feature change"]]
     for i, vid in enumerate(result["visit_ids"]):
         visit = lookup[vid]
         rows.append(
             [
                 Paragraph(escape(visit.label), styles["Normal"]),
                 str(visit.days_from_baseline),
-                f"{result['risk_scores'][i] * 100:.1f}%",
+                *([] if trained else [f"{result['risk_scores'][i] * 100:.1f}%"]),
                 f"{result['biomarkers']['foreground_fraction'][i] * 100:.1f}%",
                 f"{result['biomarkers']['feature_change'][i]:.4f}",
             ]
         )
-    table = Table(rows, colWidths=[145, 45, 75, 135, 105], repeatRows=1, hAlign="LEFT")
+    table = Table(
+        rows,
+        colWidths=[180, 55, 150, 120] if trained else [145, 45, 75, 135, 105],
+        repeatRows=1,
+        hAlign="LEFT",
+    )
     table.setStyle(
         TableStyle(
             [
@@ -67,18 +135,25 @@ def build_report(patient: Patient, analysis: Analysis, visits: list[Visit], over
             ]
         )
     )
-    story.extend(
-        [
-            table,
-            Spacer(1, 18),
-            Paragraph("Research interpretation", styles["Heading2"]),
+    story.extend([table, Spacer(1, 18), Paragraph("Research interpretation", styles["Heading2"])])
+    if trained:
+        story.append(
+            Paragraph(
+                "The classification applies to this entire observed sequence only. A train cohort role means "
+                "the subject contributed to fitting the model; validation/test roles refer to the frozen research "
+                "split, and the test holdout was reused. This analysis does not establish future progression "
+                "or improved prediction accuracy.",
+                styles["BodyText"],
+            )
+        )
+    else:
+        story.append(
             Paragraph(
                 f"The index changed by {(result['risk_scores'][-1] - result['risk_scores'][0]) * 100:+.1f} "
                 "percentage points relative to baseline. This describes the pipeline output and does not establish disease progression.",
                 styles["BodyText"],
-            ),
-        ]
-    )
+            )
+        )
     observed = [v for v in visits if v.id in result["visit_ids"] and v.metadata_json.get("nWBV") is not None]
     if observed:
         story.extend([Spacer(1, 10), Paragraph("Observed OASIS metadata", styles["Heading2"])])

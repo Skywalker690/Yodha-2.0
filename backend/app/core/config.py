@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     seed_password: str
     storage_root: Path = ROOT / "storage"
     dataset_root: Path = ROOT / "dataset"
+    trained_model_path: Path = ROOT / "data/training_multimodal/runs/20261001T134908Z/multimodal_model.pt"
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     secure_cookies: bool = False
     max_upload_bytes: int = 100 * 1024 * 1024

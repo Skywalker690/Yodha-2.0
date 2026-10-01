@@ -4,7 +4,7 @@ from pathlib import Path
 import nibabel as nib
 import numpy as np
 
-from ml.contracts import MODEL_VERSION, ProgressionResult, VisitInput
+from ml.contracts import MODEL_VERSION, ProgressionResult, TrainedPrediction, VisitInput
 from ml.encoder import extract_features
 from ml.explainability import difference_overlay
 from ml.preprocessing import prepare, slice_image
@@ -25,9 +25,13 @@ def run_pipeline(
     output_dir: Path,
     mode: str = "inference",
     progress: Callable[[int, str], None] | None = None,
+    predictor: Callable[[list[np.ndarray]], TrainedPrediction] | None = None,
+    model_version: str = MODEL_VERSION,
 ) -> ProgressionResult:
-    if mode not in {"demo", "inference"}:
+    if mode not in {"demo", "inference", "trained"}:
         raise ValueError("Precomputed results must come from a validated cache")
+    if (mode == "trained") != (predictor is not None):
+        raise ValueError("Trained mode requires a loaded trained predictor; fallback is not permitted")
     ordered = sorted(visits, key=lambda v: v.days_from_baseline)
     if not ordered or len({v.days_from_baseline for v in ordered}) != len(ordered):
         raise ValueError("Unique chronological visits are required")
@@ -42,8 +46,25 @@ def run_pipeline(
         features.append(extract_features(prepared.volume))
         foreground.append(float(np.mean(prepared.volume > 0.2)))
         slice_image(prepared.volume).resize((384, 384)).save(output_dir / f"{index}-mri.png")
-    scores, changes = feature_delta_scores(np.stack(features))
+    prediction = predictor(volumes) if predictor is not None else None
+    if prediction is None:
+        scores, changes = feature_delta_scores(np.stack(features))
+    else:
+        scores = []  # This checkpoint predicts a sequence, not a per-visit trajectory.
+        changes = np.mean(np.abs(np.stack(features) - features[0]), axis=1).astype(float).tolist()
     caveats = CAVEATS.copy()
+    if prediction is not None:
+        caveats[1] = (
+            "The trained score recognizes observed first-to-last CDR increase; it is uncalibrated, not a future Alzheimer's probability."
+        )
+        caveats.extend(
+            [
+                f"Experimental checkpoint with poor generalization: the reused {prediction.test_subjects}-subject holdout scored {prediction.test_accuracy:.0%} accuracy versus {prediction.majority_baseline_accuracy:.0%} for the majority baseline.",
+                "MRI and demographic measurements from the observed final visit are inputs. No 12/24/36-month forecasting is provided.",
+                "Training-subject predictions are in-sample demonstrations, not evidence of accuracy. No clinical or independent validation exists.",
+                "Intensity-difference overlays and structural proxies are separate image calculations, not explanations of the trained model.",
+            ]
+        )
     if mode == "demo":
         scores = [float(x) for x in np.linspace(0.22, 0.67, len(ordered))]
         caveats.insert(0, "DEMO: risk scores are fixed illustrative values, not MRI-derived predictions.")
@@ -65,6 +86,7 @@ def run_pipeline(
         output_mode=mode,
         confidence=None,
         caveats=caveats,
-        model_version=MODEL_VERSION,
+        model_version=model_version,
         volume_overlays_ready=True,
+        prediction=prediction,
     )

@@ -1,4 +1,20 @@
-export type Mode = "demo" | "precomputed" | "inference";
+export type Mode = "demo" | "precomputed" | "inference" | "trained";
+export type TrainedPrediction = {
+  target: "observed_cdr_increase";
+  score: number;
+  decisionThreshold: number;
+  predictedIncrease: boolean;
+  checkpointSha256: string;
+  cohortRole: "train" | "validation" | "test" | "unassigned";
+  trainingSubjects: number;
+  trainingVisits: number;
+  testSubjects: number;
+  testAccuracy: number;
+  testBalancedAccuracy: number;
+  testRocAuc: number;
+  majorityBaselineAccuracy: number;
+  qualityStatus: "experimental_poor_generalization";
+};
 export type Result = {
   patientId: string;
   visitIds: string[];
@@ -11,6 +27,7 @@ export type Result = {
   modelVersion: string;
   selectedVisit: string;
   volumeOverlaysReady?: boolean;
+  prediction?: TrainedPrediction;
 };
 export type Analysis = {
   id: string;
@@ -70,5 +87,8 @@ export type Health = {
   database: string;
   worker: string;
   modelVersion: string;
+  baselineModelVersion?: string;
+  trainedModelVersion?: string | null;
+  trainedModelReady?: boolean;
   storage: string;
 };

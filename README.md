@@ -18,7 +18,7 @@ The MVP uses a Next.js and TypeScript frontend, a FastAPI backend, PostgreSQL me
 
 The application runs locally. Docker is the standard local packaging method. There is no AWS deployment target in the current plan.
 
-The documented MVP is implemented in `frontend/`, `backend/`, and `ml/`. Default inference uses the documented feature-delta baseline. CNN/LSTM extension interfaces are included; trained model performance is not claimed.
+The documented MVP is implemented in `frontend/`, `backend/`, and `ml/`. The workspace now initially selects experimental Trained mode, using the audited 40-subject CNN/demographic-MLP/LSTM checkpoint for one retrospective CDR-increase sequence score. Its poor reused-holdout performance is disclosed; this is not future Alzheimer forecasting or a calibrated disease probability. Legacy feature-delta/demo/precomputed modes and existing results remain available. See [trained-model integration](docs/14-trained-inference.md).
 
 The MRI workspace also supports actual-voxel 3D rendering, orthogonal slices, cutaways, linked baseline comparisons and volumetric difference proxies with NiiVue. See [3D library research and scope](docs/11-3d-visualization.md). These are research displays, not segmented or registered anatomy.
 

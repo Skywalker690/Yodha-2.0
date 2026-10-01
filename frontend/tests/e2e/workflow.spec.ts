@@ -45,7 +45,22 @@ test("cohort review, async analysis, overlays and report download", async ({
     page.getByRole("heading", { name: "A clearer view of change." }),
   ).toBeVisible();
   await page.screenshot({ path: "test-results/dashboard.png", fullPage: true });
-  await page.getByRole("link", { name: /Review case/ }).click();
+  // Exercise the preserved three-visit baseline cache rather than assuming the
+  // featured case is still the original demo after frozen-cohort import.
+  const cohort = await (await page.request.get("/api/patients")).json();
+  const preparedCodes = [
+    "OAS2_0002",
+    "OAS2_0041",
+    "OAS2_0078",
+    "OAS2_0129",
+    "OAS2_0186",
+  ];
+  const prepared = cohort.find(
+    (p: { code: string; visitCount: number }) =>
+      preparedCodes.includes(p.code) && p.visitCount === 3,
+  );
+  expect(prepared).toBeTruthy();
+  await page.goto(`/patients/${prepared.id}`);
   await expect(
     page.getByRole("heading", { name: "MRI timeline" }),
   ).toBeVisible();

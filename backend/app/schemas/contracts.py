@@ -27,7 +27,7 @@ class VisitCreate(Schema):
 
 
 class AnalysisCreate(Schema):
-    output_mode: Literal["demo", "precomputed", "inference"] = "inference"
+    output_mode: Literal["demo", "precomputed", "inference", "trained"] = "inference"
 
 
 class AnalysisOut(Schema):

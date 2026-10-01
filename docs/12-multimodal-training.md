@@ -2,7 +2,7 @@
 
 ## Objective and data
 
-Train the small 3D MRI encoder, demographic MLP, LSTM and classification head together on the original 40 training subjects. This offline experiment implements the trained-model tier in the product's research plan; it does not change the application inference mode.
+Train the small 3D MRI encoder, demographic MLP, LSTM and classification head together on the original 40 training subjects. This offline experiment implements the trained-model tier in the product's research plan. A separately requested experimental integration now exposes the audited checkpoint through Trained mode; see [14 Trained inference](14-trained-inference.md). Training itself still runs offline, never inside an HTTP request.
 
 The exact saved assignments in `data/training/subject_split.csv` are validated against the workbook and raw MRI inventory. The runner rejects leakage, missing/duplicate visits, changed CDR labels, changed dates and wrong split counts. Visit sequences include every available scan in MR Delay order, selecting one acquisition per visit (`mpr-1` where available).
 

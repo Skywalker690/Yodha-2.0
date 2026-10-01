@@ -50,3 +50,7 @@ The user selected the strict MCI-to-Alzheimer forecasting direction from the sup
 Acquire an authorized longitudinal dataset and audit eligibility, event counts, follow-up and MRI linkage before training. Unknown/censored horizons remain unknown. Fit baseline models before the advanced MRI/fusion branch; suppress unsupported horizons. Baseline inputs must not contain future visits or features computed using them. Follow-up visits establish outcomes, not baseline predictors.
 
 This changes the research objective, not the deployed application immediately. Existing OASIS cases, split manifests, checkpoints and analyses remain intact and explicitly historical/demo or retrospective. They do not satisfy the strict forecasting requirement. Preserve the local Next.js/FastAPI/PostgreSQL architecture; the supplied PRD's alternative stack is a suggestion, not a requirement to replace functioning services. See [13 Strict forecasting data](13-strict-forecasting-data.md) for the acquisition gates and current limitations.
+
+## Trained retrospective integration (requested 2026-10-01)
+
+The user subsequently requested use of the existing 40-subject checkpoint in the application. Provide explicit experimental trained inference, one sequence-level observed-CDR-increase score, frozen cohort and checkpoint provenance, strict source-input checks and prominent poor-performance/in-sample caveats. Do not invent a neural trajectory or claim improved accuracy. See [14 Trained inference](14-trained-inference.md). Strict future forecasting remains a separate unmet requirement.

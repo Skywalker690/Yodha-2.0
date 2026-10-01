@@ -1,0 +1,48 @@
+name: AUTO code-style
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number }}-${{ github.event.ref }}
+  cancel-in-progress: true
+on:
+  pull_request:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  style:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          path: 'src'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.10'
+      - name: Run Ruff
+        # --no-project, like CONTRIBUTING.md tells contributors to run it: ruff reads its config
+        # from src/pyproject.toml but needs none of the project's 28 dependencies, and --project
+        # resolved and installed all of them, torch included, to lint.
+        run: uv run --no-project --with ruff ruff check src
+      - name: Run the static checks
+        # test/lint holds the checks that only read files: the bash 3.2 scan over the shipped
+        # scripts, and the consistency of the declared python version across pyproject.toml, the
+        # Dockerfile and the workflows. They are style checks, not tests of behaviour, which is why
+        # they run here rather than in the test workflow.
+        # --no-project on purpose: none of them needs anything but pytest, so there is no reason to
+        # resolve FastSurfer's dependencies. They take a few seconds together.
+        run: uv run --no-project --with pytest pytest -v src/test/lint
+      - name: Run codespell
+        uses: codespell-project/actions-codespell@master
+        with:
+          check_filenames: true
+          check_hidden: true
+          skip: 'src/build,src/doc/images,src/Tutorial,src/.git,src/.mypy_cache,src/.pytest_cache,src/.venv'
+          ignore_words_file: src/.codespellignore
+          path: 'src'
+#      - name: Run pydocstyle
+#        run: pydocstyle .
+#      - name: Run bibclean
+#        run: bibclean-check doc/references.bib

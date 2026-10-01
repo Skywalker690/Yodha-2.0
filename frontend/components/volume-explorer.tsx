@@ -492,9 +492,9 @@ export function VolumeExplorer({
               )}
               {!available && (
                 <small className="volume-note">
-                  Run local inference on this sequence to prepare the 3D
-                  difference overlay. Older cached results remain available in
-                  2D.
+                  Run trained or baseline inference on this sequence to prepare
+                  the 3D difference overlay. Older cached results remain
+                  available in 2D.
                 </small>
               )}
               {difference && analysis && (
@@ -507,6 +507,8 @@ export function VolumeExplorer({
             includes non-brain head tissue. Linked views are not registered.
             Difference colors show shape-normalized intensity changes, not
             disease probability, atrophy or Grad-CAM.
+            {analysis?.outputMode === "trained" &&
+              " These differences are not attribution for the trained classifier."}
           </div>
         </>
       )}

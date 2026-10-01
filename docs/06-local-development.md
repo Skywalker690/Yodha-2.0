@@ -106,6 +106,8 @@ Offline MRI/demographic model retraining uses the original `data/training/subjec
 
 This creates a fresh run directory under ignored `data/training_multimodal/runs/`, reuses a source-fingerprinted MRI cache, and preserves older experiments. The saved split must exist; the runner rejects mismatched or incomplete subject/visit assignments. See [12 Multimodal training](12-multimodal-training.md).
 
+Experimental application integration uses `TRAINED_MODEL_PATH` (default audited run `20261001T134908Z`). Import the exact forty training subjects with `python -m scripts.import_oasis --training-cohort`; this also adds complete source covariates to existing OASIS visits. Restart the single worker after code changes, then explicitly use Trained mode in the workspace. It requires three or more visits and returns a retrospective sequence score, not a forecast. Baseline/demo/precomputed and existing records remain available. See [14 Trained inference](14-trained-inference.md).
+
 ```powershell
 .\.venv\Scripts\python -m ruff check backend ml scripts tests
 .\.venv\Scripts\python -m pytest -q

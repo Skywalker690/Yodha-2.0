@@ -36,6 +36,7 @@ Reports page: generated reports and download action
 - `Research Prototype`
 - `Not a medical diagnosis`
 - `Output mode: Demo`, `Precomputed`, or `Inference`
+- `Output mode: Trained` for the explicitly experimental checkpoint, with one retrospective sequence score, poor-generalization evidence and in-sample cohort disclosure; no fabricated neural trajectory
 - `Progression-risk estimate`
 - `Model confidence` only when confidence is actually available
 

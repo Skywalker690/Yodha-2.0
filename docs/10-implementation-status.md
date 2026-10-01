@@ -72,18 +72,28 @@ On an existing installation, `docker compose exec backend python -m scripts.smok
 
 The audited run `data/training_multimodal/runs/20261001T134908Z` completed 15 epochs with 150 optimizer updates. All 40 training subjects and all 132 training visits contributed each epoch. The original validation split has eight subjects/29 visits and the test split has eight subjects/24 visits. Eleven usable demographic/visit covariates are encoded as 27 inputs; CDR is the target and Group/identifiers are excluded. MRI, demographic, LSTM and head weights all changed from their seeded initial values. Best validation-selected weights were from epoch 1; final epoch weights/optimizer state are also retained.
 
-The reused eight-subject test holdout gave accuracy 25%, balanced accuracy 50%, recall 100%, specificity 0%, and ROC-AUC 0.0833 at threshold 0.5: all eight subjects were classified as increasing CDR. The majority-class baseline gave accuracy 75% and ROC-AUC 0.5. At the validation-selected threshold 0.514227, test accuracy remained 25% and balanced accuracy was 33.3%. This checkpoint failed to generalize and remains an offline experimental artifact. The application still runs the feature-delta baseline.
+The reused eight-subject test holdout gave accuracy 25%, balanced accuracy 50%, recall 100%, specificity 0%, and ROC-AUC 0.0833 at threshold 0.5: all eight subjects were classified as increasing CDR. The majority-class baseline gave accuracy 75% and ROC-AUC 0.5. At the validation-selected threshold 0.514227, test accuracy remained 25% and balanced accuracy was 33.3%. This checkpoint failed to generalize. It was initially offline-only; the subsequently requested experimental application integration is recorded below. Its measured performance has not improved.
 
 Ruff and all 33 backend/ML tests passed. A separate read-only audit rehashed all 185 raw MRI pairs, reconstructed train-only demographic statistics, verified every epoch's subject/visit coverage, reproduced predictions for all 56 subjects and confirmed weight updates in every model branch. Source MRI data were unchanged. See [12 Multimodal training](12-multimodal-training.md) and the ignored run's metrics/prediction artifacts.
 
+## Trained application integration (2026-10-01)
+
+The audited checkpoint is integrated into the existing asynchronous worker through explicitly experimental `trained` mode, initially selected in the workspace. The model uses all MRI and demographic branches with its saved train-only scaler and validation-selected threshold. Results contain one retrospective observed-CDR-increase sequence score, checkpoint/bundle identity and cohort role; no neural trajectory, future Alzheimer probability or confidence is fabricated. The legacy baseline/demo/precomputed modes, MRI sources and historical analyses remain intact.
+
+The exact original forty training subjects and all 132 visits were imported into the host PostgreSQL application with all eleven source covariates. Existing OASIS visits were enriched without replacing MRI, researcher notes, accounts or analyses. The separate eight/eight validation/test assignments were not changed or used for candidate replacement. The raw-source audit again passed for all 185 MRI pairs and reproduced all 56 historical predictions.
+
+All forty real worker predictions completed and matched the saved training scores with a maximum absolute difference of `5.960464477539063e-08` (tolerance `1e-6`). The ignored `data/qa-trained-integration.json` records aggregate verification only. This is an in-sample integration regression, not an improvement in predictive accuracy. After browser tests of legacy modes, current trained results were restored and reverified for all forty subjects.
+
+Verification passed: 102 Python tests, 43 frontend unit tests, strict TypeScript, production Next.js build, Ruff, Alembic schema check, npm audit (zero reported vulnerabilities), and six Microsoft Edge end-to-end tests. The new browser check submits trained mode, observes 202/queued followed by the exact job's completion, checks the saved model/role/empty trajectory and downloads the trained PDF. Existing 3D, no-WebGL, baseline-cache, login, report and synthetic upload workflows pass. Desktop/mobile trained screens and both rendered PDF pages were visually reviewed; warnings and metric/source separation are visible and no page overflow was observed. These checks verify implementation, not clinical validity or reliable forecasting. See [14 Trained inference](14-trained-inference.md).
+
 ## Explicit research limitations
 
-- Default inference is the transparent `feature-delta-v1` baseline allowed by the ML plan, not a trained Alzheimer's predictor.
-- Small CNN/LSTM and multimodal experimental checkpoints are trained and tested offline. No calibration, independent cohort evaluation or clinical validation is claimed.
+- Trained mode is an experimental retrospective CDR-change classifier with poor measured generalization, not a trained future Alzheimer's predictor. Explicit legacy inference remains `feature-delta-v1`.
+- Small CNN/LSTM and multimodal checkpoints were trained/evaluated offline; only the audited multimodal run is integrated experimentally. No calibration, independent cohort evaluation or clinical validation is claimed.
 - Risk percentages are uncalibrated structural-change indices, not disease probabilities. Demo percentages are illustrative.
 - Foreground fraction is not tissue segmentation or measured brain volume. Observed nWBV/eTIV come from OASIS metadata, not the model.
 - Overlays show intensity differences, not registered anatomical change, Grad-CAM or a proven temporal explanation.
 - 3D shows the supplied MRI voxels, including non-brain head tissue. Clipping and shading are not skull stripping, cortical reconstruction or validated segmentation; no tractography/atlas regions are invented.
 - Confidence is null until a defensible estimator exists. No accuracy, F1, ROC-AUC or other evaluation numbers are fabricated.
 
-Improved temporal modeling, checkpoint integration and model-specific Grad-CAM remain subsequent research work under [04 ML plan](04-ml-plan.md), rather than unfinished MVP product screens or services.
+Improved predictive performance, strict forecasting and model-specific Grad-CAM remain subsequent research work under [04 ML plan](04-ml-plan.md), rather than unfinished MVP product screens or services.

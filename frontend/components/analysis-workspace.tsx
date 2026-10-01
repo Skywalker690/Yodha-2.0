@@ -144,7 +144,7 @@ export function AnalysisWorkspace({
   const [selectedId, setSelectedId] = useState("");
   const [overlay, setOverlay] = useState(false);
   const [addVisit, setAddVisit] = useState(false);
-  const [mode, setMode] = useState<Mode>("inference");
+  const [mode, setMode] = useState<Mode>("trained");
   const [busy, setBusy] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
   const [error, setError] = useState("");
@@ -157,6 +157,28 @@ export function AnalysisWorkspace({
   const analysis = patient.latestCompleted;
   const result = analysis?.resultJson;
   const resultIndex = result?.visitIds.indexOf(visit?.id) ?? -1;
+  const trainedResult = result?.outputMode === "trained";
+  const showTrainedHeading = trainedResult || (!result && mode === "trained");
+  const baselineScores =
+    result &&
+    !trainedResult &&
+    result.visitIds.length > 0 &&
+    result.riskScores.length === result.visitIds.length
+      ? result.riskScores
+      : null;
+  const firstScore = baselineScores?.[0];
+  const lastScore = baselineScores?.at(-1);
+  const baselineChange =
+    typeof firstScore === "number" &&
+    typeof lastScore === "number" &&
+    Number.isFinite(firstScore) &&
+    Number.isFinite(lastScore)
+      ? ((lastScore - firstScore) * 100).toFixed(1)
+      : null;
+  const inputMriCount = visits.filter(
+    (v) => v.hasMri && v.daysFromBaseline <= (visit?.daysFromBaseline ?? -1),
+  ).length;
+  const needsMoreVisits = mode === "trained" && inputMriCount < 3;
   const job = patient.latestAnalysis;
   const running = !!job && ["queued", "processing"].includes(job.status);
   const selectVisit = (id: string) => {
@@ -359,6 +381,8 @@ export function AnalysisWorkspace({
                 {overlay
                   ? "Absolute intensity difference versus baseline. Not anatomically registered; not Grad-CAM. Baseline overlay has no differences by definition."
                   : "Research slice preview. Scans are reoriented for display; acquisition and alignment differences may remain."}
+                {trainedResult &&
+                  " Image differences are not attribution for the trained model."}
               </p>
             </>
           ) : visit ? (
@@ -373,20 +397,31 @@ export function AnalysisWorkspace({
           <section className="panel">
             <div className="panel-heading">
               <div>
-                <div className="eyebrow">ACROSS TIME</div>
-                <h2>Progression-risk estimate</h2>
+                <div className="eyebrow">
+                  {showTrainedHeading ? "RETROSPECTIVE MODEL" : "ACROSS TIME"}
+                </div>
+                <h2>
+                  {showTrainedHeading
+                    ? "Experimental sequence classification"
+                    : "Progression-risk estimate"}
+                </h2>
               </div>
-              {resultIndex >= 0 && result && (
-                <strong className="current-risk">
-                  {percent(result.riskScores[resultIndex])}
-                </strong>
-              )}
+              {!trainedResult &&
+                resultIndex >= 0 &&
+                result &&
+                Number.isFinite(result.riskScores[resultIndex]) && (
+                  <strong className="current-risk">
+                    {percent(result.riskScores[resultIndex])}
+                  </strong>
+                )}
             </div>
             {result ? (
               <TrajectoryChart result={result} />
             ) : (
               <Empty title="Ready when your scans are">
-                Start an analysis to see the research trajectory.
+                {mode === "trained"
+                  ? "Start trained analysis for an experimental observed-CDR-increase classification. At least three MRI visits and recorded covariates are required."
+                  : "Start an analysis to see the research trajectory."}
               </Empty>
             )}
           </section>
@@ -396,6 +431,8 @@ export function AnalysisWorkspace({
                 <h2>Structural research metrics</h2>
                 <p>
                   Selected visit · Change relative to earliest included scan
+                  {trainedResult &&
+                    " · Image proxies, not trained-model attribution"}
                 </p>
               </div>
             </div>
@@ -433,7 +470,7 @@ export function AnalysisWorkspace({
                 <small>OASIS demographics · Not inferred</small>
               </div>
             </div>
-            {analysis?.confidence != null && (
+            {!trainedResult && analysis?.confidence != null && (
               <p>Model confidence: {percent(analysis.confidence)}</p>
             )}
           </section>
@@ -446,6 +483,17 @@ export function AnalysisWorkspace({
             Includes available visits up to{" "}
             {visit?.label || "the selected scan"}.
           </p>
+          {mode === "trained" && (
+            <p id="trained-mode-requirements">
+              Experimental retrospective classification with poor
+              generalization, not future Alzheimer&apos;s probability. Requires
+              at least three chronological MRI visits and recorded
+              demographic/visit covariates; unavailable trained inference fails
+              explicitly, without baseline fallback.
+              {needsMoreVisits &&
+                ` Only ${inputMriCount} MRI visits are included at this selection.`}
+            </p>
+          )}
         </div>
         <label className="mode-select">
           <span>Analysis mode</span>
@@ -453,6 +501,9 @@ export function AnalysisWorkspace({
             value={mode}
             onChange={(e) => setMode(e.target.value as Mode)}
           >
+            <option value="trained">
+              Trained · experimental observed CDR increase
+            </option>
             <option value="inference">
               Local inference · feature-delta baseline
             </option>
@@ -463,7 +514,10 @@ export function AnalysisWorkspace({
           </select>
         </label>
         <Button
-          disabled={!visit?.hasMri || busy || running}
+          disabled={!visit?.hasMri || busy || running || needsMoreVisits}
+          aria-describedby={
+            mode === "trained" ? "trained-mode-requirements" : undefined
+          }
           onClick={async () => {
             setBusy(true);
             setError("");
@@ -486,19 +540,34 @@ export function AnalysisWorkspace({
           <div className="panel-heading">
             <div>
               <div className="eyebrow">RESEARCH INTERPRETATION</div>
-              <h2>The longitudinal view</h2>
+              <h2>
+                {trainedResult
+                  ? "Retrospective model interpretation"
+                  : "The longitudinal view"}
+              </h2>
             </div>
             <ModeBadge mode={result.outputMode} />
           </div>
           <p className="insight-lead">
-            Across {result.visitIds.length} visits, the index changed by{" "}
-            {(
-              (result.riskScores[result.riskScores.length - 1] -
-                result.riskScores[0]) *
-              100
-            ).toFixed(1)}{" "}
-            percentage points from baseline. This describes structural image
-            differences and does not establish disease progression.
+            {trainedResult ? (
+              <>
+                The model classifies observed first-to-last CDR increase using
+                all {result.visitIds.length} visits in this completed sequence.
+                Changing the selected MRI only changes the image and structural
+                metrics shown, not the sequence classification. This is not
+                future Alzheimer&apos;s forecasting or a medical diagnosis.
+              </>
+            ) : baselineChange !== null ? (
+              <>
+                Across {result.visitIds.length} visits, the index changed by{" "}
+                {baselineChange} percentage points from baseline.
+                {result.outputMode === "demo"
+                  ? " These illustrative values are not computed predictions or accuracy evidence."
+                  : " This describes structural image differences and does not establish disease progression."}
+              </>
+            ) : (
+              "Per-visit index change is unavailable. Run analysis again; no values have been inferred."
+            )}
           </p>
           <details>
             <summary>Methods, provenance & limitations</summary>

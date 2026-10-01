@@ -47,7 +47,10 @@ export function Empty({
 export function ModeBadge({ mode }: { mode: Mode }) {
   return (
     <span className={`badge mode-${mode}`}>
-      Output mode: {mode[0].toUpperCase() + mode.slice(1)}
+      Output mode:{" "}
+      {mode === "trained"
+        ? "Trained · experimental"
+        : mode[0].toUpperCase() + mode.slice(1)}
     </span>
   );
 }

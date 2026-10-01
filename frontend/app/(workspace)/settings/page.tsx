@@ -60,18 +60,29 @@ export default function Settings() {
             <FlaskConical size={26} />
             <h2>Research model</h2>
             <dl>
-              <dt>Version</dt>
-              <dd>{data?.modelVersion}</dd>
+              <dt>Experimental trained checkpoint</dt>
+              <dd>{data?.trainedModelVersion || "Unavailable"}</dd>
+              <dt>Trained bundle availability</dt>
+              <dd>
+                {data?.trainedModelReady
+                  ? "Available for experimental inference"
+                  : "Unavailable"}
+              </dd>
               <dt>Method</dt>
-              <dd>Pooled MRI feature deltas</dd>
-              <dt>Explanation</dt>
-              <dd>Intensity-difference visualization</dd>
+              <dd>3D CNN + demographic MLP + LSTM</dd>
+              <dt>Target</dt>
+              <dd>Retrospective observed CDR increase</dd>
+              <dt>Legacy baseline version</dt>
+              <dd>{data?.baselineModelVersion || data?.modelVersion}</dd>
+              <dt>Image visualization</dt>
+              <dd>Intensity differences, not trained-model attribution</dd>
               <dt>Confidence estimator</dt>
               <dd>Not available</dd>
             </dl>
             <p>
-              Scores are uncalibrated change indices. They do not estimate the
-              probability of Alzheimer’s disease.
+              The trained checkpoint has poor measured generalization. Its
+              uncalibrated sequence score is not a future Alzheimer’s
+              probability. Legacy baseline scores remain image-change indices.
             </p>
           </section>
           <section className="panel settings-card">
@@ -87,7 +98,11 @@ export default function Settings() {
               <dt>Precomputed</dt>
               <dd>Cached baseline computation</dd>
               <dt>Inference</dt>
-              <dd>Computed from the uploaded sequence</dd>
+              <dd>Legacy feature-delta baseline</dd>
+              <dt>Trained</dt>
+              <dd>
+                Experimental saved neural checkpoint and recorded covariates
+              </dd>
             </dl>
           </section>
         </div>
