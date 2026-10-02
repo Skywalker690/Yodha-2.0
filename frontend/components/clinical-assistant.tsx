@@ -31,11 +31,6 @@ const suggestions = [
       "What important clinical information is missing from this case? Separate facts present in the record from information I should verify.",
   },
   {
-    label: "Explain the findings",
-    question:
-      "Explain the available MRI-derived anatomy findings and clinical measurements in simple clinical language, including their review status and uncertainty.",
-  },
-  {
     label: "Explore research",
     question:
       "Find research relevant to longitudinal brain MRI, cognitive assessment and the available findings in this case. Explain how the evidence applies and its limitations.",
