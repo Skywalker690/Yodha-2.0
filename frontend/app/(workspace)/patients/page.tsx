@@ -9,6 +9,17 @@ import { useResource } from "@/lib/use-resource";
 import { post } from "@/lib/api";
 import type { Patient } from "@/types";
 
+const PRIORITY_PATIENT_CODES = [
+  "OAS2_0048",
+  "OAS2_0070",
+  "OAS2_0073",
+  "OAS2_0127",
+  "OAS2_0017",
+];
+const patientPriority = new Map(
+  PRIORITY_PATIENT_CODES.map((code, index) => [code, index]),
+);
+
 export default function Patients() {
   const { data, loading, error, reload } = useResource<Patient[]>(
     "/patients",
@@ -141,9 +152,13 @@ export default function Patients() {
           <ErrorState message={error} onRetry={reload} />
         ) : (
           <PatientTable
-            patients={(data || []).filter((p) =>
-              p.code.toLowerCase().includes(query.toLowerCase()),
-            )}
+            patients={(data || [])
+              .filter((p) => p.code.toLowerCase().includes(query.toLowerCase()))
+              .sort(
+                (a, b) =>
+                  (patientPriority.get(a.code) ?? PRIORITY_PATIENT_CODES.length) -
+                  (patientPriority.get(b.code) ?? PRIORITY_PATIENT_CODES.length),
+              )}
           />
         )}
       </section>

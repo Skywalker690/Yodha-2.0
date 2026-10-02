@@ -126,6 +126,9 @@ export function VolumeCanvas({
           scrollRequiresFocus: true,
           isRuler: false,
           isColorbar: false,
+          // Apply the MRI cutaway to segmentation/difference volumes as well.
+          // NiiVue otherwise leaves the entire overlay visible through removed tissue.
+          isClipAllVolumes: true,
           logLevel: "error",
           forceDevicePixelRatio: 1,
         });
@@ -332,7 +335,7 @@ export function VolumeCanvas({
       </div>
       <div className="volume-canvas-wrap">
         <canvas
-          key={retry}
+          key={`${url}|${overlayUrl || ""}|${labelUrl || ""}|${meshSpec}|${retry}`}
           ref={canvas}
           tabIndex={0}
           aria-label={`Interactive brain MRI for ${label}`}

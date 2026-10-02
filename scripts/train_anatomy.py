@@ -10,6 +10,42 @@ from uuid import uuid4
 from src.common import ROOT, sha256, write_json
 
 
+def cohort_days(split_path: Path, subject: str) -> set[int] | None:
+    """Exclude later user uploads from the frozen OASIS source study."""
+    path = split_path.parent / "cohort.json"
+    if not path.is_file():
+        return None
+    record = json.loads(path.read_text())
+    if record["split_sha256"] != sha256(split_path):
+        raise ValueError("Frozen cohort split changed")
+    match = next(s for s in record["subjects"] if s["subject_id"] == subject)
+    return {v["days_from_baseline"] for v in match["visits"]}
+
+
+def same_registration_sources(earlier: list[dict], current: list[dict]) -> bool:
+    """Ratings/review annotations do not change verified MRI/label registration arrays."""
+
+    def geometry_records(records: list[dict]) -> list[dict]:
+        return [
+            {
+                k: (
+                    {
+                        field: value
+                        for field, value in v.items()
+                        if field not in {"ratings", "qc", "reviewer_id", "reviewed_at"}
+                    }
+                    if k == "measurement"
+                    else v
+                )
+                for k, v in record.items()
+                if k != "rating_provenance"
+            }
+            for record in records
+        ]
+
+    return geometry_records(earlier) == geometry_records(current)
+
+
 def export_study(split_path: Path, output: Path, *, allow_unreviewed_research: bool = False) -> dict:
     from sqlalchemy import select
     from backend.app.db.session import SessionLocal
@@ -21,16 +57,18 @@ def export_study(split_path: Path, output: Path, *, allow_unreviewed_research: b
     from ml.anatomy.study import frozen_split
 
     split = frozen_split(split_path)
-    subjects, blocked = [], []
+    subjects, blocked, reasons = [], [], {}
     with SessionLocal() as db:
         owner = db.scalar(select(User).where(User.email == get_settings().seed_email.lower()))
         if owner is None:
             raise ValueError("Import the frozen OASIS cohort for the configured local researcher first")
         for subject in split:
+            days = cohort_days(split_path, subject)
             cutoff = db.scalar(
                 select(Visit.id)
                 .join(Patient, Patient.id == Visit.patient_id)
                 .where(Patient.owner_id == owner.id, Patient.source == "oasis-2", Patient.code == subject)
+                .where(Visit.days_from_baseline.in_(days) if days is not None else True)
                 .order_by(Visit.days_from_baseline.desc())
             )
             candidates = db.execute(
@@ -48,6 +86,8 @@ def export_study(split_path: Path, output: Path, *, allow_unreviewed_research: b
             ).all()
             found = False
             for patient, job in candidates:
+                if job.input_json[-1].get("forecast_spec"):
+                    continue
                 result = ProgressionResult.model_validate(job.result_json)
                 anatomy = result.anatomy
                 if anatomy is None or len(anatomy.visits) < 3:
@@ -102,10 +142,15 @@ def export_study(split_path: Path, output: Path, *, allow_unreviewed_research: b
                     subjects.append({"subject_id": subject, "visits": records})
                     found = True
                     break
-                except (ValueError, OSError, KeyError, StopIteration):
+                except (ValueError, OSError, KeyError, StopIteration) as error:
+                    reasons[subject] = f"{type(error).__name__}: {error}"
                     continue
             if not found:
                 blocked.append(subject)
+                reasons.setdefault(
+                    subject,
+                    "No completed full frozen source history with verified FastSurfer and AVRA artifacts",
+                )
     result = {
         "version": "anatomy-export-v1",
         "synthetic": False,
@@ -114,6 +159,7 @@ def export_study(split_path: Path, output: Path, *, allow_unreviewed_research: b
         "split_sha256": sha256(split_path),
         "subjects": subjects,
         "blocked_subjects": blocked,
+        "blocker_reasons": reasons,
         "stage": "ready_for_registration" if not blocked else "blocked_reviewed_anatomy",
     }
     if output.exists():
@@ -158,6 +204,9 @@ def queue_cohort(split_path: Path, limit: int = 56) -> dict:
             visits = db.scalars(
                 select(Visit).where(Visit.patient_id == patient.id).order_by(Visit.days_from_baseline)
             ).all()
+            days = cohort_days(split_path, subject)
+            if days is not None:
+                visits = [v for v in visits if v.days_from_baseline in days]
             completed = (
                 db.scalar(
                     select(Analysis).where(
@@ -220,6 +269,12 @@ def main() -> None:
     p.add_argument("--allow-unreviewed-research", action="store_true")
     p.add_argument("--resume", action="store_true")
     p.add_argument(
+        "--allow-partial-cohort", action="store_true", help="Finalize ready subjects in their frozen roles"
+    )
+    p.add_argument(
+        "--reuse-prepared", type=Path, help="Copy verified matching registration cases into a fresh study"
+    )
+    p.add_argument(
         "--completed-only",
         action="store_true",
         help="Prepare finished histories without finalizing study.json",
@@ -237,6 +292,12 @@ def main() -> None:
             p.add_argument("--epochs", type=int, default=20)
             p.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
             p.add_argument("--allow-unreviewed-research", action="store_true")
+            p.add_argument("--reference", type=Path, help="Frozen training-baseline reference JSON")
+            p.add_argument(
+                "--allow-partial-cohort",
+                action="store_true",
+                help="Fit available subjects without changing frozen roles; cannot promote",
+            )
     args = parser.parse_args()
     if args.command == "create-cohort":
         from ml.anatomy.cohort import create_cohort
@@ -257,7 +318,9 @@ def main() -> None:
         from ml.anatomy.study import prepare_case
 
         exported = json.loads(args.export.read_text())
-        if exported["synthetic"] or (exported["blocked_subjects"] and not args.completed_only):
+        if exported["synthetic"] or (
+            exported["blocked_subjects"] and not (args.completed_only or args.allow_partial_cohort)
+        ):
             raise ValueError("Complete frozen reviewed anatomy and automatic ratings before registration")
         if exported.get("allow_unreviewed_research") and not args.allow_unreviewed_research:
             raise ValueError(
@@ -282,6 +345,35 @@ def main() -> None:
                     ):
                         raise ValueError("Existing prepared case differs from the immutable export")
                 else:
+                    reusable = args.reuse_prepared / directory.name if args.reuse_prepared else None
+                    if reusable and (reusable / "case.json").is_file():
+                        from ml.anatomy.study import load_case
+                        import shutil
+
+                        prior, _, arrays = load_case(reusable / "case.json", require_review=False)
+                        if (
+                            same_registration_sources(
+                                prior["source_records"], subject["visits"][: cutoff + 1]
+                            )
+                            and arrays["images"].shape[1:] == (args.grid_size,) * 3
+                            and prior.get("allow_unreviewed_research", False)
+                            == args.allow_unreviewed_research
+                        ):
+                            shutil.copytree(reusable, directory)
+                            prior["source_records"] = subject["visits"][: cutoff + 1]
+                            prior["history"] = [v["measurement"] for v in subject["visits"][:cutoff]]
+                            prior["target"] = subject["visits"][cutoff]["measurement"]
+                            prior["reused_registration_from"] = str(reusable)
+                            write_json(directory / "case.json", prior)
+                            entries.append(
+                                {
+                                    "relative_path": (directory / "case.json")
+                                    .relative_to(args.output)
+                                    .as_posix(),
+                                    "sha256": sha256(directory / "case.json"),
+                                }
+                            )
+                            continue
                     if directory.exists() and args.resume:
                         # Preserve interrupted artifacts; create a fresh attempt at
                         # the stable case path without deleting prior bytes.
@@ -352,6 +444,8 @@ def main() -> None:
             epochs=args.epochs,
             device=args.device,
             allow_unreviewed_research=args.allow_unreviewed_research,
+            allow_partial_cohort=args.allow_partial_cohort,
+            reference=json.loads(args.reference.read_text()) if args.reference else None,
         )
         result = {"stage": "candidate_trained", "release_failures": report["release_failures"]}
     elif args.command == "evaluate-native":

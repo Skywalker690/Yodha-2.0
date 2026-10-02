@@ -39,23 +39,35 @@ test("ML-only serving rejects old modes and shows no fallback forecast", async (
   await page.goto(`/patients/${patient.id}`);
   await expect(
     page.getByRole("heading", { name: "Clinical + FastSurfer ML forecast" }),
-  ).toBeVisible();
-  const outcomePanel = page
-    .getByRole("heading", { name: "Clinical + FastSurfer ML forecast" })
-    .locator("..");
+  ).toHaveCount(0);
   await expect(
-    outcomePanel.getByText("Unavailable", { exact: true }),
-  ).toHaveCount(3);
+    page.getByRole("button", { name: "Check prediction readiness" }),
+  ).toHaveCount(0);
+  await expect(page.getByText(/first observed CDR conversion/)).toHaveCount(0);
+  await expect(page.getByText(/No intact promoted Clinical \+ FastSurfer release/)).toHaveCount(0);
   const anatomyPanel = page.getByRole("region", {
     name: "Longitudinal anatomical measurements",
   });
   await expect(anatomyPanel).toBeVisible();
   await expect(
-    anatomyPanel.getByRole("button", { name: "Run anatomical analysis" }),
+    anatomyPanel.getByRole("button", { name: /Run anatomical analysis|Processing anatomy…|Queuing…/ }),
   ).toBeVisible();
-  await expect(
-    anatomyPanel.getByText("Unavailable", { exact: true }),
-  ).toHaveCount(3);
+  const measured = patient.completedAnatomy?.resultJson?.anatomy?.visits.find(
+    (v: { visitId: string }) => v.visitId === patient.visits[0].id,
+  );
+  const scores = measured?.ratings;
+  const visibleScores = scores?.status === "ok" || scores?.status === "unreviewed_research";
+  for (const [label, score] of [
+    ["MTA left (0–4)", scores?.mtaLeft],
+    ["MTA right (0–4)", scores?.mtaRight],
+    ["Koedam PA (0–3; single estimate)", scores?.posteriorAtrophy],
+  ] as const) {
+    const expected = visibleScores && typeof score === "number"
+      ? score.toFixed(2)
+      : !measured ? "Not processed" : scores?.status === "invalid" ? "Scoring failed" : "Unavailable";
+    await expect(anatomyPanel.getByText(label, { exact: true }).locator("..").locator("strong"))
+      .toHaveText(expected);
+  }
   await page.getByLabel("Compare current vs predicted").check();
   await page.getByLabel("Future time after latest scan").selectOption("24");
   await expect(
@@ -63,8 +75,11 @@ test("ML-only serving rejects old modes and shows no fallback forecast", async (
   ).toBeVisible();
   await expect(page.getByText(/Requested interval: 731 days/)).toBeVisible();
   await expect(
-    page.getByText("Not an acquired MRI", { exact: true }),
+    page.getByText("Predicted anatomy · 24 months after latest input", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Generate evaluated future anatomy" }),
+  ).toBeDisabled();
   await expect(page.getByLabel("Analysis mode")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Analyze MRI" })).toHaveCount(
     0,

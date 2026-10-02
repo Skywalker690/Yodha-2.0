@@ -24,7 +24,35 @@ def result_hash(payload: dict) -> str:
     ).hexdigest()
 
 
-def readiness() -> dict:
+def readiness(*, experimental: bool = False) -> dict:
+    if experimental:
+        directory = get_settings().anatomy_experimental_candidate_dir
+        try:
+            if directory is None:
+                raise ValueError("No experimental candidate configured")
+            from ml.anatomy.experimental import candidate, INTERVALS
+
+            report, fingerprint = candidate(directory)
+            return {
+                "status": "available",
+                "releaseSha256": fingerprint,
+                "intervalsDays": INTERVALS,
+                "supportedIntervalsDays": [],
+                "experimentalIntervalsDays": INTERVALS,
+                "isResearchCandidate": True,
+                "trainingSubjectCount": report["counts"]["train"],
+                "clinicalValidation": False,
+                "warnings": [
+                    "Unvalidated historical small-cohort model; no promoted release.",
+                    *report.get("release_failures", []),
+                ],
+            }
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError):
+            return {
+                "status": "unavailable",
+                "intervalsDays": [],
+                "reason": "The experimental checkpoint is missing, incompatible or changed since evaluation.",
+            }
     release_dir = get_settings().anatomy_release_dir
     try:
         from ml.anatomy.forecasting import release
@@ -32,7 +60,7 @@ def readiness() -> dict:
         data, fingerprint = release(release_dir)
         intervals = [0, *data.get("supported_intervals_days", [])]
         experimental = [d for d in [365, 731, 1096] if d not in intervals]
-        all_intervals = sorted(set(intervals + [183, 365, 731, 1096]))
+        all_intervals = sorted(set(intervals))
         return {
             "status": "available",
             "releaseSha256": fingerprint,
@@ -42,38 +70,6 @@ def readiness() -> dict:
             "clinicalValidation": False,
         }
     except (ValueError, OSError, KeyError, TypeError):
-        candidate_dir = release_dir
-        if not (candidate_dir / "evaluation.json").exists():
-            from src.common import ROOT
-            for alt in [
-                ROOT / "artifacts/anatomy-score-run-20261002/candidate",
-                ROOT / "artifacts/anatomy-run-20261002",
-            ]:
-                if (alt / "evaluation.json").exists() and (alt / "with_scores.pt").exists():
-                    candidate_dir = alt
-                    break
-        if (candidate_dir / "evaluation.json").exists() and (candidate_dir / "with_scores.pt").exists():
-            try:
-                from ml.anatomy.forecasting import verify_candidate
-                report = json.loads((candidate_dir / "evaluation.json").read_text())
-                verify_candidate(candidate_dir, report)
-                fingerprint = sha256(candidate_dir / "with_scores.pt")
-                intervals = [0, *report.get("supported_intervals_days", [])]
-                experimental = [d for d in [365, 731, 1096] if d not in intervals]
-                all_intervals = sorted(set(intervals + [183, 365, 731, 1096]))
-                return {
-                    "status": "available",
-                    "releaseSha256": fingerprint,
-                    "intervalsDays": all_intervals,
-                    "supportedIntervalsDays": intervals,
-                    "experimentalIntervalsDays": experimental,
-                    "isResearchCandidate": True,
-                    "candidateDir": str(candidate_dir),
-                    "clinicalValidation": False,
-                    "warnings": ["Experimental unreviewed research candidate model with honest provenance."],
-                }
-            except Exception:
-                pass
         return {
             "status": "unavailable",
             "intervalsDays": [],
@@ -81,7 +77,14 @@ def readiness() -> dict:
         }
 
 
-def enqueue_forecast(db: Session, source: Analysis, interval: int, cutoff_id: str | None = None) -> Analysis:
+def enqueue_forecast(
+    db: Session,
+    source: Analysis,
+    interval: int,
+    cutoff_id: str | None = None,
+    *,
+    experimental: bool = False,
+) -> Analysis:
     if source.status != "completed" or source.output_mode != "anatomy":
         raise HTTPException(409, "Complete and review anatomical measurements before forecasting.")
     result = ProgressionResult.model_validate(source.result_json)
@@ -92,7 +95,7 @@ def enqueue_forecast(db: Session, source: Analysis, interval: int, cutoff_id: st
     history = result.anatomy.visits[:end] if result.anatomy else []
     if not 2 <= len(history) <= 5:
         raise HTTPException(409, "Two-to-five visits required.")
-    state = readiness()
+    state = readiness(experimental=True) if experimental else readiness()
     if state["status"] != "available":
         raise HTTPException(409, state["reason"])
     if interval not in state["intervalsDays"]:
@@ -106,7 +109,7 @@ def enqueue_forecast(db: Session, source: Analysis, interval: int, cutoff_id: st
     else:
         if any(
             v.qc not in {"passed", "automated_checks_only", "pending_review"}
-            or v.ratings.status not in {"ok", "unreviewed_research", "pending_alignment_qc"}
+            or v.ratings.status not in {"ok", "unreviewed_research"}
             for v in history
         ):
             raise HTTPException(
@@ -127,7 +130,7 @@ def enqueue_forecast(db: Session, source: Analysis, interval: int, cutoff_id: st
         "source_result_sha256": result_hash(source.result_json),
         "release_sha256": state["releaseSha256"],
         "is_research_candidate": is_research,
-        "candidate_dir": state.get("candidateDir"),
+        "candidate_dir": str(get_settings().anatomy_experimental_candidate_dir) if is_research else None,
     }
     job = Analysis(
         patient_id=source.patient_id,
@@ -135,6 +138,7 @@ def enqueue_forecast(db: Session, source: Analysis, interval: int, cutoff_id: st
         output_mode="anatomy",
         model_version=VERSION,
         input_json=snapshot,
+        stage="Experimental forecast queued" if is_research else "Waiting for local worker",
     )
     db.add(job)
     db.flush()

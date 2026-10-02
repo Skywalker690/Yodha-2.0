@@ -48,7 +48,11 @@ def changes(visits: list[AnatomyVisit]) -> list[dict]:
                 "earlier_visit_id": earlier.visit_id,
                 "later_visit_id": later.visit_id,
                 "elapsed_days": days,
-                "status": "ok" if reviewed else "automated_checks_only" if automatic_research else "pending_review",
+                "status": "ok"
+                if reviewed
+                else "automated_checks_only"
+                if automatic_research
+                else "pending_review",
                 "regions": regions,
             }
         )

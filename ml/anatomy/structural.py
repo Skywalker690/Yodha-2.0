@@ -5,13 +5,19 @@ from dataclasses import dataclass
 import numpy as np
 
 from ml.anatomy.contracts import AnatomyVisit
+from ml.anatomy.features import VERSION, fit_reference, validate_reference_split, validate_reference, z_score
+from src.fastsurfer.regions import REGIONS
 
-DEMOGRAPHICS = ("Age", "EDUC", "SES", "MMSE", "eTIV", "nWBV", "ASF")
 SCORES = ("mta_left", "mta_right", "posterior_atrophy")
 
 
 def history_features(
-    history: list[AnatomyVisit], interval_days: int, with_scores: bool, *, require_review: bool = True
+    history: list[AnatomyVisit],
+    interval_days: int,
+    with_scores: bool,
+    *,
+    require_review: bool = True,
+    reference: dict | None = None,
 ) -> tuple[np.ndarray, list[str]]:
     if not 2 <= len(history) <= 5 or interval_days <= 0:
         raise ValueError("Two-to-five earlier visits and positive future interval required")
@@ -20,36 +26,67 @@ def history_features(
     if any(b.days_from_baseline <= a.days_from_baseline for a, b in zip(history, history[1:])):
         raise ValueError("Strict visit ordering required")
     regions = sorted(history[0].volumes_mm3)
-    if any(sorted(v.volumes_mm3) != regions for v in history):
+    if set(regions) != set(REGIONS) or any(sorted(v.volumes_mm3) != regions for v in history):
         raise ValueError("Inconsistent regional dictionary")
     years = np.array([v.days_from_baseline - history[-1].days_from_baseline for v in history]) / 365.25
     values, names = (
         [interval_days / 365.25, -years[0], len(history)],
         ["interval_years", "history_years", "visit_count"],
     )
+    gaps = np.diff([v.days_from_baseline for v in history])[::-1]
+    for index in range(4):
+        values.append(float(gaps[index]) if index < len(gaps) else np.nan)
+        names.append(f"elapsed_scan_days_{index + 1}_most_recent_first")
     for region in regions:
         observed = np.array([v.volumes_mm3[region] for v in history])
         slope = float(np.polyfit(years, observed, 1)[0])
-        values.extend([observed[-1], slope])
-        names.extend([region, region + "_slope_per_year"])
-    for name in DEMOGRAPHICS:
-        value = history[-1].observed_metadata.get(name)
-        values.append(np.nan if value is None else float(value))
-        names.append(name)
-    sex = history[-1].observed_metadata.get("M/F")
-    values.append(0.0 if sex == "F" else 1.0 if sex == "M" else np.nan)
-    names.append("sex_F0_M1")
-    hand = history[-1].observed_metadata.get("Hand")
-    values.append(0.0 if hand == "R" else 1.0 if hand == "L" else np.nan)
-    names.append("hand_R0_L1")
+        delta, recent = observed[-1] - observed[0], observed[-1] - observed[-2]
+        values.extend(
+            [
+                observed[-1],
+                delta,
+                100 * delta / observed[0],
+                slope,
+                recent * 365.25 / gaps[0],
+                100 * recent / observed[-2] * 365.25 / gaps[0],
+            ]
+        )
+        names.extend(
+            [
+                region,
+                region + "_history_change_mm3",
+                region + "_history_change_percent",
+                region + "_slope_per_year",
+                region + "_last_annualized_mm3",
+                region + "_last_annualized_percent",
+            ]
+        )
+    value = history[-1].observed_metadata.get("MMSE")
+    valid_mmse = (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and np.isfinite(value)
+        and 0 <= value <= 30
+    )
+    values.extend([z_score(history[-1], reference)["z_score"], value if valid_mmse else np.nan])
+    names.extend(["nwbv_age_z", "MMSE"])
     if with_scores:
         allowed = {"ok"} if require_review else {"ok", "unreviewed_research"}
         if any(v.ratings.status not in allowed for v in history):
             raise ValueError("Matched score-conditioned comparison requires verified automatic estimates")
         for name in SCORES:
             scores = np.array([getattr(v.ratings, name) for v in history], dtype=float)
-            values.extend([scores[-1], float(np.polyfit(years, scores, 1)[0])])
-            names.extend([name, name + "_slope_per_year"])
+            values.extend(
+                [
+                    scores[-1],
+                    scores[-1] - scores[0],
+                    float(np.polyfit(years, scores, 1)[0]),
+                    (scores[-1] - scores[-2]) * 365.25 / gaps[0],
+                ]
+            )
+            names.extend(
+                [name, name + "_history_change", name + "_slope_per_year", name + "_last_annualized_change"]
+            )
     return np.asarray(values, dtype=float), names
 
 
@@ -102,10 +139,14 @@ class RegularizedMixedEffects:
             raise ValueError("Positive regularization required")
         self.fixed_penalty, self.random_penalty, self.with_scores = fixed_penalty, random_penalty, with_scores
 
-    def fit(self, examples: list[StructuralExample], split: dict[str, str]) -> "RegularizedMixedEffects":
+    def fit(
+        self, examples: list[StructuralExample], split: dict[str, str], *, reference: dict | None = None
+    ) -> "RegularizedMixedEffects":
         if not examples or any(split.get(e.subject_id) != "train" for e in examples):
             raise ValueError("Fit accepts frozen training subjects only")
         self.subjects = sorted({e.subject_id for e in examples})
+        self.reference = reference or fit_reference({e.subject_id: e.history for e in examples}, split)
+        validate_reference_split(self.reference, split)
         if len(self.subjects) < 2:
             raise ValueError("Cohort patterns require multiple training subjects")
         self.regions = sorted(examples[0].history[-1].volumes_mm3)
@@ -117,6 +158,7 @@ class RegularizedMixedEffects:
                 interval,
                 self.with_scores,
                 require_review=not example.allow_unreviewed_research,
+                reference=self.reference,
             )
             if sorted(example.target.volumes_mm3) != self.regions:
                 raise ValueError("Target regional dictionary changed")
@@ -157,7 +199,11 @@ class RegularizedMixedEffects:
         allow_unreviewed_research: bool = False,
     ) -> dict[str, float]:
         row, names = history_features(
-            history, interval_days, self.with_scores, require_review=not allow_unreviewed_research
+            history,
+            interval_days,
+            self.with_scores,
+            require_review=not allow_unreviewed_research,
+            reference=self.reference,
         )
         if names != self.feature_names or sorted(history[-1].volumes_mm3) != self.regions:
             raise ValueError("Prediction feature schema changed")
@@ -171,7 +217,11 @@ class RegularizedMixedEffects:
             for index in range(2, len(history)):
                 gap = history[index].days_from_baseline - history[index - 1].days_from_baseline
                 prior, _ = history_features(
-                    history[:index], gap, self.with_scores, require_review=not allow_unreviewed_research
+                    history[:index],
+                    gap,
+                    self.with_scores,
+                    require_review=not allow_unreviewed_research,
+                    reference=self.reference,
                 )
                 clean_prior = np.where(np.isfinite(prior), prior, self.median)
                 prior_rate = (
@@ -196,6 +246,8 @@ class RegularizedMixedEffects:
 
     def to_dict(self) -> dict:
         return {
+            "feature_contract": VERSION,
+            "nwbv_reference": self.reference,
             "fixed_penalty": self.fixed_penalty,
             "random_penalty": self.random_penalty,
             "with_scores": self.with_scores,
@@ -210,7 +262,12 @@ class RegularizedMixedEffects:
 
     @classmethod
     def from_dict(cls, data: dict) -> "RegularizedMixedEffects":
+        if data.get("feature_contract") != VERSION:
+            raise ValueError("Incompatible older structural checkpoint")
+        if "nwbv_reference" in data:
+            validate_reference(data["nwbv_reference"])
         model = cls(data["fixed_penalty"], data["random_penalty"], data["with_scores"])
+        model.reference = data.get("nwbv_reference")
         for name in ("subjects", "regions", "feature_names", "fixed_width"):
             setattr(model, name, data[name])
         for name in ("median", "scale", "coefficients"):

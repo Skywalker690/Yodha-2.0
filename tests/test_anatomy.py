@@ -99,7 +99,7 @@ def test_raw_avra_regression_extrapolation_is_research_only_and_never_clipped(tm
     path = tmp_path / "rating.csv"
     path.write_text(f"mta_left_mean,mta_right_mean,pa_mean\n1.2,2.0,{raw}\n")
     assert parse_avra_csv(path, alignment_verified=True).status == "invalid"
-    assert parse_avra_csv(path, allow_unreviewed_research=True).status == "pending_alignment_qc"
+    assert parse_avra_csv(path, allow_unreviewed_research=True).status == "unreviewed_research"
     rating = parse_avra_csv(path, alignment_verified=True, allow_unreviewed_research=True)
     assert rating.status == "unreviewed_research" and rating.posterior_atrophy == raw
     assert rating.method == "AVRA-v0.8-ensemble-raw-regression-research"

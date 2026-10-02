@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     forecast_processed_dir: Path = ROOT / "data/forecast_v2"
     avra_runtime_manifest: Path | None = None
     anatomy_release_dir: Path = ROOT / "artifacts/anatomy-release"
+    anatomy_preview_dir: Path = ROOT / "storage/cache/anatomy-preview"
+    anatomy_experimental_candidate_dir: Path | None = None
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     secure_cookies: bool = False
     max_upload_bytes: int = 100 * 1024 * 1024

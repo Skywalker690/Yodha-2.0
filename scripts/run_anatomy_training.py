@@ -3,6 +3,8 @@
 import argparse
 import json
 import re
+import shutil
+import os
 import subprocess
 import sys
 import time
@@ -12,7 +14,9 @@ from pathlib import Path
 from backend.app.core.config import get_settings
 from backend.app.db.session import SessionLocal
 from backend.app.models import Analysis, Patient, User, Visit
+from backend.app.services.compute import gpu_slot
 from ml.anatomy.study import frozen_split
+from ml.anatomy.features import VERSION as FEATURE_VERSION, fit_reference_baselines, reference_hash
 from sqlalchemy import select
 from src.common import ROOT, sha256, write_json
 
@@ -22,6 +26,7 @@ def gpu_training_command(image: str, study: Path, output: Path, epochs: int) -> 
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
         raise ValueError("GPU training requires an immutable Docker image ID")
     relative_study = study.resolve().relative_to(ROOT.resolve()).as_posix()
+    runtime = freeze_runtime(output.parent)
     return [
         "docker",
         "run",
@@ -30,6 +35,10 @@ def gpu_training_command(image: str, study: Path, output: Path, epochs: int) -> 
         "none",
         "--gpus",
         "all",
+        "--workdir",
+        "/runtime",
+        "--mount",
+        f"type=bind,source={runtime},target=/runtime,readonly",
         "--mount",
         f"type=bind,source={ROOT},target=/workspace,readonly",
         "--mount",
@@ -38,6 +47,8 @@ def gpu_training_command(image: str, study: Path, output: Path, epochs: int) -> 
         "PYTHONDONTWRITEBYTECODE=1",
         "--env",
         "OMP_NUM_THREADS=2",
+        "--env",
+        "PYTHONPATH=/runtime:/workspace/nwbv_reference_module/src:/workspace",
         image,
         "-m",
         "scripts.train_anatomy",
@@ -51,7 +62,70 @@ def gpu_training_command(image: str, study: Path, output: Path, epochs: int) -> 
         "--device",
         "cuda",
         "--allow-unreviewed-research",
+        "--reference",
+        "/output/nwbv-reference.json",
     ]
+
+
+def freeze_runtime(run: Path) -> Path:
+    """Freeze the forecasting code; verify existing snapshots instead of rewriting."""
+    runtime = run / "runtime"
+    manifest = runtime / "runtime-manifest.json"
+    if manifest.is_file():
+        saved = json.loads(manifest.read_text())
+        if saved["feature_contract"] != FEATURE_VERSION or any(
+            sha256(runtime / name) != fingerprint for name, fingerprint in saved["files"].items()
+        ):
+            raise ValueError("Frozen forecasting runtime changed; choose a fresh run")
+        return runtime
+    runtime.mkdir(parents=True, exist_ok=True)
+    files = [
+        *ROOT.joinpath("ml").rglob("*.py"),
+        ROOT / "scripts/__init__.py",
+        ROOT / "scripts/train_anatomy.py",
+    ]
+    for source in files:
+        if not source.exists():
+            continue
+        compile(source.read_text(encoding="utf-8"), str(source), "exec")
+        target = runtime / source.relative_to(ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+    write_json(
+        manifest,
+        {
+            "feature_contract": FEATURE_VERSION,
+            "files": {p.relative_to(runtime).as_posix(): sha256(p) for p in runtime.rglob("*.py")},
+        },
+    )
+    return runtime
+
+
+def cohort_reference(cohort: Path) -> dict:
+    """Read only baseline metadata from subjects in the frozen training role."""
+    from ml.data import read_metadata
+
+    record = json.loads((cohort / "cohort.json").read_text())
+    candidates = [*get_settings().dataset_root.glob("*.xlsx"), *get_settings().dataset_root.glob("*.csv")]
+    source = next((p for p in candidates if sha256(p) == record["metadata_sha256"]), None)
+    if source is None:
+        raise ValueError("The frozen cohort's original metadata file is missing or changed")
+    frame = read_metadata(source)
+    split = frozen_split(cohort / "subject_split.csv")
+    baselines = {}
+    for subject in record["subjects"]:
+        if split[subject["subject_id"]] != "train":
+            continue
+        first = min(subject["visits"], key=lambda v: v["days_from_baseline"])
+        rows = frame[frame["MRI ID"] == first["visit_id"]]
+        if len(rows) != 1:
+            raise ValueError("Frozen training baseline metadata is not unique")
+        row = rows.iloc[0].to_dict()
+        baselines[subject["subject_id"]] = {key: row.get(key) for key in ("Age", "nWBV", "Visit", "CDR")} | {
+            "days_from_baseline": first["days_from_baseline"],
+            "visit_id": first["visit_id"],
+        }
+    return fit_reference_baselines(baselines, split)
 
 
 def processing_state(split_path: Path) -> dict:
@@ -63,10 +137,14 @@ def processing_state(split_path: Path) -> dict:
         if owner is None:
             raise ValueError("Configured OASIS importer account is unavailable")
         for subject in split:
+            from scripts.train_anatomy import cohort_days
+
+            days = cohort_days(split_path, subject)
             cutoff = db.scalar(
                 select(Visit.id)
                 .join(Patient, Patient.id == Visit.patient_id)
                 .where(Patient.owner_id == owner.id, Patient.source == "oasis-2", Patient.code == subject)
+                .where(Visit.days_from_baseline.in_(days) if days is not None else True)
                 .order_by(Visit.days_from_baseline.desc())
             )
             job = db.scalar(
@@ -97,6 +175,7 @@ def run(
     grid_size: int,
     resume: bool = False,
     training_image: str | None = None,
+    reuse_prepared: Path | None = None,
 ) -> None:
     split = cohort / "subject_split.csv"
     if not 15 <= epochs <= 500 or not 16 <= grid_size <= 128:
@@ -112,9 +191,21 @@ def run(
     if output.exists() and not resume:
         raise ValueError("Run exists; explicitly resume it or select a fresh path")
     output.mkdir(parents=True, exist_ok=True)
+    runtime = freeze_runtime(output)
+    reference = cohort_reference(cohort)
+    reference_path = output / "nwbv-reference.json"
+    if reference_path.exists() and json.loads(reference_path.read_text()) != reference:
+        raise ValueError("Cannot change a run's frozen training reference")
+    write_json(reference_path, reference)
     status_path = output / "pipeline-status.json"
     if resume:
         previous = json.loads(status_path.read_text())
+        if previous.get("feature_contract") != FEATURE_VERSION or previous.get(
+            "nwbv_reference_sha256"
+        ) != reference_hash(reference):
+            raise ValueError(
+                "Cannot resume older/different anatomy feature or reference settings; choose a fresh run"
+            )
         if previous["cohort_sha256"] != sha256(cohort / "cohort.json"):
             raise ValueError("Cannot resume a different study")
         if any(
@@ -130,6 +221,9 @@ def run(
         "cohort_sha256": sha256(cohort / "cohort.json"),
         "split_sha256": sha256(split),
         "model_policy": "MTA-Koedam-conditioned-only",
+        "feature_contract": FEATURE_VERSION,
+        "reference_policy": "training_baseline_cdr0",
+        "nwbv_reference_sha256": reference_hash(reference),
         "rating_policy": "finite-raw-AVRA-regression-research-v1",
         "allow_unreviewed_research": True,
         "epochs": epochs,
@@ -147,10 +241,13 @@ def run(
         print(json.dumps({"stage": stage, **values}), flush=True)
 
     def command(arguments: list[str]) -> None:
+        if arguments[0] == "prepare" and reuse_prepared:
+            arguments = [*arguments, "--reuse-prepared", str(reuse_prepared)]
         with (output / "execution.log").open("a", encoding="utf-8") as log:
             subprocess.run(
                 [sys.executable, "-m", "scripts.train_anatomy", *arguments],
-                cwd=ROOT,
+                cwd=runtime,
+                env={**os.environ, "PYTHONPATH": str(ROOT) + os.pathsep + os.environ.get("PYTHONPATH", "")},
                 stdout=log,
                 stderr=subprocess.STDOUT,
                 check=True,
@@ -224,7 +321,7 @@ def run(
         if not evaluation.exists():
             status("training_score_conditioned_model")
             if device == "cuda":
-                with (output / "execution.log").open("a", encoding="utf-8") as log:
+                with gpu_slot(), (output / "execution.log").open("a", encoding="utf-8") as log:
                     subprocess.run(
                         gpu_training_command(training_image, study, candidate, epochs),
                         cwd=ROOT,
@@ -245,6 +342,8 @@ def run(
                         "--device",
                         device,
                         "--allow-unreviewed-research",
+                        "--reference",
+                        str(reference_path),
                     ]
                 )
         report = json.loads(evaluation.read_text())
@@ -271,6 +370,9 @@ def main() -> None:
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
     parser.add_argument("--grid-size", type=int, default=96)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--reuse-prepared", type=Path, help="Reuse verified source-matching registrations in a fresh run"
+    )
     parser.add_argument("--training-image", help="Immutable sha256 Docker image ID, required for CUDA")
     args = parser.parse_args()
     # A long local run must survive normal idle sleep. This request applies only
@@ -292,6 +394,7 @@ def main() -> None:
             grid_size=args.grid_size,
             resume=args.resume,
             training_image=args.training_image,
+            reuse_prepared=args.reuse_prepared.resolve() if args.reuse_prepared else None,
         )
     finally:
         if kernel is not None:

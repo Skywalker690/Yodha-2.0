@@ -1,5 +1,36 @@
 # Anatomy forecasting lifecycle
 
+D046 now permits explicit experimental patient-specific inference with the frozen
+historical v3 candidate. This does not satisfy the promoted lifecycle below. Use
+`experimental: true`, two-to-five prepared observations, and the configured pinned
+candidate; preserve unreviewed statuses and disclose failed evaluation gates.
+Scalar/mask disagreement is visible in this mode; native geometry still must pass.
+The optional CPU `--experimental-only` worker leaves paused preprocessing untouched.
+Earlier statements that no real candidate was trained describe the initial stage;
+actual historical v3 training/evaluation are recorded in [19](19-fixed-reference-anatomy-run.md).
+
+The first D046 +365-day batch completed six of nine prepared patients. Three failed
+regional mesh/mask volume agreement; unavailable outputs were retained as failed
+jobs. See [07](07-testing-validation.md) for actual checks and the private runtime
+audit. Remaining unprepared patients require the paused Docker preprocessing path.
+
+Current D044 uses a training-only baseline reference and removes the minimum ten
+rule. The waiting v3 coordinator was stopped before fitting; all files remain.
+Fresh v4 runs reuse verified registrations. The updated worker and offline
+coordinator share a PostgreSQL advisory GPU slot. Reload the older worker only
+after its active job finishes. See [20](20-training-reference-anatomy-run.md).
+
+## Current fixed-reference feature contract
+
+D043 supersedes training-only reference estimation: use the user's supplied
+fixed age-bin means and sample SDs, saved unchanged with each new checkpoint.
+The current real run, exact feature definitions, evidence and blockers are in
+[19 Fixed-reference anatomy run](19-fixed-reference-anatomy-run.md). Older
+checkpoint versions are explicitly rejected. The 44/4/4/4 subject split is
+unchanged; partial research fitting never reassigns a training subject to
+calibration. Missing calibration yields unavailable uncertainty intervals.
+The execution evidence below describes earlier runs and is retained as history.
+
 ## Implementation and evidence (2026-10-02)
 
 Latest user direction supersedes the earlier matched-ablation/frozen-40 design:

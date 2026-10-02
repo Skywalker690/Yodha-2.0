@@ -1,5 +1,51 @@
 # Data Contract
 
+`GET /analysis/{id}/forecast-comparison` returns owner-scoped, read-only deformation
+and hippocampus change measurements from the hash-verified cutoff/prediction files.
+It separates native mask change from scalar model change and requires the same
+native grid/units. Missing, changed, unowned or invalid outputs fail explicitly.
+
+## Explicit experimental anatomy inference (D046)
+
+`GET /anatomy-model/readiness?experimental=true` checks the configured frozen v3
+candidate and returns its fingerprint, training subject count, warnings and
+exploratory intervals. Ordinary readiness still requires promotion.
+`POST /analysis/{id}/forecast` accepts `experimental: true` (default false).
+`StructuralForecast` adds optional `experimental` and `training_subject_count`.
+Cutoff, model/reference/bundle fingerprints, actual generated artifacts and warnings
+are persisted. Source review states remain unchanged; candidate uncertainty is absent.
+
+Saved preview endpoints `GET /anatomy-preview` and `GET /anatomy-preview/{artifact}`
+are authenticated and separate from model readiness/analysis history. A local
+`ANATOMY_PREVIEW_DIR` (default `storage/cache/anatomy-preview`) contains a pinned
+`saved-anatomy-preview-v1` profile, original case/evaluation/artifact manifests
+and copies of five display artifacts. Preserve the source subject, cutoff and
+interval. Ownership, chronology, source MRI and saved file hashes are checked;
+only MRI, labels, brain boundary and bilateral hippocampus meshes are allowlisted.
+Metadata declares retrospective evaluation provenance and `promoted=false`.
+Optional `observedLabelsUrl` references the original acquired cutoff's regional
+mask through the existing owned anatomy artifact endpoint. It requires a completed
+job matching the saved cutoff/source/segmentation hashes; absence returns null.
+No predictions, reviews or releases are inserted into the database.
+
+Current input contract is `anatomy-input-v4-train-age-reference` (D044).
+Reference files save declared training IDs, eligible baseline IDs/values,
+exclusions, seven age bins, counts, sample SD (ddof=1), source hash and min_bin_n=2.
+Two is necessary for sample SD; the ten-subject cutoff is removed. Held-out
+subjects are forbidden. Singleton/empty groups, zero SD, unsupported ages and
+invalid measurements remain explicitly unavailable. The same 129 columns and
+missingness indicators are used by both models. See [20](20-training-reference-anatomy-run.md).
+
+The new anatomy forecast input is `anatomy-input-v3-fixed-age-reference` (D043).
+Checkpoints save identical fixed `nwbv_reference` and reference fingerprints;
+`nwbv-reference.json` and `preprocessing.json` provide readable copies. Future
+manifests include the contract, reference ID/hash and per-visit Z-score/MMSE
+availability. Optional forecast fields `featureContract`, `referenceSha256`,
+`referenceProfileId` and `featureAvailability` expose this through the existing API.
+Source age/raw nWBV remain provenance, never additional numerical predictors.
+No schema migration is required; old results remain readable but old checkpoints
+cannot create forecasts with the new contract.
+
 Longitudinal anatomy has its own optional versioned `anatomy` result and patient
 `latestAnatomy`/`completedAnatomy` payloads. It never populates legacy risk/proxy fields.
 Native stats/masks, hashes, dictionary, source units, review provenance, continuous
@@ -116,6 +162,11 @@ Visits with MRI expose an authenticated `volumeUrl`; the URL serves the original
 New inference produces `{index}-difference.nii.gz` alongside `{index}-overlay.png` under the existing analysis artifact prefix. Each contains finite float32 absolute normalized intensity differences from baseline, shape 64×64×64, and the selected scan's canonical field-of-view affine. This is not a registered change map. `volumeOverlaysReady` is true only for results with these artifacts; the default is false for old contracts/caches. Precomputed mode checks claimed artifacts before marking a job completed. Existing heatmap rows identify the corresponding artifact, avoiding new database tables. A missing/unavailable artifact returns 404 with an explicit recomputation message.
 
 ## Upload rules
+
+`DELETE /visits/{visit_id}` deletes an owned visit awaiting MRI and returns
+`{status: "deleted", visitId}`. Missing/unowned visits return 404; MRI/preview,
+analysis-input/result references or derived heatmaps return 409. Upload and
+deletion lock/refresh the same visit row; no stored files are removed.
 
 - Store objects under generated keys, never user-provided paths.
 - Never expose private bucket credentials to the browser.

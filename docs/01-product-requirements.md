@@ -2,10 +2,78 @@
 
 ## Product
 
-The user-provided nWBV reference is an optional descriptive biomarker alongside
+D059 removes MRI Analysis from sidebar navigation.
+
+D058 defaults the MRI Analysis patient selector to OAS2_0048 when available.
+
+D056 lets researchers delete their pending empty visits from the MRI upload
+screen. Visits containing MRI or analysis/derived references cannot be deleted.
+
+D055 puts the user-selected patient codes first in the patient directory, in
+their supplied order, while preserving search and other patients' existing order.
+
+D054 removes the standalone MRI timeline section from the default patient page.
+MRI visit selection and navigation inside the 3D workspace remain available.
+
+D053 removes the complete baseline Clinical + FastSurfer forecast section from
+the default patient page, including readiness and blocked horizon content. Anatomy
+measurements and future MRI exploration remain separate capabilities.
+
+D051 applies yellow hippocampus highlighting to acquired/input comparison panels
+using each scan's measured mask, including the saved preview and baseline panels.
+
+D050 restores yellow hippocampus highlights in experimental comparisons and makes
+volume cutaways apply to the MRI and labels together. Camera/zoom and spatial
+positioning must stay shared; correcting rendering must not fabricate model changes.
+
+D049 makes generated anatomy reviewable against its actual input cutoff in matched
+slices. Quantify the saved deformation and mask changes separately from scalar
+estimates; preserve model outputs and disclose disagreement without exaggeration.
+
+D048 makes the D046 opt-in visible beside unavailable future anatomy and supports
+explicit experimental-view links. Preserve ordinary default serving and all artifact
+matching gates; label generated images as unvalidated experimental previews.
+
+D046 adds user-requested patient-specific experimental forecasts using the frozen
+historical v3 model (four train, one selection, one test). Require opt-in and
+two-to-five prepared scans, label outputs unvalidated, preserve source/review
+provenance and display scalar/mask disagreement. Default promoted serving and
+current v4 fitting requirements remain. Never substitute another patient's example.
+
+D047 adds pre-generated 12-, 24-, and 36-month outputs from the earlier six-subject
+CUDA experiment to the separate `/preview` gallery. These use its OAS2_0073
+four-scan cutoff; the saved +229-day example remains from the later v3 candidate.
+Display each checkpoint's version and split, state that the long intervals have no
+matched acquired scan, and show output discrepancies. This gallery does not alter
+patient-specific forecast availability.
+
+The explicitly requested immediate visual preview (D045) displays the saved
+OAS2_0073 +229-day historical evaluation example on a separate page. Keep its
+original subject/time and unvalidated, unpromoted provenance visible. It is
+independent of the default serving model and never fills an unavailable horizon.
+
+Current anatomy direction is D044: fit the reference only from baseline-CDR-zero
+subjects in the frozen training role. Remove the ten-subject cutoff; require only
+enough valid measurements to calculate a positive sample SD. Freeze it with both
+forecast checkpoints. Held-out subjects never fit it. This supersedes the fixed
+reference experiment below, which is preserved as history.
+
+Latest anatomy request (D042/D043): the new future-anatomy model uses the supplied
+fixed age-group nWBV means/SDs to calculate each patient's age-adjusted nWBV Z-score,
+MMSE, the 18-region FastSurfer dictionary, AVRA left/right MTA and Koedam estimates,
+chronological anatomical changes and actual elapsed intervals, registered acquired
+MRI history and masks. Raw nWBV and age are source/provenance values only; education,
+SES, sex, handedness, eTIV and ASF do not condition either new forecast model.
+The user's correction explicitly replaces training-only reference construction
+with the supplied fixed table. Freeze it with the checkpoints and disclose its
+OASIS-2 origin and possible held-out overlap. This changes neither the separate
+historical classifiers nor the descriptive biomarker's existing purpose.
+
+The original nWBV reference biomarker remains an optional descriptive value alongside
 analysis outputs. Compare recorded, method-matched OASIS nWBV with the bundled
 age-bin research reference. It is a support value, not an Alzheimer/MCI diagnosis,
-future-risk estimate, spatial forecast or model training feature. See D033.
+future-risk estimate or spatial forecast. Its existing descriptive contract remains
+separate from the new saved-model Z-score feature above. See D033/D043.
 
 ## Longitudinal anatomy extension requested 2026-10-02
 

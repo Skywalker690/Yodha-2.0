@@ -1,5 +1,160 @@
 # Testing and Validation
 
+## Pending visit deletion (D056)
+
+D057 moves the action beside the MRI visit selector in the marked pending upload
+section. TypeScript, production build and focused whitespace checks passed; no
+live visit was deleted and no automated tests were run for the placement change.
+
+TypeScript, production build, focused route Ruff and diff whitespace checks passed.
+The local API was restarted and its OpenAPI schema exposes `DELETE /visits/{visit_id}`.
+No live patient visits were deleted for verification and no automated tests were
+run for this change. Follow-up functional checks should cover owned empty deletion,
+missing/unowned 404, populated/referenced 409, upload/delete concurrency, automatic
+new-visit selection, delete without a selected file and error/reload behavior.
+
+## Acquired hippocampus visibility (D051)
+
+Check preview metadata for matching cutoff/source/segmentation and owner-scoped,
+hash-verified acquired mask access. Unit checks must cover acquired preview/baseline
+label URLs and a shared toggle. Real Edge checks must find yellow pixels on the
+acquired and predicted canvases, including the saved gallery, and confirm hiding
+the labels hides both. Run frontend checks, TypeScript/build and preview API tests.
+
+Actual verification: six preview API checks, 66 frontend unit checks, Ruff,
+TypeScript and production build passed. Four real Edge checks passed, with yellow
+pixels verified in both acquired/predicted patient and saved-preview canvases,
+shared toggle removal/restoration, camera/zoom/clipping and default serving gates.
+The acquired/predicted gallery screenshot was inspected in `frontend/test-results/`.
+
+## Hippocampus overlay adjustment (D050)
+
+Run frontend unit checks, TypeScript and build, plus the real Edge
+`hippocampus-overlay.spec.ts` and `anatomy-experimental.spec.ts` checks. The new
+pixel check uses OAS2_0017's saved +365-day MRI/labels: camera changes must change
+the yellow projection, zoom must scale its width, and opposite coronal cutaways
+must retain/remove the yellow tissue before disabling clipping restores it.
+Before the fix, the cutaway regression failed: all 742 yellow pixels remained
+visible even at the cutaway that removed their MRI tissue. Preserve ownership,
+native geometry, saved model artifacts and scalar/mask measurements.
+
+After the fix, 65 frontend unit checks, TypeScript and the production build passed.
+The real Edge experimental/default-policy and overlay checks passed (three checks),
+including yellow projection changes with camera/zoom and clipping removal/restoration.
+
+## Actual forecast comparison (D049)
+
+Eight focused Python checks verify native-grid/units, nonfinite rejection, actual
+millimetre displacement, independent mask/scalar changes and unavailable/unowned
+comparison rejection. 65 frontend checks, TypeScript, build and Ruff passed. The
+real Edge comparison/default-policy checks passed: both cutoff/generated canvases
+loaded, yellow labels/meshes were off, and measured changes were visible. The
+canvas gets a new DOM element when loaded layers change; a regression preserves
+cleanup of the old graphics context without destroying the replacement.
+
+The actual OAS2_0017 +365-day field has median 0.243 mm, p95 0.546 mm and maximum
+0.749 mm displacement in the cutoff brain mask. Both native hippocampal volumes
+are unchanged; separate scalar estimates are -1.29% and -5.21%. Generated MRI
+voxels differ from the source, with mean absolute intensity difference 4.27% of
+mean absolute input intensity in the brain mask. This includes interpolation
+effects and is not an atrophy or accuracy metric. Read-only source/file audit is
+ignored `artifacts/forecast-change-inspection.json`. No weights or saved forecast
+files were changed to make the display look different.
+
+## Experimental view visibility fix (D048)
+
+64 frontend unit checks, TypeScript and production build passed. Added regressions
+cover the visible future-panel opt-in, direct experimental interval links at the
+prepared cutoff, changed-source rejection and no job submission from a view link.
+Two real Edge checks passed: visible action and direct link both loaded OAS2_0017's
+actual +365-day generated MRI; default ML-only serving still stayed gated. The
+direct-view screenshot was inspected in ignored `frontend/test-results/`.
+
+## Explicit experimental forecasts (D046)
+
+Run anatomy experimental/API/lifecycle/features/spatial checks, frontend forecast/
+preview tests, TypeScript and build. Verify explicit opt-in, default rejection,
+ownership, frozen sources/candidate, exact cutoff, retained review state and cached
+mode separation. Replay the saved +229-day scalar prediction and inspect newly
+generated MRI/labels in the browser. Record actual successes/failures; checks establish
+execution and visibility, not accuracy. No illustrative substitutions are allowed.
+
+Actual D046 execution: 58 focused Python checks passed, followed by five preview
+integrity checks including wrong-interval rejection; 61 frontend checks, strict
+TypeScript, build and Ruff passed. Three real Edge checks passed for the patient
+forecast, saved preview and default ML-only policy. The original +229-day scalar
+prediction replay had exactly zero error against its saved values.
+
+All nine prepared histories received +365-day attempts. Six completed: OAS2_0017,
+OAS2_0027, OAS2_0036, OAS2_0037, OAS2_0070 and OAS2_0073. OAS2_0034, OAS2_0048 and
+OAS2_0127 failed regional mesh/mask volume agreement (>5%). No failed output is
+served. Each completed result has 40 hash-verified artifacts, positive native
+Jacobians and unchanged source/review states. Weights/evaluation fingerprints are
+unchanged. Runtime audit: ignored `artifacts/experimental-forecast-runtime-audit.json`.
+The CPU worker remains available for explicit forecasts; Docker preprocessing is
+paused. This is execution evidence only; no new accuracy evaluation was performed.
+
+## Saved preview (D045)
+
+Run `python -m pytest tests/test_anatomy_preview.py -q` and frontend
+`npm run test -- tests/anatomy-preview.test.tsx tests/anatomy-forecast.test.tsx`,
+`npm run typecheck` and `npm run build`. Preview checks cover exact interval/subject,
+read-only access, ownership, source/file tampering, path escapes and no substituted
+volume when unavailable. Inspect the real two-canvas preview after installation.
+These verify artifact visibility, not forecasting accuracy.
+
+Actual local verification: four API/integrity tests and nine focused frontend
+tests passed, as did Ruff, strict TypeScript and the production build. The real
+Edge preview check passed: both acquired/generated canvases loaded, +229-day
+provenance was visible, slices and 3D rendered, mobile had no horizontal overflow,
+and no browser exceptions or external requests were observed. Desktop screenshots
+were inspected in ignored `frontend/test-results/`. The pinned real profile's
+four original source MRI hashes match the application's owned visits. Only the
+API was restarted to expose the new read-only endpoints.
+
+## Current training-reference contract (D044)
+
+The root Python suite passed 227 tests. Focused anatomy/reference/lifecycle/spatial
+and API checks passed 23 tests. TypeScript, 57 frontend unit tests, production
+build, Ruff, Alembic and the live ML-only Playwright check passed. New regressions
+verify Z arithmetic below ten subjects, baseline-only fitting, held-out membership
+rejection, singleton/zero-spread unavailable states, training-only missingness,
+shared input/reference reload and older-checkpoint rejection. A real PostgreSQL
+two-connection check acquired the first GPU slot, rejected a competitor, and
+reacquired the slot after release. This is concurrency evidence, not accuracy.
+
+The actual source availability audit with the training-only reference yields
+352/373 visits and 146/150 baseline subjects with numeric Z. The saved audit
+distinguishes 17 singleton-bin visits and four unsupported-age visits. Real CUDA
+training/native evaluation are recorded in [20](20-training-reference-anatomy-run.md).
+Earlier v3 metrics below are retained history and do not describe the v4 model.
+
+## Fixed-reference anatomy contract (D043)
+
+Full root Python suite passed 226 tests after restoring the matching model source;
+the later focused anatomy/reference/lifecycle suite passed 38 checks and four
+subtests, including two added source-reuse/frozen-cutoff regressions. Frontend
+TypeScript, 57 unit tests, production build, Ruff and Alembic schema check passed.
+The live ML-only Playwright check passed, including unavailable future anatomy,
+disabled generation and rejection of legacy fallback modes. Authenticated model
+readiness also reports unavailable for the failed/unsupported candidate. A final
+source/checkpoint reload confirmed the fixed reference and all 129 conditioning
+columns match. The source availability audit separately reports 336 of 373 visits
+with computable Z-scores; this is arithmetic availability, not forecast validation.
+An existing AVRA test was updated to the already documented D038 automatic research
+policy; parser behavior was unchanged.
+
+New regressions check unchanged supplied bin constants without refitting,
+exact Z arithmetic, sparse/unsupported/invalid states without raw-nWBV fallback,
+irrelevance of excluded demographics, missingness indicators, saved scalar/reference
+roundtrip, explicit older-checkpoint rejection, geometry-bound registration reuse
+and exclusion of added visits from the frozen source cutoff. The real checkpoint
+reload confirmed all 129 columns and exactly identical saved/reference constants.
+Both saved models reject incompatible earlier feature versions.
+
+Actual 20-epoch CUDA training and held-out/native evidence is recorded separately
+in [19](19-fixed-reference-anatomy-run.md); tests do not establish forecast accuracy.
+
 ## AVRA raw-regression research inputs (2026-10-02)
 
 `python -m pytest tests/test_anatomy.py tests/test_anatomy_lifecycle.py -q` passed

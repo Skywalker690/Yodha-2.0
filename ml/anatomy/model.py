@@ -11,7 +11,7 @@ from torch.nn import functional as F
 from ml.anatomy.registration import normalize
 from src.fastsurfer.regions import REGIONS
 
-VERSION = "conditioned-pull-cnn-v1"
+VERSION = "conditioned-pull-cnn-v4-train-age-reference"
 CHANNELS = 6
 
 
@@ -86,7 +86,7 @@ class SpatialPredictor(nn.Module):
 
     def __init__(self, feature_count: int):
         super().__init__()
-        if not 1 <= feature_count <= 256:
+        if not 1 <= feature_count <= 512:
             raise ValueError("Bounded conditioning schema required")
         self.feature_count = feature_count
         self.encoder = nn.Sequential(

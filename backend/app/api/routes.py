@@ -50,8 +50,14 @@ def owned_patient(db: Session, user: User, patient_id: str) -> Patient:
     return patient
 
 
-def owned_visit(db: Session, user: User, visit_id: str) -> Visit:
-    visit = db.get(Visit, visit_id)
+def owned_visit(db: Session, user: User, visit_id: str, *, lock: bool = False) -> Visit:
+    visit = (
+        db.scalar(
+            select(Visit).where(Visit.id == visit_id).with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if lock else db.get(Visit, visit_id)
+    )
     if visit is None:
         raise HTTPException(404, "Visit not found.")
     owned_patient(db, user, visit.patient_id)
@@ -245,12 +251,31 @@ def create_visit(
     return patient_payload(db, patient)
 
 
+@router.delete("/visits/{visit_id}")
+def delete_pending_visit(
+    visit_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> dict:
+    visit = owned_visit(db, user, visit_id, lock=True)
+    if visit.mri_key or visit.preview_key:
+        raise HTTPException(409, "Only visits awaiting an MRI can be deleted.")
+    jobs = db.scalars(select(Analysis).where(Analysis.patient_id == visit.patient_id))
+    for job in jobs:
+        if job.visit_id == visit.id or any(
+            item.get("visit_id") == visit.id for item in job.input_json if isinstance(item, dict)
+        ) or visit.id in (job.result_json or {}).get("visit_ids", []):
+            raise HTTPException(409, "This visit is referenced by an analysis and cannot be deleted.")
+    if db.scalar(select(Heatmap.id).where(Heatmap.visit_id == visit.id).limit(1)):
+        raise HTTPException(409, "This visit has derived artifacts and cannot be deleted.")
+    db.delete(visit)
+    db.commit()
+    return {"status": "deleted", "visitId": visit_id}
+
+
 @router.post("/visits/{visit_id}/upload", status_code=202)
 def upload(
     visit_id: str, file: UploadFile, db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> dict:
-    visit = owned_visit(db, user, visit_id)
-    db.execute(select(Visit).where(Visit.id == visit_id).with_for_update()).scalar_one()
+    visit = owned_visit(db, user, visit_id, lock=True)
     if visit.mri_key:
         raise HTTPException(409, "This visit already has an MRI. Create another visit for a new scan.")
     name = (file.filename or "").lower()
@@ -368,10 +393,47 @@ def get_analysis(analysis_id: str, db: Session = Depends(get_db), user: User = D
 
 
 @router.get("/anatomy-model/readiness")
-def anatomy_model_readiness(user: User = Depends(current_user)) -> dict:
+def anatomy_model_readiness(experimental: bool = False, user: User = Depends(current_user)) -> dict:
     from backend.app.services.anatomy_forecast import readiness as anatomy_readiness
 
-    return anatomy_readiness()
+    return anatomy_readiness(experimental=True) if experimental else anatomy_readiness()
+
+
+@router.get("/anatomy-preview")
+def saved_anatomy_preview(
+    intervalDays: int = 229,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> dict:
+    from backend.app.services.anatomy_preview import metadata
+
+    return metadata(db, user.id, intervalDays)
+
+
+@router.get("/anatomy-preview/{artifact}")
+def saved_anatomy_preview_artifact(
+    artifact: str,
+    intervalDays: int = 229,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> FileResponse:
+    from backend.app.services.anatomy_preview import ARTIFACTS, load_preview
+    from ml.anatomy.integrity import checked_file
+
+    if artifact not in ARTIFACTS:
+        raise HTTPException(404, "Saved preview artifact unavailable.")
+    try:
+        _, root, manifest = load_preview(db, user.id, intervalDays)
+        path = checked_file(root, manifest["artifacts"][artifact])
+    except (OSError, ValueError, KeyError, TypeError, IndexError):
+        raise HTTPException(404, "Saved preview missing or changed.") from None
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=path.name,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.get("/patients/{patient_id}/anatomy-forecasts")
@@ -406,7 +468,8 @@ def create_anatomy_forecast(
     from backend.app.services.anatomy_forecast import enqueue_forecast
 
     job = enqueue_forecast(
-        db, owned_analysis(db, user, analysis_id), body.interval_days, body.cutoff_visit_id
+        db, owned_analysis(db, user, analysis_id), body.interval_days, body.cutoff_visit_id,
+        experimental=body.experimental,
     )
     db.commit()
     return analysis_payload(job)
@@ -458,6 +521,40 @@ def future_anatomy_artifact(
         content_disposition_type="inline",
         headers={"Cache-Control": "private, no-store"},
     )
+
+
+@router.get("/analysis/{analysis_id}/forecast-comparison")
+def forecast_comparison(
+    analysis_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> dict:
+    from backend.app.services.forecast_comparison import compare
+
+    job = owned_analysis(db, user, analysis_id)
+    # Reuse owned, source-bound and hash-verified artifact handlers.
+    mri = future_anatomy_artifact(analysis_id, "mri", db, user)
+    labels = future_anatomy_artifact(analysis_id, "labels", db, user)
+    field = future_anatomy_artifact(analysis_id, "pull", db, user)
+    result = ProgressionResult.model_validate(job.result_json)
+    forecast = result.anatomy.forecast
+    cutoff = next(v for v in result.anatomy.visits if v.visit_id == forecast.cutoff_visit_id)
+    visit = owned_visit(db, user, cutoff.visit_id)
+    snapshot = next(item for item in job.input_json if item["visit_id"] == cutoff.visit_id)
+    if visit.patient_id != job.patient_id or not visit.mri_key or visit.mri_key != snapshot["mri_key"]:
+        raise HTTPException(409, "Cutoff MRI changed since forecast generation")
+    source = resolve_key(visit.mri_key)
+    try:
+        source_matches = sha256(source) == cutoff.source_sha256
+    except OSError:
+        source_matches = False
+    if not source_matches:
+        raise HTTPException(409, "Cutoff MRI changed since forecast generation")
+    observed_labels = anatomy_artifact(analysis_id, cutoff.visit_id, "segmentation", db, user)
+    try:
+        comparison = compare(source, Path(observed_labels.path), Path(mri.path), Path(labels.path), Path(field.path),
+            cutoff.volumes_mm3, forecast.volumes_mm3, verified_units=snapshot.get("source_units_verified", False))
+    except (ValueError, OSError, KeyError) as error:
+        raise HTTPException(409, "Forecast comparison unavailable: " + str(error)) from None
+    return camel({"cutoff_visit_id": cutoff.visit_id, "interval_days": forecast.interval_days, **comparison})
 
 
 @router.get("/analysis/{analysis_id}/visits/{visit_id}/rating-alignment")

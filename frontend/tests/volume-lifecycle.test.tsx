@@ -8,11 +8,15 @@ const state = vi.hoisted(() => ({
   cleanup: vi.fn(),
   broadcast: vi.fn(),
   lose: vi.fn(),
+  options: vi.fn(),
   pending: Promise.resolve() as Promise<void>,
 }));
 vi.mock("@niivue/niivue", () => ({
   NVMesh: { readMesh: vi.fn() },
   Niivue: class {
+    constructor(options: Record<string, unknown>) {
+      state.options(options);
+    }
     canvas: HTMLCanvasElement | null = null;
     volumes = [];
     meshes = [];
@@ -77,6 +81,9 @@ it("cleans up a late async attachment without reviving an unmounted viewer", asy
     />,
   );
   await waitFor(() => expect(state.attach).toHaveBeenCalledOnce());
+  expect(state.options).toHaveBeenCalledWith(
+    expect.objectContaining({ isClipAllVolumes: true }),
+  );
   view.unmount();
   expect(state.cleanup).toHaveBeenCalledOnce();
   finish();
@@ -115,4 +122,25 @@ it("aborts an in-flight MRI download when the selected visit is unmounted", asyn
   expect(signal!.aborted).toBe(true);
   expect(state.cleanup).toHaveBeenCalledOnce();
   expect(onReady).toHaveBeenCalledExactlyOnceWith("v", null);
+});
+
+it("uses a fresh canvas when a label layer changes so old context cleanup cannot destroy the new viewer", async () => {
+  state.pending = new Promise<void>(() => {});
+  const props = {
+    id: "v",
+    url: "/api/visits/v/volume",
+    label: "Visit",
+    patientCode: "CASE",
+    settings,
+    onReady: vi.fn(),
+  };
+  const view = render(<VolumeCanvas {...props} labelUrl="/api/labels" />);
+  const first = view.container.querySelector("canvas");
+  await waitFor(() => expect(state.attach).toHaveBeenCalledOnce());
+  view.rerender(<VolumeCanvas {...props} />);
+  const replacement = view.container.querySelector("canvas");
+  expect(replacement).not.toBe(first);
+  await waitFor(() => expect(state.attach).toHaveBeenCalledTimes(2));
+  expect(state.cleanup).toHaveBeenCalledOnce();
+  view.unmount();
 });

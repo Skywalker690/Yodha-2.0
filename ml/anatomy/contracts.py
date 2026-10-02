@@ -98,11 +98,17 @@ class StructuralForecast(BaseModel):
     target: Literal["future_regional_anatomy"] = "future_regional_anatomy"
     warnings: list[str]
     volumes_mm3: dict[str, float] | None = None
+    experimental: bool = False
+    training_subject_count: int | None = Field(default=None, ge=1)
     prediction_intervals: dict[str, tuple[float, float]] | None = None
     interval_evidence: dict | None = None
     spatial_model_version: str | None = None
     model_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     release_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    feature_contract: str | None = None
+    reference_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    reference_profile_id: str | None = None
+    feature_availability: list[dict] | None = None
     artifacts: list[ForecastArtifact] = Field(default_factory=list, max_length=48)
 
     @model_validator(mode="after")
@@ -121,6 +127,10 @@ class StructuralForecast(BaseModel):
                         self.spatial_model_version,
                         self.model_sha256,
                         self.release_sha256,
+                        self.feature_contract,
+                        self.reference_sha256,
+                        self.reference_profile_id,
+                        self.feature_availability,
                     )
                 )
                 or self.artifacts

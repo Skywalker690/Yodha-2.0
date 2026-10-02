@@ -1,5 +1,24 @@
 # FastSurfer forecast completion blockers
 
+Current D044 replaces the fixed table with a training-only reference and removes
+the minimum ten rule. Six age groups have positive sample SD; the 90–94 group
+has one measurement and remains unavailable. Reference scope is 44 declared
+training subjects and 33 eligible baselines. Full processing/training/evaluation,
+calibrated uncertainty, geometric release checks and supported patient horizons
+remain separate prerequisites. The v3 metrics below are historical evidence.
+
+Current fixed-reference anatomy status is in [19](19-fixed-reference-anatomy-run.md).
+The supplied constants now give Z-scores for all 16 available examples. A real
+20-epoch CUDA candidate was trained with four training subjects, one selection,
+one test and no calibration. Scalar MAE is worse than no change, two of three
+native exports fail mask/scalar consistency and no requested horizon meets
+subject support. One +229-day retrospective evaluation artifact set exists;
+it is not a promoted patient-viewer release. The remaining full-cohort processing
+is running through one worker in a fresh run, with full-cohort fitting/evaluation
+still pending. Reference overlap and unreviewed anatomy/rating agreement remain
+explicit limitations, not accuracy claims. The entries below retain earlier
+baseline-study status and historical execution blockers.
+
 Current anatomy-extension blockers (2026-10-02): all five baseline outputs are
 verified but require human visual QC. The application has zero completed/reviewed
 longitudinal anatomy jobs. AVRA weights and the FSL container are pinned and completed

@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  ScanLine,
   Settings,
   ShieldCheck,
   Users,
@@ -25,7 +24,6 @@ import type { Health } from "@/types";
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/patients", label: "Patients", icon: Users },
-  { href: "/analysis", label: "MRI Analysis", icon: ScanLine },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -117,7 +115,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <ChevronRight size={14} />
             <strong>
               {nav.find((n) => path.startsWith(n.href))?.label ||
-                "Patient review"}
+                (path.startsWith("/analysis") ? "MRI Analysis" : "Patient review")}
             </strong>
           </div>
           <div className="topbar-right">
