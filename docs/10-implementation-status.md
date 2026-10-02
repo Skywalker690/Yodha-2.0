@@ -1,5 +1,18 @@
 # Implementation Status
 
+## Cognitive assessment imported through diffs (2026-10-03, D073)
+
+Imported the new assessment feature from remote chatbot `bd61b54` without merging
+branches. It includes eleven original English task groups, numeric point choices,
+draft/resume, server-calculated totals, immutable completion, owned visit APIs,
+optional authorized-protocol configuration and separate dashboard/chatbot demo
+scores. Current automatic patient codes, required age/nWBV, paired MRI uploads,
+hidden unavailable cards and axial defaults are preserved. Pending visits with
+assessment records are protected from empty-visit deletion. Build/type/static
+checks and API startup passed; the patient assessment action was inspected live.
+No real assessment, provider request or automated test suite was run for this
+import. See [22](22-cognitive-assessment.md) and [07](07-testing-validation.md).
+
 ## Default axial MRI view and segmentation visibility (2026-10-03, D072)
 
 The spatial MRI workspace opens in axial mode, including direct forecast links,

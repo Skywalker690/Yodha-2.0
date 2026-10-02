@@ -1,5 +1,13 @@
 # Local Full-Stack Development
 
+## Cognitive assessment (D073)
+
+The original English demo requires no key, extra dependency or migration. Restart
+FastAPI after importing the routes and use Start assessment on an uploaded case's
+selected visit. `MMSE_PROTOCOL_PATH` optionally names a local authorized protocol
+JSON; it is unset for the demo. Keep protocol content outside Git. Neither anatomy
+processing nor Gemini configuration is required. See [22](22-cognitive-assessment.md).
+
 ## Optional Alzhio Bot
 
 The merged chatbot feature uses the existing backend and frontend dependencies.

@@ -1,5 +1,17 @@
 # Data Contract
 
+## Cognitive assessment extension (D073)
+
+Visit JSON stores versioned `mmseAssessment` attempts internally and exposes only
+a sanitized summary in patient/list responses. The original English demo publishes
+`cognitiveDemoScore`; it never writes clinical `MMSE`. An explicitly configured
+authorized original-MMSE protocol has a separate standard-score completion path.
+Owned visit endpoints start/resume, save revision-checked drafts and complete
+server-calculated results. Assessment writes share the refreshed row lock already
+used by MRI uploads, preserving existing age/nWBV and paired-image metadata.
+Pending visits with assessment records reject deletion with 409. No migration is
+required. See [22](22-cognitive-assessment.md) for request/storage contracts.
+
 ## Patient creation and required MRI entry (D070)
 
 `POST /patients` accepts required `age` (integer, 18–120) and `nwbvFraction`

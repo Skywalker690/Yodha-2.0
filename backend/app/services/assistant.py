@@ -19,6 +19,7 @@ from backend.app.schemas.contracts import (
 )
 from backend.app.services.analysis import latest_anatomy, latest_completed
 from backend.app.services.forecast import patient_forecast
+from backend.app.services.mmse import summary as assessment_summary
 from src.fastsurfer.regions import REGIONS
 
 DISCLAIMER = "For clinician review; not a diagnosis or treatment recommendation."
@@ -79,6 +80,13 @@ def build_context(db: Session, patient: Patient) -> tuple[dict, AssistantContext
                 "recordedClinicalValues": clinical,
             }
         )
+        assessment = assessment_summary(visit)
+        if assessment and assessment.get("instrument") == "alzhio-cognitive-demo":
+            observations[-1]["demoCognitiveAssessment"] = {
+                "score": assessment["total"], "maximum": 30,
+                "label": "Non-standardized demo score; not MMSE and not a diagnostic measurement",
+                "language": assessment["language"], "assessedAt": assessment["assessedAt"],
+            }
     context = {
         "patient": {
             "age": number(patient.age),

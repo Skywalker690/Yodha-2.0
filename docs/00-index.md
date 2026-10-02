@@ -25,6 +25,7 @@ This folder is the working specification for the full-stack Alzhio platform. Rea
 | [19 Fixed-reference anatomy run](19-fixed-reference-anatomy-run.md) | Supplied fixed nWBV age constants, exact new inputs, real GPU candidate, evaluation and remaining cohort execution |
 | [20 Training-reference anatomy run](20-training-reference-anatomy-run.md) | Current training-only reference without minimum ten, GPU runs, evaluation and remaining execution |
 | [21 Clinical assistant](21-clinical-assistant.md) | Gemini hackathon chat, filtered patient context, optional web references, configuration and checks |
+| [22 Cognitive assessment](22-cognitive-assessment.md) | Imported English demo assessment, visit drafts, deterministic totals and separate cognitive-score provenance |
 | [Cohort definition](cohort_definition.md) | Observed CDR conversion, horizon censoring and inspected event counts |
 | [FastSurfer dictionary](fastsurfer_feature_dictionary.md) | Exact versioned labels, physical units and visual-review gate |
 | [Forecast evaluation](evaluation.md) | Matched comparisons, unsupported metrics and monotonic risk semantics |

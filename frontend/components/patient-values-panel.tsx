@@ -40,11 +40,12 @@ export function PatientValuesPanel({ patients }: { patients: Patient[] }) {
   const analysis = patient?.completedAnatomy;
   const anatomy = analysis?.resultJson?.anatomy;
   const anatomyVisits = anatomy?.visits || [];
-  const selected =
-    anatomyVisits.find((item) => item.visitId === visitId) ||
-    anatomyVisits[anatomyVisits.length - 1];
-  const sourceVisit = patient?.visits.find(
-    (item) => item.id === selected?.visitId,
+  const sourceVisit =
+    patient?.visits.find((item) => item.id === visitId) ||
+    patient?.visits.find((item) => item.id === anatomyVisits.at(-1)?.visitId) ||
+    patient?.visits.at(-1);
+  const selected = anatomyVisits.find(
+    (item) => item.visitId === sourceVisit?.id,
   );
   const metadata = sourceVisit?.metadata || {};
   const ratings = selected?.ratings;
@@ -66,7 +67,7 @@ export function PatientValuesPanel({ patients }: { patients: Patient[] }) {
   const referenceMatchesVisit = reference?.visitId === selected?.visitId;
   const visitAge = sourceValue(metadata, "Age");
   const observedValues: [string, unknown, string][] = [
-    ["Age at scan", visitAge, "years · OASIS source"],
+    ["Age at scan", visitAge ?? patient?.age, "years · recorded value"],
     [
       "Sex",
       sourceValue(metadata, "M/F") ?? patient?.sex,
@@ -74,6 +75,11 @@ export function PatientValuesPanel({ patients }: { patients: Patient[] }) {
     ],
     ["Handedness", sourceValue(metadata, "Hand"), "recorded source value"],
     ["MMSE", sourceValue(metadata, "MMSE"), "observed · /30"],
+    [
+      "Demo cognitive score",
+      sourceValue(metadata, "cognitiveDemoScore"),
+      "demo · /30 · not MMSE",
+    ],
     ["CDR", sourceValue(metadata, "CDR"), "observed · source scale"],
     ["Source nWBV", sourceValue(metadata, "nWBV"), "observed fraction"],
     ["eTIV", sourceValue(metadata, "eTIV"), "source cm³ / mL"],
@@ -160,18 +166,17 @@ export function PatientValuesPanel({ patients }: { patients: Patient[] }) {
                 ))}
               </select>
             </label>
-            {anatomyVisits.length > 0 && (
+            {(patient?.visits.length || 0) > 0 && (
               <label>
                 Observed visit
                 <select
                   aria-label="Patient values visit"
-                  value={selected?.visitId || ""}
+                  value={sourceVisit?.id || ""}
                   onChange={(event) => setVisitId(event.target.value)}
                 >
-                  {anatomyVisits.map((item) => (
-                    <option key={item.visitId} value={item.visitId}>
-                      {patient?.visits.find((v) => v.id === item.visitId)
-                        ?.label || item.visitId}
+                  {patient?.visits.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
                     </option>
                   ))}
                 </select>
@@ -209,6 +214,20 @@ export function PatientValuesPanel({ patients }: { patients: Patient[] }) {
           </div>
         )}
 
+        {availableObservedValues.length > 0 && sourceVisit && (
+          <>
+            <h3 className="patient-values-subtitle">Recorded source values</h3>
+            <div className="patient-values-source-grid">
+              {availableObservedValues.map(({ label, value, unit }) => (
+                <div key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                  <small>{unit}</small>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
         {selected && (
           <>
             <div className="stats-grid patient-values-stats">
@@ -248,23 +267,6 @@ export function PatientValuesPanel({ patients }: { patients: Patient[] }) {
                 note="Descriptive reference only · not diagnosis"
               />
             </div>
-            {availableObservedValues.length > 0 && (
-              <>
-                <h3 className="patient-values-subtitle">
-                  Recorded source values
-                </h3>
-                <div className="patient-values-source-grid">
-                  {availableObservedValues.map(({ label, value, unit }) => (
-                    <div key={label}>
-                      <span>{label}</span>
-                      <strong>{value}</strong>
-                      <small>{unit}</small>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
             {regionalVolumes.length > 0 && (
               <>
                 <h3 className="patient-values-subtitle">

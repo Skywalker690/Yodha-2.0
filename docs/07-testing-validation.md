@@ -1,5 +1,21 @@
 # Testing and Validation
 
+## Diff-based cognitive assessment import (D073)
+
+Fetched `origin/chatbot` at `bd61b54` and reviewed changes after `7165081`;
+the two new commits are imported through targeted patches/manual adaptation,
+with no merge or cherry-pick. Strict TypeScript, the production frontend build,
+focused backend Ruff/Python compilation and diff whitespace checks passed.
+The restarted API is online with connected PostgreSQL and all three assessment
+routes (POST start/resume, PATCH draft, POST completion). Paired MRI fields and
+required age/nWBV remain in its multipart schema. Live browser inspection confirms
+the assessment card/action on the existing uploaded patient case and its dashboard
+visit selector/source values without completed anatomy or unavailable value cards. No patient
+assessment was started/completed, real scores invented, provider calls made or
+automated tests added/imported/run. Source branch test results are historical;
+the full administered assessment and concurrency flows have not been rerun here.
+The ignored preview is `artifacts/imported-cognitive-assessment-20261003.png`.
+
 ## Default axial view and hippocampus mask status (D072)
 
 Strict TypeScript, the production frontend build and diff whitespace checks passed.

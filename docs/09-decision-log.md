@@ -1,5 +1,24 @@
 # Decision Log
 
+## D073: Import remote cognitive assessment through reviewed diffs
+
+Status: Accepted and implemented (2026-10-03, explicit user request)
+
+Fetch `origin/chatbot` at `bd61b54` and review its changes since the previously
+integrated `7165081`. Import the assessment feature from commits `8ba84db` and
+`bd61b54` through targeted patches and code edits, without a branch merge or
+cherry-pick. Include the clinician-guided English demo, eleven task groups,
+server-calculated totals, draft/resume, versioned immutable completion, owned
+visit APIs, authorized-protocol configuration and separate dashboard/chat context.
+The default demo score remains `cognitiveDemoScore`, never an MMSE model input.
+Imported OASIS observations remain read-only. Preserve current patient codes,
+required age/nWBV, paired MRI uploads, hidden unavailable dashboard cards and
+axial viewer defaults. Reuse the existing refreshed visit row lock for assessment
+writes and MRI metadata preservation; prevent pending-visit deletion when an
+assessment record exists. No database migration, model retraining, new service,
+automated test import/run or branch integration is included. Document the feature
+as document 22 to retain existing training/assistant documents and decision IDs.
+
 ## D072: Default axial MRI view and explain hippocampus mask availability
 
 Status: Accepted (2026-10-03, explicit user request)

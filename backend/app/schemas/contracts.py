@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictInt, field_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -25,6 +25,28 @@ class PatientCreate(Schema):
 class VisitCreate(Schema):
     label: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9 _-]+$")
     days_from_baseline: int = Field(ge=0, le=36500)
+
+
+class MMSEStart(Schema):
+    model_config = ConfigDict(extra="forbid", alias_generator=to_camel, populate_by_name=True)
+
+
+class MMSEItemResult(Schema):
+    model_config = ConfigDict(extra="forbid", alias_generator=to_camel, populate_by_name=True)
+    item_id: str = Field(min_length=1, max_length=64)
+    points: StrictInt | None = Field(default=None, ge=0, le=5)
+
+
+class MMSEDraftSave(Schema):
+    model_config = ConfigDict(extra="forbid", alias_generator=to_camel, populate_by_name=True)
+    revision: StrictInt = Field(ge=0)
+    assessed_at: AwareDatetime
+    items: list[MMSEItemResult] = Field(max_length=11)
+
+
+class MMSEComplete(Schema):
+    model_config = ConfigDict(extra="forbid", alias_generator=to_camel, populate_by_name=True)
+    revision: StrictInt = Field(ge=0)
 
 
 class AnalysisCreate(Schema):

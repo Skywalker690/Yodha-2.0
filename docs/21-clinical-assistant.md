@@ -3,6 +3,12 @@
 This feature was merged from remote `chatbot` into `feat/ml` under D066.
 Its original branch decisions are D063–D065 in the combined decision log.
 
+D073 imports cognitive assessment context from the later remote chatbot commits.
+The latest completed demo score is supplied as a separate `demoCognitiveAssessment`
+object with explicit demo provenance, never as recorded clinical `MMSE`. Task
+responses, rubrics and clinician IDs are excluded. See
+[22 Cognitive assessment](22-cognitive-assessment.md).
+
 The patient workspace includes Alzhio Bot, a Gemini-powered floating chat widget with three suggested
 questions, temporary follow-up history and optional Google Search references. The launcher
 does not consume workspace space; it opens an overlay and closes with Escape, its Close

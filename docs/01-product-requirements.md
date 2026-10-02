@@ -1,5 +1,17 @@
 # Product Requirements
 
+## Guided cognitive assessment import (2026-10-03, D073)
+
+Import the new remote chatbot assessment features through reviewed diffs without
+merging branches. Uploaded patient visits support clinician-administered original
+English demo tasks, eleven task groups, a server-calculated total out of 30,
+draft/resume and immutable completed attempts. Demo results are labeled and stored
+as `cognitiveDemoScore`, separate from clinical `MMSE` and all model inputs.
+Preserve imported observations, forecast eligibility and current MRI/dashboard
+behavior. Optional locally configured authorized original-MMSE content retains
+the source branch's separate standard-score path; no questionnaire is bundled.
+See [22 Cognitive assessment](22-cognitive-assessment.md).
+
 ## Hackathon clinical assistant (2026-10-03)
 
 Add an authenticated floating patient-workspace chat widget using Gemini for concise case summaries,

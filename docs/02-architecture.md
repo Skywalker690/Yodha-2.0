@@ -1,5 +1,10 @@
 # Full-Stack Architecture
 
+D073 adds visit-scoped cognitive assessments within the existing API and visit
+JSON, with deterministic server totals and no new service or migration. Drafts
+and original demo totals remain separate from trained clinical model features.
+See [22 Cognitive assessment](22-cognitive-assessment.md).
+
 The merged Alzhio Bot feature adds an optional external text-processing path to
 the existing FastAPI service. An authenticated patient endpoint rebuilds an
 allowlisted case context and calls Gemini only after a submitted question.

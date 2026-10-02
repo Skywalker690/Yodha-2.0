@@ -1,5 +1,16 @@
 # Next.js UI Specification
 
+## Guided English cognitive demo (D073)
+
+Both patient workspace modes include Start/Resume assessment for the selected
+uploaded-case visit. The dialog shows one clinician-administered task at a time,
+numeric point choices, a scoring guide, draft saving and review/completion. Missing
+answers remain null and block completion; administered zero points is valid.
+Display MMSE-style demo and Demo cognitive score for default original demo content.
+Imported OASIS observations remain read-only. Dashboard visit selection includes
+recorded visits before anatomy processing, with available clinical/demo values
+visible and unavailable cards still hidden. See [22](22-cognitive-assessment.md).
+
 ## Initial MRI layout and hippocampus highlights (D072)
 
 Start the patient spatial MRI workspace in axial mode, including direct forecast

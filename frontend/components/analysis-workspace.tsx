@@ -1,6 +1,7 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import { ClinicalAssistant } from "@/components/clinical-assistant";
+import { MMSEAssessment } from "@/components/mmse-assessment";
 import {
   ArrowLeft,
   ArrowRight,
@@ -281,6 +282,14 @@ function LegacyAnalysisWorkspace({
         </Button>
       </div>
       {patient.notes && <p className="patient-notes">{patient.notes}</p>}
+      {visit && (
+        <MMSEAssessment
+          key={`${patient.id}:${visit.id}`}
+          patient={patient}
+          visit={visit}
+          reload={reload}
+        />
+      )}
       {patient.source === "oasis-2" && (
         <BaselineForecast key={patient.id} patientId={patient.id} research />
       )}
@@ -750,6 +759,14 @@ function MLWorkspace({
           />
         )}
       </section>
+      {visit && (
+        <MMSEAssessment
+          key={`${patient.id}:${visit.id}`}
+          patient={patient}
+          visit={visit}
+          reload={reload}
+        />
+      )}
       {visit && (
         <AnatomyPanel
           key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}

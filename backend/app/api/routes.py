@@ -26,6 +26,9 @@ from backend.app.schemas.contracts import (
     VisitCreate,
     AssistantRequest,
     AssistantResponse,
+    MMSEStart,
+    MMSEDraftSave,
+    MMSEComplete,
 )
 from backend.app.services.analysis import enqueue, latest_completed, latest_anatomy, trained_model_version
 from backend.app.services.reports import build_report
@@ -33,6 +36,7 @@ from backend.app.services.forecast import patient_forecast
 from src.risk.release import readiness
 from backend.app.services.storage import resolve_key
 from backend.app.services.mri_upload import store_mri_upload
+from backend.app.services import mmse
 from ml.contracts import MODEL_VERSION
 from src.common import sha256
 from src.fastsurfer.regions import REGIONS
@@ -140,7 +144,7 @@ def patient_payload(db: Session, patient: Patient) -> dict:
                 "label": v.label,
                 "daysFromBaseline": v.days_from_baseline,
                 "hasMri": bool(v.mri_key),
-                "metadata": v.metadata_json,
+                "metadata": mmse.public_metadata(v),
                 "previewUrl": f"/api/visits/{v.id}/preview" if v.preview_key else None,
                 "volumeUrl": f"/api/visits/{v.id}/volume" if v.mri_key else None,
             }
@@ -293,6 +297,46 @@ def create_visit(
     return patient_payload(db, patient)
 
 
+def locked_assessment_visit(db: Session, user: User, visit_id: str) -> Visit:
+    visit = owned_visit(db, user, visit_id, lock=True)
+    patient = owned_patient(db, user, visit.patient_id)
+    mmse.ensure_editable_case(patient.source)
+    return visit
+
+
+@router.post("/visits/{visit_id}/mmse")
+def start_mmse(
+    visit_id: str, body: MMSEStart,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> dict:
+    visit = locked_assessment_visit(db, user, visit_id)
+    result = mmse.start(visit, user.id)
+    db.commit()
+    return mmse.public_assessment(result)
+
+
+@router.patch("/visits/{visit_id}/mmse/{assessment_id}")
+def save_mmse(
+    visit_id: str, assessment_id: str, body: MMSEDraftSave,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> dict:
+    visit = locked_assessment_visit(db, user, visit_id)
+    result = mmse.save(visit, assessment_id, body)
+    db.commit()
+    return mmse.public_assessment(result)
+
+
+@router.post("/visits/{visit_id}/mmse/{assessment_id}/complete")
+def complete_mmse(
+    visit_id: str, assessment_id: str, body: MMSEComplete,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> dict:
+    visit = locked_assessment_visit(db, user, visit_id)
+    result = mmse.complete(visit, assessment_id, body.revision)
+    db.commit()
+    return mmse.public_assessment(result)
+
+
 @router.delete("/visits/{visit_id}")
 def delete_pending_visit(
     visit_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)
@@ -300,6 +344,8 @@ def delete_pending_visit(
     visit = owned_visit(db, user, visit_id, lock=True)
     if visit.mri_key or visit.preview_key:
         raise HTTPException(409, "Only visits awaiting an MRI can be deleted.")
+    if mmse.summary(visit) is not None:
+        raise HTTPException(409, "This visit has cognitive assessment records and cannot be deleted.")
     jobs = db.scalars(select(Analysis).where(Analysis.patient_id == visit.patient_id))
     for job in jobs:
         if job.visit_id == visit.id or any(

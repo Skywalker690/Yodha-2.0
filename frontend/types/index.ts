@@ -68,12 +68,15 @@ export type AnatomyResult = {
     experimental?: boolean;
     displayMagnification?: number | null;
     displayMode?: "hippocampus_scalar" | null;
-    displayRegions?: Record<string, {
-      inputMaskMm3: number;
-      displayMaskMm3: number;
-      scalarChangePercent: number;
-      displayChangePercent: number;
-    }> | null;
+    displayRegions?: Record<
+      string,
+      {
+        inputMaskMm3: number;
+        displayMaskMm3: number;
+        scalarChangePercent: number;
+        displayChangePercent: number;
+      }
+    > | null;
     trainingSubjectCount?: number | null;
     status: "unavailable" | "available";
     cutoffVisitId: string;
@@ -93,11 +96,17 @@ export type AnatomyResult = {
     featureContract?: string | null;
     referenceSha256?: string | null;
     referenceProfileId?: string | null;
-    featureAvailability?: {
-      visitId: string;
-      nwbvAgeZ: { status: string; zScore: number | null; referencePolicy?: string };
-      MMSE: { status: string };
-    }[] | null;
+    featureAvailability?:
+      | {
+          visitId: string;
+          nwbvAgeZ: {
+            status: string;
+            zScore: number | null;
+            referencePolicy?: string;
+          };
+          MMSE: { status: string };
+        }[]
+      | null;
     artifacts: {
       name: string;
       kind: "mri" | "labels" | "field" | "mesh";
@@ -165,6 +174,36 @@ export type Analysis = {
   error: string | null;
   createdAt: string;
 };
+export type MMSESummary = {
+  status: "draft" | "completed";
+  hasDraft: boolean;
+  completedCount: number;
+  total?: number;
+  instrument?: "mmse-original" | "alzhio-cognitive-demo";
+  version?: string;
+  language?: string;
+  assessedAt?: string;
+  completedAt?: string;
+};
+export type MMSETask = {
+  id: string;
+  title: string;
+  max_points: number;
+  prompt: string;
+  rubric: string;
+};
+export type MMSEAssessment = {
+  id: string;
+  status: "draft" | "completed";
+  revision: number;
+  instrument: "mmse-original" | "alzhio-cognitive-demo";
+  version: string;
+  language: string;
+  assessedAt: string;
+  total: number | null;
+  items: Record<string, number | null>;
+  definition: { items: MMSETask[] };
+};
 export type Visit = {
   id: string;
   label: string;
@@ -179,7 +218,9 @@ export type Visit = {
     clinical_metadata_source?: string;
     eTIV?: number;
     CDR?: number;
-    MMSE?: number;
+    MMSE?: number | null;
+    cognitiveDemoScore?: number;
+    mmseAssessment?: MMSESummary;
     shape?: number[];
     source?: string;
   };
