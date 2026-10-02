@@ -120,7 +120,6 @@
   border-top: 1px solid #2b414e;
   padding-top: 12px;
 }
-.assistant-used,
 .assistant-no-sources {
   color: var(--muted);
   font-size: 10px;
@@ -159,11 +158,6 @@
   font-size: 11px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.assistant-disclaimer {
-  margin-top: 10px;
-  font-size: 10px;
-  color: #b4c7cf;
 }
 .assistant-search-suggestions {
   border: 0;

@@ -291,15 +291,8 @@ function AssistantSession({ patient }: { patient: Patient }) {
 }
 
 function AnswerEvidence({ response }: { response: AssistantResponse }) {
-  const context = response.contextSummary;
   return (
     <div className="assistant-evidence">
-      <div className="assistant-used">
-        Context used: {context.visitCount} visits ·{" "}
-        {context.clinicalFieldsUsed.join(", ") || "Clinical values unavailable"}
-        {context.anatomyIncluded &&
-          ` · Anatomy ${context.anatomyReviewed ? "reviewed" : "awaiting review"}`}
-      </div>
       {response.sources.length > 0 && (
         <details className="assistant-sources">
           <summary>
@@ -336,7 +329,6 @@ function AnswerEvidence({ response }: { response: AssistantResponse }) {
           srcDoc={`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; base-uri 'none'; form-action 'none'"><base target="_blank">${response.searchSuggestions}`}
         />
       )}
-      <p className="assistant-disclaimer">{response.disclaimer}</p>
     </div>
   );
 }
