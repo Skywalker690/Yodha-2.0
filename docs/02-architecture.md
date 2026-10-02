@@ -1,5 +1,12 @@
 # Full-Stack Architecture
 
+The merged Alzhio Bot feature adds an optional external text-processing path to
+the existing FastAPI service. An authenticated patient endpoint rebuilds an
+allowlisted case context and calls Gemini only after a submitted question.
+MRI processing and forecasting remain in the existing local worker. This is the
+explicit synthetic/de-identified demonstration exception in D063/D066; see
+[21 Clinical assistant](21-clinical-assistant.md) for configuration and data scope.
+
 The separate native anatomy job extends existing persistence and worker/viewer
 boundaries without new services. Its implemented interfaces and incomplete
 forecasting/runtime gates are specified in [17 Longitudinal anatomy](17-longitudinal-anatomy.md).

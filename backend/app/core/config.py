@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 100 * 1024 * 1024
     token_minutes: int = 480
     worker_poll_seconds: float = 1.0
+    gemini_api_key: SecretStr = SecretStr("")
+    gemini_model: str = Field(default="gemini-2.5-flash", pattern=r"^[a-zA-Z0-9._-]+$")
+    gemini_search_enabled: bool = True
 
     @field_validator("jwt_secret")
     @classmethod

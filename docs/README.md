@@ -1,4 +1,4 @@
-# NeuroPredict AI Documentation
+# Alzhio Documentation
 
 Start with [`00-index.md`](00-index.md). These documents are the implementation reference for every change to the project.
 

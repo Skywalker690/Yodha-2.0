@@ -109,7 +109,7 @@ D054 omits the standalone `MRI timeline` panel from the default patient page;
 scan selection uses `MRI visit` and the 3D workspace's existing navigation.
 
 ```
-Header: NeuroPredict AI | Researcher | Online
+Header: Alzhio | Researcher | Online
 Sidebar: Dashboard, Patients, Reports, Settings
 Dashboard: overview metrics and recent patients
 Patient page: summary, MRI timeline, risk chart, biomarkers, Analyze MRI

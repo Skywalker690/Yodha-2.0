@@ -1,5 +1,57 @@
 # Decision Log
 
+## D066: Merge remote chatbot features into the ML branch
+
+Status: Accepted (2026-10-03, explicit user merge/build request)
+
+Merge `origin/chatbot` at `7165081` into `feat/ml`, retaining its authenticated
+Gemini endpoint, floating Alzhio Bot widget, temporary follow-up history, research
+references, retry/clear actions and Alzhio branding. Preserve the ML branch's
+anatomy contracts, experimental forecast controls, local hippocampus illustrations,
+pending visit deletion and current patient/sidebar choices. The assistant context
+identifies the separate scalar-guided illustration when that display mode is used.
+No new inference provider call is made by merging or building the application.
+
+Reconcile both documentation histories: incoming chatbot D042/D043/D044 become
+D063/D064/D065 below, and its clinical assistant document becomes 21 because
+the ML branch already uses 19 and 20 for anatomy runs. Historical branch evidence
+remains attributed to that branch; record the actual combined build separately.
+
+## D065: Alzhio text-only product and bot branding
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Use a CSS-styled text wordmark, `Alzhio`, for public product branding and `Alzhio Bot`
+for the contextual chat. Remove the brain icon marks from those brand areas rather than
+adding a graphical logo. Public browser, API, report and export labels use Alzhio; routes,
+database identifiers and package names remain unchanged for compatibility.
+
+## D064: Floating assistant widget preserves workspace space
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Render Alzhio Bot as a fixed launcher and overlay drawer rather than an
+in-flow patient-workspace panel. It stays scoped to the selected patient, has keyboard
+Escape, backdrop and Close controls, and does not alter backend behavior or send data
+until the clinician submits a question.
+
+## D063: Gemini assistant for the five-hour hackathon
+
+Status: Accepted (2026-10-03, explicit user implementation request)
+
+Implement one stateless authenticated patient assistant endpoint and one chat panel shared
+by both workspace modes. Use the existing httpx dependency with Gemini generateContent
+REST, optional Google Search grounding, backend-only SecretStr API key and configurable
+model. No local training, database migrations, SDK installation or worker changes.
+
+This extends D007 with an explicit cloud text-processing exception for synthetic/OASIS
+de-identified demonstration cases. Send only allowlisted structured clinical/anatomy
+values, preserving unreviewed research status and unavailable forecasts; omit source
+identifiers, patient/visit codes, free text, paths, raw MRI and owner data. User questions
+and recent exchanges are sent to Gemini and must omit identifying details. No chat is
+persisted by Alzhio; provider retention terms still apply. Preserve existing forecast
+gates and user worktree changes. Record configuration and verification in doc 21.
+
 ## D062: Restore head geometry and show scalar-guided hippocampal progression
 
 Status: Accepted (2026-10-03, user reports skull distortion)

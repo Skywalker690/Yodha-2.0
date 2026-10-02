@@ -370,7 +370,7 @@ export function VolumeCanvas({
             try {
               await saveResearchSnapshot(
                 viewer.current,
-                `NeuroPredict-${patientCode}-${id}-RESEARCH.png`,
+                `Alzhio-${patientCode}-${id}-RESEARCH.png`,
                 `${patientCode} | ${label} | ${kind === "predicted" ? "Predicted anatomy - not acquired MRI" : labelUrl ? "Observed MRI / measured regions - verify QC" : overlayUrl ? "Intensity-difference proxy" : "Observed source MRI"}`,
                 kind === "predicted"
                   ? "Predicted anatomy - not acquired MRI"

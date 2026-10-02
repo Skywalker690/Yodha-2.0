@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  Brain,
   Check,
   LockKeyhole,
   ScanLine,
@@ -21,12 +20,7 @@ export default function LoginPage() {
     <main className="login-page">
       <section className="login-story">
         <div className="brand">
-          <span className="brand-mark">
-            <Brain size={28} />
-          </span>
-          <span>
-            NeuroPredict <span className="brand-ai">AI</span>
-          </span>
+          <span className="brand-wordmark">Alzhio</span>
         </div>
         <div className="login-story-body">
           <div className="eyebrow">A LONGITUDINAL PERSPECTIVE</div>
@@ -42,7 +36,7 @@ export default function LoginPage() {
           <div className="login-orbit">
             <div className="orbit orbit-one" />
             <div className="orbit orbit-two" />
-            <Brain size={118} strokeWidth={0.8} />
+            <span className="login-orbit-wordmark">Alzhio</span>
             <span className="orbit-tag tag-one">
               <ScanLine size={15} /> Baseline
             </span>

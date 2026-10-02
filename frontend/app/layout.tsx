@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "NeuroPredict AI | Longitudinal research",
+  title: "Alzhio | Longitudinal research",
   description:
     "A local workspace for longitudinal brain MRI research. Research prototype, not a medical diagnosis.",
 };

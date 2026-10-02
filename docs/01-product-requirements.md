@@ -1,5 +1,16 @@
 # Product Requirements
 
+## Hackathon clinical assistant (2026-10-03)
+
+Add an authenticated floating patient-workspace chat widget using Gemini for concise case summaries,
+missing-information review, explanations of current outputs and optional web references.
+Patient context is rebuilt server-side, with numeric source fields and explicitly labeled
+anatomy/QC and forecast availability. Raw MRI, patient codes/UUIDs, notes, paths and owner
+information are excluded. Recent chat lives only in browser memory. Gemini receives the
+structured context and user messages; use synthetic/OASIS de-identified demo cases.
+This is an explicit exception to fully local computation (D063), preserving the clinical
+research intended use and existing ML-only release gates. See [21 Clinical assistant](21-clinical-assistant.md).
+
 ## Product
 
 D062 restores head geometry in the forecast viewer and shows hippocampal volume
@@ -121,7 +132,7 @@ No validated all-horizon default is claimed before runtime, QC, event support an
 matched evaluation gates pass. See [15 Architecture](15-fastsurfer-architecture.md)
 and [current blockers](blockers.md).
 
-NeuroPredict AI is a clinical research platform that analyzes repeated MRI scans from the same subject and presents an understandable progression story over time.
+Alzhio is a clinical research platform that analyzes repeated MRI scans from the same subject and presents an understandable progression story over time.
 
 ## Primary user
 

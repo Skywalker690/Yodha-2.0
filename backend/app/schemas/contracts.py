@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -56,3 +56,48 @@ class AnatomyForecastCreate(Schema):
     interval_days: int = Field(ge=0, le=3650)
     cutoff_visit_id: str | None = Field(default=None, min_length=1, max_length=64)
     experimental: bool = False
+
+
+class AssistantMessage(Schema):
+    model_config = ConfigDict(extra="forbid")
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=12000)
+
+
+class AssistantRequest(Schema):
+    model_config = ConfigDict(extra="forbid")
+    question: str = Field(min_length=1, max_length=1000)
+    history: list[AssistantMessage] = Field(default_factory=list, max_length=6)
+    use_research_sources: bool = False
+
+    @field_validator("question")
+    @classmethod
+    def nonempty_question(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Enter a question")
+        return value.strip()
+
+
+class AssistantSource(Schema):
+    title: str
+    url: str
+    supported_text: list[str] = Field(default_factory=list)
+
+
+class AssistantContextSummary(Schema):
+    visit_count: int
+    clinical_fields_used: list[str]
+    anatomy_included: bool
+    anatomy_reviewed: bool
+    forecast_included: bool
+    raw_mri_sent: Literal[False] = False
+
+
+class AssistantResponse(Schema):
+    answer: str
+    sources: list[AssistantSource]
+    search_suggestions: str | None = None
+    research_requested: bool
+    context_summary: AssistantContextSummary
+    model: str
+    disclaimer: str

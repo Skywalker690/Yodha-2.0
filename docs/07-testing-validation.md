@@ -1,5 +1,15 @@
 # Testing and Validation
 
+## Combined chatbot/ML build (D066)
+
+The merge of chatbot `7165081` into the ML branch passed the frontend production
+build, strict TypeScript, focused backend Ruff, Python compilation and diff
+whitespace checks. The restarted local API returned health 200, exposes
+`POST /patients/{patient_id}/assistant` and retains the experimental anatomy
+forecast request field. The local Gemini key is absent; no provider request was
+made and no automated test suites were run for the merge. Existing branch test
+evidence below and in document 21 is historical, not a combined test run.
+
 ## Local hippocampus illustrations (D062)
 
 Real preparation completed 15/15 illustrations: 365/731/1096 days for each of
@@ -191,6 +201,15 @@ Both saved models reject incompatible earlier feature versions.
 
 Actual 20-epoch CUDA training and held-out/native evidence is recorded separately
 in [19](19-fixed-reference-anatomy-run.md); tests do not establish forecast accuracy.
+
+## Clinical assistant checks (2026-10-03)
+
+Run `pytest tests/test_assistant_api.py -q`, frontend unit tests, TypeScript and production
+build. Synthetic/mock tests verify ownership before provider access, filtered context,
+ML-only availability, request limits, server-only configuration, bounded history,
+grounded references, timeout/errors, retry and patient-switch isolation. See
+[21 Clinical assistant](21-clinical-assistant.md). Live Gemini checks require an API key;
+no real patient information is used by automated tests.
 
 ## AVRA raw-regression research inputs (2026-10-02)
 

@@ -1,5 +1,15 @@
 # Implementation Status
 
+## Combined chatbot and ML application (2026-10-03, D066)
+
+Remote `chatbot` at `7165081` is integrated into the current ML branch, including
+Alzhio branding, the patient chat widget, follow-up history, suggested questions,
+research references and the authenticated Gemini adapter. The current anatomy
+and forecast workflow remains integrated. Frontend build/type checks, backend
+lint/compilation and API startup checks passed. The local API serves the merged
+code; live bot replies require a backend Gemini API key. No provider call or
+automated test suite was run for this merge.
+
 ## Regional hippocampus display correction (2026-10-03, D062)
 
 The default forecast viewer now shows scalar-guided local hippocampus changes
@@ -19,6 +29,21 @@ annual scalar progression and plays completed horizons. Five of fifteen views
 permit 1.5x/3x magnification; others show original scale. Original outputs,
 model weights, training membership and unvalidated status remain unchanged.
 See [07](07-testing-validation.md) for runtime counts and check limitations.
+
+## Gemini clinical assistant (2026-10-03)
+
+The patient workspace includes temporary contextual chat, three suggested questions and
+optional Google Search references with supported passages. One authenticated backend
+endpoint builds an allowlisted context and uses the existing httpx dependency. No model
+training, schema migration or additional service is required. Raw MRI/identifiers/notes
+are excluded; unreviewed anatomy and unavailable forecasts retain their status.
+
+On the original chatbot branch, frontend unit tests, TypeScript, production build,
+focused backend tests, Ruff and the synthetic Edge desktop/mobile workflow passed.
+That branch's running backend was updated and healthy;
+the existing MRI worker remained running. Live responses need GEMINI_API_KEY in the local
+backend environment. Full Python verification remains limited by existing missing reference
+data and anatomy/forecast dependencies. See [21 Clinical assistant](21-clinical-assistant.md).
 
 ## Optional nWBV module integration (2026-10-02)
 

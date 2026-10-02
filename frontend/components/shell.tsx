@@ -3,8 +3,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Activity,
-  Brain,
   ChevronRight,
   FileText,
   FlaskConical,
@@ -51,13 +49,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </a>
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
         <Link href="/dashboard" className="brand">
-          <span className="brand-mark">
-            <Brain size={26} />
-          </span>
-          <span>
-            NeuroPredict<span className="brand-ai">AI</span>
-            <small>LONGITUDINAL INTELLIGENCE</small>
-          </span>
+          <span className="brand-wordmark">Alzhio</span>
         </Link>
         <button
           className="mobile-close"
@@ -144,9 +136,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main id="main-content" className="main-content">
           {children}
           <footer className="footer">
-            <span>
-              <Activity size={14} /> NeuroPredict AI
-            </span>
+            <span>Alzhio</span>
             <span>
               Research Prototype <b>·</b> Not a medical diagnosis
             </span>

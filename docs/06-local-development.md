@@ -1,5 +1,13 @@
 # Local Full-Stack Development
 
+## Optional Alzhio Bot
+
+The merged chatbot feature uses the existing backend and frontend dependencies.
+Set the backend-only `GEMINI_API_KEY` in the ignored root `.env` and restart
+FastAPI to enable replies; `GEMINI_MODEL` and `GEMINI_SEARCH_ENABLED` are optional.
+The app and chat widget start without a key, with an explicit configuration error
+when a question is submitted. See [21 Clinical assistant](21-clinical-assistant.md).
+
 ## Explicit frozen-candidate forecasts (D046)
 
 Set `ANATOMY_EXPERIMENTAL_CANDIDATE_DIR` to an intact historical v3 candidate with
