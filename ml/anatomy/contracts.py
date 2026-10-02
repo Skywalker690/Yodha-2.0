@@ -98,11 +98,20 @@ class StructuralForecast(BaseModel):
     target: Literal["future_regional_anatomy"] = "future_regional_anatomy"
     warnings: list[str]
     volumes_mm3: dict[str, float] | None = None
+    experimental: bool = False
+    display_magnification: float | None = Field(default=None, ge=1, le=3)
+    display_mode: Literal["hippocampus_scalar"] | None = None
+    display_regions: dict[str, dict[str, float]] | None = None
+    training_subject_count: int | None = Field(default=None, ge=1)
     prediction_intervals: dict[str, tuple[float, float]] | None = None
     interval_evidence: dict | None = None
     spatial_model_version: str | None = None
     model_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     release_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    feature_contract: str | None = None
+    reference_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    reference_profile_id: str | None = None
+    feature_availability: list[dict] | None = None
     artifacts: list[ForecastArtifact] = Field(default_factory=list, max_length=48)
 
     @model_validator(mode="after")
@@ -121,6 +130,13 @@ class StructuralForecast(BaseModel):
                         self.spatial_model_version,
                         self.model_sha256,
                         self.release_sha256,
+                        self.feature_contract,
+                        self.reference_sha256,
+                        self.reference_profile_id,
+                        self.feature_availability,
+                        self.display_magnification,
+                        self.display_mode,
+                        self.display_regions,
                     )
                 )
                 or self.artifacts
@@ -136,6 +152,30 @@ class StructuralForecast(BaseModel):
             or not {"mri", "labels", "pull", "brain_mesh"}.issubset({a.name for a in self.artifacts})
         ):
             raise ValueError("Available forecast requires a complete evaluated native artifact set")
+        display_names = {"mri_display", "labels_display", "pull_display"}
+        present = {a.name for a in self.artifacts} & display_names
+        if self.display_magnification is not None and not self.experimental:
+            raise ValueError("Display magnification is restricted to experimental presentation")
+        if present or (self.display_magnification or 1) > 1:
+            if present != display_names or (
+                (self.display_magnification or 1) <= 1 and self.display_mode != "hippocampus_scalar"
+            ):
+                raise ValueError("Magnified display requires its complete separate artifact set")
+        if self.display_mode == "hippocampus_scalar":
+            if not self.experimental or present != display_names or not self.display_regions:
+                raise ValueError("Regional illustration requires experimental metadata and display artifacts")
+            if set(self.display_regions) != {"hippocampus_left_mm3", "hippocampus_right_mm3"}:
+                raise ValueError("Bilateral hippocampus illustration required")
+            for region in self.display_regions.values():
+                if (
+                    set(region) != {"input_mask_mm3", "display_mask_mm3", "scalar_change_percent", "display_change_percent"}
+                    or not all(math.isfinite(v) for v in region.values())
+                    or min(region["input_mask_mm3"], region["display_mask_mm3"]) <= 0
+                    or abs(region["display_change_percent"] - region["scalar_change_percent"]) > 1.000001
+                ):
+                    raise ValueError("Invalid or inconsistent hippocampus display measurements")
+        elif self.display_regions is not None:
+            raise ValueError("Regional measurements require their explicit display mode")
         if self.prediction_intervals is not None:
             if (
                 not self.interval_evidence

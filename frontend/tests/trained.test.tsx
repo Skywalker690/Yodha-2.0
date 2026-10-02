@@ -120,7 +120,9 @@ it("ML-only workspace hides all historical modes and scores", () => {
       reload={vi.fn()}
     />,
   );
-  expect(screen.getByText("Clinical + FastSurfer ML forecast")).toBeTruthy();
+  expect(screen.queryByText("Clinical + FastSurfer ML forecast")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Check prediction readiness" })).toBeNull();
+  expect(screen.queryByText(/first observed CDR conversion/)).toBeNull();
   expect(screen.queryByLabelText("Analysis mode")).toBeNull();
   expect(screen.queryByRole("button", { name: "Analyze MRI" })).toBeNull();
   expect(screen.queryByText("62.0%")).toBeNull();

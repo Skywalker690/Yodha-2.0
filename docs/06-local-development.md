@@ -1,5 +1,41 @@
 # Local Full-Stack Development
 
+## Optional Alzhio Bot
+
+The merged chatbot feature uses the existing backend and frontend dependencies.
+Set the backend-only `GEMINI_API_KEY` in the ignored root `.env` and restart
+FastAPI to enable replies; `GEMINI_MODEL` and `GEMINI_SEARCH_ENABLED` are optional.
+The app and chat widget start without a key, with an explicit configuration error
+when a question is submitted. See [21 Clinical assistant](21-clinical-assistant.md).
+
+## Explicit frozen-candidate forecasts (D046)
+
+Set `ANATOMY_EXPERIMENTAL_CANDIDATE_DIR` to an intact historical v3 candidate with
+paired `with_scores.pt`, `with_scores.json` and their original `evaluation.json`.
+Restart the API. This setting does not promote a release. With Docker paused, run
+one `.venv/Scripts/python -m backend.app.workers.runner --experimental-only`.
+Its heartbeat reports `experimental_forecasts_only`; native queued jobs are untouched.
+Stop it while idle before starting the normal preprocessing worker.
+
+Inspect eligibility with `.venv/Scripts/python -m scripts.queue_experimental_forecasts`;
+add `--queue --interval-days 365 --output artifacts/experimental-forecast-365-jobs.json`
+to persist exploratory jobs. Completed matching forecasts are skipped.
+
+## Install the existing saved visual preview
+
+`/preview` reads a separate pinned historical example. Install it once with the
+host interpreter; an existing destination is never overwritten:
+
+```powershell
+.venv/Scripts/python -m scripts.prepare_anatomy_preview --case artifacts/anatomy-fixed-reference-full-20261002/study/case-2-4/case.json --manifest artifacts/anatomy-fixed-reference-partial-20261002/candidate/native-test/8/future-artifacts.json --evaluation artifacts/anatomy-fixed-reference-partial-20261002/candidate/evaluation.json
+```
+
+The default destination is ignored `storage/cache/anatomy-preview`; use
+`ANATOMY_PREVIEW_DIR` and matching `--output` for another local directory. This
+copies verified existing display files, requires the original owned subject MRI
+history, and invokes no GPU processing, training or promotion. Restart only the
+API if it does not reload source edits; the active worker need not reload for this page.
+
 For native longitudinal anatomy installation, optional AVRA runtime, review/artifact
 routes and current blockers, see [17](17-longitudinal-anatomy.md). Install the optional
 `requirements-anatomy.txt` and restart the single existing worker to load changes.

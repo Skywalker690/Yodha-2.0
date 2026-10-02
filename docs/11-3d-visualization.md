@@ -49,6 +49,11 @@ Authenticated API endpoints serve immutable source NIfTI and generated differenc
 
 Display controls apply to both comparison panels; the Link option additionally synchronizes interactive mouse navigation by header coordinates. Camera rotation is retained when changing cutaways or windows. Lost GPU contexts show an explicit recovery error; Retry constructs a fresh canvas. Intensity windows/thresholds are applied after NiiVue colormap recalibration, with a regression test for that ordering.
 
+D050 enables `isClipAllVolumes` in each canvas: NiiVue's default otherwise leaves
+segmentation/difference overlays visible when MRI tissue is clipped away. Yellow
+hippocampus highlighting is restored on experimental links/actions and shares the
+MRI camera, zoom and clipping. This does not alter the saved anatomy prediction.
+
 Difference artifacts contain absolute differences on the pipeline's normalized 64-cube grid, with an affine mapping that grid into the selected scan's canonical field of view. This is display geometry, not baseline-to-follow-up registration. Affine handling and finite values must be tested. Existing cached analyses without these artifacts remain valid 2D results and require new inference for 3D differences.
 
 ## Acceptance checks

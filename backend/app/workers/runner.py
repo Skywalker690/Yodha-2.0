@@ -4,13 +4,14 @@ import time
 from pathlib import Path
 from threading import Event, Thread
 
-from sqlalchemy import select, text, update
+from sqlalchemy import case, select, text, update
 
 from backend.app.core.config import get_settings
 from backend.app.db.session import SessionLocal, engine
 from backend.app.models import Analysis, Biomarker, Heatmap, Patient
 from backend.app.services.analysis import cache_key, trained_model_version
 from backend.app.services.storage import resolve_key
+from backend.app.services.compute import gpu_slot
 from ml.contracts import ProgressionResult, VisitInput
 from ml.inference import run_pipeline
 from ml.nwbv_contract import NWBV_REFERENCE_KEY, NwbvAgeReferenceBiomarker
@@ -18,7 +19,7 @@ from ml.nwbv_contract import NWBV_REFERENCE_KEY, NwbvAgeReferenceBiomarker
 logger = logging.getLogger(__name__)
 
 
-def heartbeat_loop(stop: Event) -> None:
+def heartbeat_loop(stop: Event, experimental_only: bool = False) -> None:
     """Remain observable while a native inference job takes tens of minutes."""
     from src.common import write_json
 
@@ -31,7 +32,15 @@ def heartbeat_loop(stop: Event) -> None:
             resolve_key("worker-capabilities.json"),
             {
                 "timestamp": time.time(),
-                "capabilities": ["longitudinal-anatomy-v1", "anatomy-forecast-v1", "nwbv-age-reference-v1"],
+                "workerMode": "experimental_forecasts_only" if experimental_only else "all_analysis",
+                "capabilities": ["anatomy-experimental-forecast-v1"]
+                if experimental_only
+                else [
+                    "longitudinal-anatomy-v1",
+                    "anatomy-forecast-v1",
+                    "nwbv-age-reference-v1",
+                    "anatomy-experimental-forecast-v1",
+                ],
             },
         )
         stop.wait(min(get_settings().worker_poll_seconds, 5.0))
@@ -98,7 +107,14 @@ def execute(analysis_id: str) -> None:
                         source.id,
                         patient.code,
                     )
-                update_progress(analysis_id, 20, "Cutoff-local registration and evaluated spatial prediction")
+                failure_message = "Forecast generation failed. Verify source integrity, registration coverage, positive deformation geometry and the pinned checkpoint. See the private worker log for the specific failure."
+                update_progress(
+                    analysis_id,
+                    20,
+                    "Experimental cutoff-local registration and spatial prediction"
+                    if spec.get("is_research_candidate")
+                    else "Cutoff-local registration and evaluated spatial prediction",
+                )
                 result = execute_forecast(
                     payload,
                     source_inputs,
@@ -271,28 +287,37 @@ def execute(analysis_id: str) -> None:
                 db.commit()
 
 
-def claim_next() -> str | None:
+def claim_next(*, experimental_only: bool = False) -> str | None:
     with SessionLocal() as db:
+        query = select(Analysis).where(Analysis.status == "queued")
+        if experimental_only:
+            query = query.where(Analysis.stage == "Experimental forecast queued")
         job = db.scalar(
-            select(Analysis)
-            .where(Analysis.status == "queued")
-            .order_by(Analysis.created_at)
+            query.order_by(
+                case((Analysis.stage == "Experimental forecast queued", 0), else_=1), Analysis.created_at
+            )
             .with_for_update(skip_locked=True)
             .limit(1)
         )
         if job is None:
             return None
-        job.status, job.stage = "processing", "Worker started"
+        job.status, job.stage = (
+            "processing",
+            "Experimental forecast started"
+            if job.stage == "Experimental forecast queued"
+            else "Worker started",
+        )
         db.commit()
         return job.id
 
 
-def recover_interrupted() -> None:
+def recover_interrupted(*, experimental_only: bool = False) -> None:
     with SessionLocal() as db:
+        query = update(Analysis).where(Analysis.status == "processing")
+        if experimental_only:
+            query = query.where(Analysis.stage.like("Experimental%"))
         db.execute(
-            update(Analysis)
-            .where(Analysis.status == "processing")
-            .values(
+            query.values(
                 status="failed",
                 stage="Worker restarted",
                 error="Analysis was interrupted by a worker restart. Start analysis again.",
@@ -302,6 +327,15 @@ def recover_interrupted() -> None:
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--experimental-only",
+        action="store_true",
+        help="Process CPU experimental forecasts while MRI/Docker preprocessing is paused",
+    )
+    args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     # Keep a session-level advisory lock so an accidental second worker cannot
     # mark another worker's live processing jobs as interrupted.
@@ -313,17 +347,24 @@ def main() -> None:
                 raise SystemExit(
                     "Another local analysis worker is already running. Stop it before starting this one."
                 )
-        recover_interrupted()
+        recover_interrupted(experimental_only=args.experimental_only)
         logger.info("Local analysis worker ready")
         stop = Event()
-        heartbeat_thread = Thread(target=heartbeat_loop, args=(stop,), daemon=True)
+        heartbeat_thread = Thread(target=heartbeat_loop, args=(stop, args.experimental_only), daemon=True)
         heartbeat_thread.start()
         try:
             while True:
-                job_id = claim_next()
-                if job_id:
-                    execute(job_id)
-                else:
+                with gpu_slot(wait=False) as acquired:
+                    job_id = (
+                        claim_next(experimental_only=True)
+                        if acquired and args.experimental_only
+                        else claim_next()
+                        if acquired
+                        else None
+                    )
+                    if job_id:
+                        execute(job_id)
+                if not job_id:
                     time.sleep(get_settings().worker_poll_seconds)
         finally:
             stop.set()

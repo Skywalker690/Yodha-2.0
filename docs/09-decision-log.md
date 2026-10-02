@@ -1,5 +1,405 @@
 # Decision Log
 
+## D067: Integrate the combined ML branch into main
+
+Status: Accepted (2026-10-03, explicit user merge request)
+
+Merge `feat/ml` at `5eb3818` into `main` with a dedicated merge commit and push
+the result to GitHub. This includes the anatomy/forecast implementation, local
+hippocampus illustrations, patient workspace changes and the merged chatbot
+features. The integration adds no new product behavior beyond the documented
+branch changes. Git integration does not promote a forecast model release or
+change the recorded training/evaluation status. Record the combined build checks
+in documents 07 and 10.
+
+## D066: Merge remote chatbot features into the ML branch
+
+Status: Accepted (2026-10-03, explicit user merge/build request)
+
+Merge `origin/chatbot` at `7165081` into `feat/ml`, retaining its authenticated
+Gemini endpoint, floating Alzhio Bot widget, temporary follow-up history, research
+references, retry/clear actions and Alzhio branding. Preserve the ML branch's
+anatomy contracts, experimental forecast controls, local hippocampus illustrations,
+pending visit deletion and current patient/sidebar choices. The assistant context
+identifies the separate scalar-guided illustration when that display mode is used.
+No new inference provider call is made by merging or building the application.
+
+Reconcile both documentation histories: incoming chatbot D042/D043/D044 become
+D063/D064/D065 below, and its clinical assistant document becomes 21 because
+the ML branch already uses 19 and 20 for anatomy runs. Historical branch evidence
+remains attributed to that branch; record the actual combined build separately.
+
+## D065: Alzhio text-only product and bot branding
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Use a CSS-styled text wordmark, `Alzhio`, for public product branding and `Alzhio Bot`
+for the contextual chat. Remove the brain icon marks from those brand areas rather than
+adding a graphical logo. Public browser, API, report and export labels use Alzhio; routes,
+database identifiers and package names remain unchanged for compatibility.
+
+## D064: Floating assistant widget preserves workspace space
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Render Alzhio Bot as a fixed launcher and overlay drawer rather than an
+in-flow patient-workspace panel. It stays scoped to the selected patient, has keyboard
+Escape, backdrop and Close controls, and does not alter backend behavior or send data
+until the clinician submits a question.
+
+## D063: Gemini assistant for the five-hour hackathon
+
+Status: Accepted (2026-10-03, explicit user implementation request)
+
+Implement one stateless authenticated patient assistant endpoint and one chat panel shared
+by both workspace modes. Use the existing httpx dependency with Gemini generateContent
+REST, optional Google Search grounding, backend-only SecretStr API key and configurable
+model. No local training, database migrations, SDK installation or worker changes.
+
+This extends D007 with an explicit cloud text-processing exception for synthetic/OASIS
+de-identified demonstration cases. Send only allowlisted structured clinical/anatomy
+values, preserving unreviewed research status and unavailable forecasts; omit source
+identifiers, patient/visit codes, free text, paths, raw MRI and owner data. User questions
+and recent exchanges are sent to Gemini and must omit identifying details. No chat is
+persisted by Alzhio; provider retention terms still apply. Preserve existing forecast
+gates and user worktree changes. Record configuration and verification in doc 21.
+
+## D062: Restore head geometry and show scalar-guided hippocampal progression
+
+Status: Accepted (2026-10-03, user reports skull distortion)
+
+Retire D061's whole-field magnification from the default forecast viewer. It
+amplified displacement in the skull/head instead of focusing on hippocampal loss.
+Generate a separate scalar-guided hippocampus illustration from the acquired
+cutoff and its measured left/right masks. Fit a smooth local radial pull to each
+learned scalar volume ratio, with categorical-mask quantization reported explicitly.
+The field is zero outside an 8-mm hippocampal neighborhood and outside brain
+labels. MRI and labels use the same local field. Require positive Jacobians,
+source coverage and target volume agreement within 1% of the input mask volume;
+preserve cutoff MRI exactly outside the affected neighborhood. No exaggerated
+gain or whole-head motion is used. The five patients' scalar losses increase at
+12/24/36 months; no direction is forced if a future scalar estimate predicts growth.
+
+Identify this as a scalar-guided illustration, not the evaluated spatial CNN
+prediction or a diagnosis/proof of increasing Alzheimer's severity. Preserve raw
+forecasts, weights, sources and previous artifacts. New presentation analyses
+contain separate files, explicit display mode, regional measurements and private
+identity/geometry evidence. The default viewer uses these regional artifacts;
+original spatial measurements remain separately identified diagnostics.
+
+## D061: Open annual experimental forecasts for the five pinned patients
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Enable the existing experimental mode by default for OAS2_0048, OAS2_0070,
+OAS2_0073, OAS2_0127 and OAS2_0017 and prepare patient-specific forecasts at
+365/731/1096 days from their measured cutoff. Explicit selection of evaluated
+mode remains possible. Interpret progression as actual time-conditioned outputs;
+do not force positive change or manufacture increasing atrophy. The saved model
+and review/evaluation status remain unchanged. These five display-priority patients
+are not a new training split. No monthly interpolated anatomy is implied.
+
+The user clarifies that scalar estimates should bound a visibly enlarged display
+for judges. Generate separate presentation MRI/labels/field with the learned field
+multiplied by the largest passing gain in 3/2/1.5. Each region's absolute relative
+volume change must stay within max(abs(scalar change), abs(original mask change))
+plus the existing 12-percentage-point consistency tolerance as a display allowance.
+The initial strict magnitude-only limit blocked enlargement in the annual batch.
+This allowance is explicitly a presentation policy, not a calibrated uncertainty
+interval or a claim that magnification passes scientific release gates. Reject folding,
+missing coverage and disappearing regions. If no gain passes, show the original.
+Scalar estimates are not confidence bounds. Identify magnification in the canvas
+title and control, keep original measurements and allow switching back. This
+supersedes D049's prohibition on a separately identified presentation view, never
+its preservation of actual predictions. Playback advances the selected timeline
+position together with the future time, showing completed artifacts only.
+
+Presentation refinement creates a new analysis with preserved raw artifacts and
+separate display files; completed earlier predictions and their results are immutable.
+
+Experimental requests may coexist with queued native preprocessing for the same
+patient, using the immutable completed source. Processing jobs or another queued
+forecast still block requests. The existing worker/compute lock serializes work;
+paused native jobs remain queued and the experimental-only worker ignores them.
+
+Repair native marching-cubes volume loss in thin regional masks by retrying surface
+extraction on a cropped, doubled categorical grid when the original surface misses
+the existing 5% volume tolerance. Replication preserves occupied voxel cells; map
+subvoxel centers back to the original affine. Retain all geometry checks, native
+MRI/masks and earlier artifacts; record the surface sampling factor. This affects
+mesh approximation only and does not change learned predictions.
+
+## D060: Remove repeated experimental preview badges in the MRI workspace
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Remove the `Unvalidated experimental preview` badge from the 12/24/36-month
+forecast timeline positions and the unavailable future anatomy card. Forecast
+selection and rendering retain their existing behavior. The workspace's
+experimental mode controls, model provenance and evaluation warnings continue
+to identify the research outputs. This supersedes D048's badge placement.
+
+## D059: Remove MRI Analysis from sidebar navigation
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Remove the MRI Analysis link from the shared desktop/mobile sidebar. The existing
+analysis route remains accessible directly and retains its breadcrumb title and
+default patient selection. Sidebar entries are Dashboard, Patients, Reports and
+Settings.
+
+## D058: Default MRI Analysis to OAS2_0048
+
+Status: Accepted (2026-10-03, explicit user request)
+
+The user subsequently changed the requested default from OAS2_0073 to OAS2_0048.
+The MRI Analysis patient dropdown initially selects OAS2_0048 by patient code.
+An explicit user selection takes precedence across polling updates. If that
+patient is absent, use the existing first-patient/empty-state behavior.
+
+## D057: Put pending visit deletion beside the MRI visit selector
+
+Status: Accepted (2026-10-03, user marks the existing pending Visit 6 section)
+
+Place `Delete visit` in the pending upload section header beside `MRI visit`,
+where the selected entry is identified. Reuse the D056 deletion endpoint and
+upload/delete busy state; the action sits outside the file upload form so no
+file is required. Errors appear directly under the action. Selecting another
+visit changes the deletion target through the keyed upload component.
+
+## D056: Delete visits awaiting an MRI from the upload screen
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Newly created visits await MRI upload and open their upload screen automatically.
+Add `Delete visit` there to remove the owned empty visit and refresh selection.
+The API rejects visits with MRI/preview files, analysis references or derived
+heatmaps. Use the same row lock for deletion and upload, refreshing the loaded
+row under the lock to handle concurrent requests. Disable upload/delete/file
+selection during either action and display deletion failures. This operation
+removes only an empty visit record; it performs no filesystem deletion.
+
+## D055: Prioritize the requested patients in the directory
+
+Status: Accepted (2026-10-03, user-provided patient codes)
+
+The patient directory renders OAS2_0048, OAS2_0070, OAS2_0073, OAS2_0127 and
+OAS2_0017 first, in that order. Apply this stable display ordering after the
+existing search filter, preserving the server order for all remaining patients.
+Missing or search-excluded priority patients do not create placeholder rows.
+Sort the filtered array so the fetched patient data remains unchanged.
+
+## D054: Remove the standalone patient MRI timeline section
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Remove the standalone default patient `MRI timeline` section and its observation/
+future cards, identified by `Select an observation or future prediction horizon`.
+The MRI visit selector and the separate 3D viewer's navigation continue to provide
+scan and forecast selection. No visits, acquired images or forecasts are deleted.
+
+## D053: Remove the complete default patient baseline forecast section
+
+Status: Accepted (2026-10-03, explicit user request; supersedes D052)
+
+Remove the entire baseline Clinical + FastSurfer forecast component from the
+default ML-only patient workspace, including readiness action, CDR explanation,
+blocked status, model/QC details, horizon cards and release warnings. Removing
+the component also stops its forecast fetch on this page. This is a UI scope
+change; anatomy measurements and the experimental future MRI workspace retain
+their own controls. Baseline forecast services remain available to other consumers.
+
+## D052: Remove the patient forecast heading label
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Remove only the visible `Clinical + FastSurfer ML forecast` heading from the
+default patient forecast panel. Retain its `Check prediction readiness` button,
+forecast content, model selection policy and behavior. The separate research
+panel's `Baseline-only outcome forecast` heading remains applicable.
+
+## D051: Highlight measured hippocampus in acquired comparison panels
+
+Status: Accepted (2026-10-02, user requests highlighting in the acquired/input MRI)
+
+Use each acquired visit's measured regional mask in baseline/current comparisons,
+not the forecast labels. The saved preview previously omitted the acquired label
+layer altogether. Its metadata now exposes optional `observedLabelsUrl` from a
+completed anatomy job for the owned original patient and cutoff, matching the
+saved source and segmentation hashes. The existing authenticated artifact endpoint
+checks the regional file hash. Absent matching acquired labels are explicitly
+unavailable, never replaced with generated labels. The shared highlight toggle
+controls acquired and predicted layers; D050 camera/zoom/clipping applies to both.
+Browser checks must measure yellow pixels on both sides, not just a checked toggle.
+
+## D050: Keep hippocampus highlighting attached to the MRI cutaway
+
+Status: Accepted (2026-10-02, user clarifies the complaint was a stationary overlay)
+
+The user wanted the yellow hippocampus to follow adjustments to the brain, not
+its removal. Restore highlights on explicit experimental links/actions while
+retaining the actual cutoff/generated comparison and measured-change summary.
+NiiVue 0.69.0 defaults `isClipAllVolumes` to false, so our MRI cutaway removed
+tissue but still rendered the entire categorical overlay. Set it to true for
+every volume canvas. MRI and label volumes continue to share the same camera,
+zoom, native spatial transform and clip plane; label rendering remains nearest
+neighbour. A real-case browser regression must verify yellow pixels move/scale
+with camera and zoom and disappear when their tissue is clipped, then return
+when clipping is disabled. This fixes display behavior and does not change model
+weights, predicted masks or scalar/mask disagreements documented in D049.
+
+## D049: Show actual deformation and separate scalar/mask outputs
+
+Status: Accepted (2026-10-02, user says the forecast looks like an overlay)
+
+The prior isolated full-head 3D view with yellow hippocampus layers obscured the
+small learned deformation. Explicit experimental view links/actions now open
+matched slices of the actual input cutoff and generated MRI side by side, with
+highlights and meshes off. Labels remain optional orientation aids, never forecast
+evidence. Show native field displacement and independently measured input/future
+hippocampal mask volumes alongside separate scalar-model percent changes. The
+read-only comparison endpoint verifies source ownership and all artifact hashes;
+it changes neither the forecast files nor weights. Do not exaggerate deformation
+to make it look convincing. Subvoxel fields and categorical-mask/scalar disagreement
+are model limitations, and no clinical accuracy is claimed.
+
+## D048: Make the generated experimental view discoverable
+
+Status: Accepted (2026-10-02, user-reported ready forecast still shown unavailable)
+
+The ready +365-day image was hidden by default evaluated-only mode while its opt-in
+was below the visible controls. Add `Show experimental forecast` to the future
+unavailable panel, with explicit unvalidated wording. A patient link containing
+`experimentalForecast=365` (also 183/731/1096) explicitly selects experimental mode
+and the corresponding future time at the prepared cutoff. It loads existing
+matching artifacts without queuing inference. Ordinary links retain default mode;
+all ownership, input/fingerprint and exact cutoff/interval checks still apply.
+Use `Unvalidated experimental preview` instead of hardcoded `unsupported horizon`
+badges. Experimental availability does not imply validated horizon support.
+
+## D046: Explicit patient-specific inference with the frozen small-cohort model
+
+Status: Accepted (2026-10-02, user-requested experimental forecasts)
+
+The user requests applying the existing six-subject experiment to other patients
+despite insufficient accuracy evidence. Six means four training subjects, one
+selection subject and one test subject. Expose the hash-bound v3 fixed-reference
+checkpoint through opt-in experimental requests. Keep its 129 inputs, reference,
+imputation, coefficients and spatial weights frozen. This adapter is separate from
+current v4 fitting and default promoted-release serving. Generate each patient's
+forecast from two-to-five prepared observations through the selected cutoff.
+
+Allow automated segmentation and finite provisional AVRA scores, retaining their
+unreviewed status. Disclose failed evaluation/review/support gates, historical
+reference overlap and absent calibrated uncertainty. In explicit experimental mode,
+scalar/mask disagreement is reported rather than blocking the visual preview;
+positive Jacobians, coverage, region presence and mesh geometry remain mandatory.
+Outputs neither promote the candidate nor establish predictive/medical accuracy.
+
+When Docker preprocessing is unavailable, the serialized worker may run with
+`--experimental-only` on CPU. It claims only experimental forecasts and does not
+recover interrupted native preprocessing. One-worker/shared compute locks remain.
+Queue +365-day estimates for all prepared owned OASIS histories; missing inputs
+remain unavailable until preprocessing completes.
+
+## D047: Add saved 12/24/36-month outputs to the prototype gallery
+
+Status: Accepted (2026-10-02, explicit user request to demonstrate the small-data model)
+
+Generate 365-, 731-, and 1,096-day images from the existing six-subject, 20-epoch
+CUDA candidate (`conditioned-pull-cnn-v1`) and OAS2_0073's four-scan cutoff. The
+experiment uses 16 longitudinal examples: three subjects for gradient training,
+one for selection, one for calibration, and one held-out test subject. This corrects
+the shorthand “trained on six”: six participated in the experiment, while three
+contributed gradient updates. There are no acquired scans at the requested
+365/731/1,096-day intervals. In the separate saved preview only, retain generated
+outputs even when mask/scalar regional changes disagree by more than 12 percentage
+points; store and display the measured discrepancies (18.7%, 33.3%, 54.0%) and
+minimum Jacobians (0.942, 0.885, 0.832). Preserve input/artifact hashes and all
+release status warnings. Keep the existing +229-day v3 example with its own model
+provenance. Do not describe any gallery item as a validated or patient-specific
+forecast; the default and D046 patient-specific path retain their own checkpoints.
+
+## D045: Explicit saved experimental anatomy preview
+
+Status: Accepted (2026-10-02, explicit request for immediate visual preview)
+
+Expose the existing OAS2_0073 +229-day retrospective evaluation artifacts on a
+separate `/preview` page. Show the original subject, cutoff, actual interval,
+historical model and failed release status. Link to it from unavailable future
+panels. A pinned local profile binds the case/evaluation/manifest and file hashes;
+the API checks ownership and original source histories before serving any file.
+Do not relabel the example as 365 days or as another patient's prediction.
+Preview readiness describes already-generated files, not a training completion ETA.
+This adds read-only visibility; it does not promote the historical candidate or
+create forecasts. The current training-reference study retains its release gates.
+
+## D044: Restore training-only anatomy reference
+
+Status: Accepted (2026-10-02, latest explicit full workflow request)
+
+The renewed request explicitly requires baseline-CDR-zero training subjects only
+and forbids held-out reference overlap. This supersedes D043 for new anatomy
+forecasts. Version the inputs as anatomy-input-v4-train-age-reference and save
+the eligible baseline IDs, exclusions, bins, source hash and preprocessing state.
+The descriptive bundled-table biomarker remains a separate historical support
+value. Preserve every v2/v3 run; stop the waiting v3 coordinator before fitting
+and create fresh v4 partial/full runs using verified existing registrations.
+Keep the existing bins and never substitute raw nWBV. Missing Z uses training-only imputation
+and a missingness indicator, with availability and the resulting limitation reported.
+
+The subsequent explicit correction removes the ten-subject cutoff. Compute Z
+when an age bin has at least two valid training baseline measurements and a
+positive sample SD (ddof=1); two is the mathematical requirement to calculate
+sample SD, not a new ten-subject support gate. Preserve counts and warn about
+small reference groups. Singleton/empty groups and zero spread remain unavailable.
+
+Freeze each run's ML and training-CLI source in a hash-verified read-only runtime
+snapshot. Observed workspace rewrites restored the old demographic builder and
+UTF-16 encoding while checks were running; preserve that evidence, restore the
+requested contract, and isolate model fitting/native evaluation from later edits.
+Runtime snapshots do not copy MRI data or credentials. Old runs remain unchanged.
+
+## D043: Use the supplied fixed age-group constants
+
+Status: Accepted (2026-10-02, explicit user correction)
+
+The user clarified that age-bin means and SDs are supplied fixed values and must
+not be recomputed from this training dataset. This supersedes D042's training-only
+reference construction and the initial request's prohibition on reference overlap.
+The new anatomy-input-v3-fixed-age-reference copies the supplied bundled table
+exactly, freezes it with both checkpoints and uses the same equation at inference.
+Only each patient's observed age and nWBV select/evaluate the fixed constants.
+Retain the existing sparse-bin, unsupported-age and invalid-measurement states;
+never substitute raw nWBV. Imputation/scaling still use actual training subjects only.
+
+This table describes 85 OASIS-2 baseline-CDR-zero subjects. It is a user-supplied
+fixed research reference, not an independently validated global population norm.
+Its possible overlap with held-out subjects must be disclosed in evaluation and
+forecast provenance. Preserve the v2 partial run and train a fresh v3 candidate.
+Frozen forecast subject memberships and chronological input restrictions remain.
+
+## D042: Frozen training-only age reference for future anatomy
+
+Status: Accepted (2026-10-02, explicit user request)
+
+The new anatomy-input-v2-age-reference contract replaces raw nWBV and demographic
+conditioning with a training-baseline-CDR-zero age-reference Z-score and MMSE.
+Age and raw nWBV remain source/provenance values only. Keep all 18 FastSurfer
+statistics volumes, observed regional/rating changes and actual scan timing;
+registered observed MRI and anatomical masks condition the separate spatial network.
+Freeze the seven existing five-year bins, sample SD and minimum 10 reference subjects
+per bin. Unsupported/invalid/sparse Z-scores stay unavailable, with training-only
+imputation and missingness indicators; never substitute raw nWBV or held-out references.
+Serialize the reference and feature schema with both models and reject older checkpoints.
+
+Preserve the 44/4/4/4 frozen anatomy split. This supersedes D037's reassignment of
+OAS2_0027 to calibration. Explicit partial research fitting may use completed
+subjects in their original roles; absent calibration produces unavailable intervals,
+not reassigned subjects. Preserve old runs and reuse hash-verified registered cases.
+User-added visits outside the frozen source cohort do not alter study cutoffs.
+Future inference retains acquired/predicted and experimental/support provenance.
+
 ## D041: Compact regional measurements and remove the regional comparison chart
 
 Status: Accepted (2026-10-02, explicit user request)

@@ -15,7 +15,29 @@ const resources = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/use-resource", () => ({
   useResource: (path: string) => ({
-    data: path.includes("readiness") ? resources.model : resources.cached,
+    data: path.endsWith("forecast-comparison")
+      ? {
+          deformation: { medianMm: 0.24, p95Mm: 0.55, maximumMm: 0.75 },
+          regions: [
+            {
+              region: "hippocampus_left_mm3",
+              observedMaskMm3: 3818.75,
+              predictedMaskMm3: 3818.75,
+              maskChangePercent: 0,
+              scalarChangePercent: -1.29,
+            },
+            {
+              region: "hippocampus_right_mm3",
+              observedMaskMm3: 3831.25,
+              predictedMaskMm3: 3831.25,
+              maskChangePercent: 0,
+              scalarChangePercent: -5.21,
+            },
+          ],
+        }
+      : path.includes("readiness")
+        ? resources.model
+        : resources.cached,
     loading: false,
     error: "",
     reload: vi.fn(),
@@ -104,10 +126,80 @@ function future(intervalDays = 365): Analysis {
   } as unknown as Analysis;
 }
 beforeEach(() => {
+  window.history.replaceState({}, "", "/");
   resources.cached = [];
   resources.post.mockReset().mockResolvedValue({ id: "job", status: "queued" });
 });
 afterEach(() => vi.unstubAllGlobals());
+
+it("requires explicit opt-in for forecasting an unreviewed prepared history", async () => {
+  const provisional = {
+    ...measured,
+    resultJson: {
+      anatomy: {
+        ...anatomy,
+        visits: anatomy.visits.map((v) => ({
+          ...v,
+          qc: "automated_checks_only",
+          ratings: { ...v.ratings, status: "unreviewed_research" },
+        })),
+      },
+    },
+  } as Analysis;
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={provisional}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByLabelText("Compare current vs predicted"));
+  expect(
+    screen.getByRole("button", { name: "Generate evaluated future anatomy" }),
+  ).toBeDisabled();
+  fireEvent.click(
+    screen.getByLabelText("Experimental forecasts (small-cohort model)"),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Generate experimental forecast" }),
+  );
+  await waitFor(() =>
+    expect(resources.post).toHaveBeenCalledWith(
+      "/analysis/measurement/forecast",
+      {
+        intervalDays: 365,
+        cutoffVisitId: "v1",
+        experimental: true,
+      },
+    ),
+  );
+});
+
+it("does not display experimental cached artifacts until opt-in", () => {
+  const prediction = future();
+  prediction.resultJson!.anatomy!.forecast.experimental = true;
+  resources.cached = [prediction];
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByLabelText("Compare current vs predicted"));
+  expect(screen.queryByTestId("canvas-predicted")).not.toBeInTheDocument();
+  fireEvent.click(
+    screen.getByLabelText("Experimental forecasts (small-cohort model)"),
+  );
+  expect(screen.getByTestId("canvas-predicted")).toHaveAttribute(
+    "data-url",
+    "/api/analysis/predicted/future/mri",
+  );
+});
 
 it("queues the selected supported interval and cutoff through the existing async API", async () => {
   render(
@@ -131,10 +223,106 @@ it("queues the selected supported interval and cutoff through the existing async
   await waitFor(() =>
     expect(resources.post).toHaveBeenCalledWith(
       "/analysis/measurement/forecast",
-      { intervalDays: 731, cutoffVisitId: "v1" },
+      { intervalDays: 731, cutoffVisitId: "v1", experimental: false },
     ),
   );
   expect(screen.queryByTestId("canvas-predicted")).not.toBeInTheDocument();
+});
+
+it("opens an existing experimental forecast directly from the future panel", () => {
+  const prediction = future();
+  prediction.resultJson!.anatomy!.forecast.experimental = true;
+  resources.cached = [prediction];
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByText("+12m Predicted"));
+  expect(screen.getByText("Future anatomy unavailable")).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Show experimental forecast" }),
+  );
+  expect(
+    screen.getByLabelText("Experimental forecasts (small-cohort model)"),
+  ).toBeChecked();
+  expect(screen.getByTestId("canvas-predicted")).toHaveAttribute(
+    "data-url",
+    "/api/analysis/predicted/future/mri",
+  );
+  expect(screen.queryByText(/unsupported horizon/)).not.toBeInTheDocument();
+});
+
+it("opens the explicitly linked experimental interval at the prepared cutoff", () => {
+  window.history.replaceState({}, "", "/?experimentalForecast=365");
+  const prediction = future();
+  prediction.resultJson!.anatomy!.forecast.experimental = true;
+  resources.cached = [prediction];
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[0]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByLabelText("Experimental forecasts (small-cohort model)"),
+  ).toBeChecked();
+  expect(screen.getByTestId("canvas-predicted")).toHaveAttribute(
+    "data-url",
+    "/api/analysis/predicted/future/mri",
+  );
+  expect(screen.getByText(/Day 965 · \+12m Predicted/)).toBeVisible();
+  expect(screen.getByTestId("canvas-selected")).toHaveAttribute(
+    "data-url",
+    "/api/visits/v1/volume",
+  );
+  expect(screen.getByLabelText("Hippocampus highlight")).toBeChecked();
+  expect(screen.getByTestId("canvas-selected")).toHaveAttribute(
+    "data-labels",
+    "/api/analysis/measurement/visits/v1/anatomy/regions",
+  );
+  expect(screen.getByTestId("canvas-predicted")).toHaveAttribute(
+    "data-labels",
+    "/api/analysis/predicted/future/labels",
+  );
+  expect(screen.getByTestId("canvas-predicted")).toHaveAttribute(
+    "data-meshes",
+    "0",
+  );
+  expect(screen.getAllByText("0.00%")).toHaveLength(2);
+  expect(screen.getByText("-5.21%")).toBeVisible();
+  expect(screen.getByText("0.24 mm")).toBeVisible();
+});
+
+it("keeps changed-source predictions hidden when opened with an experimental link", () => {
+  window.history.replaceState({}, "", "/?experimentalForecast=365");
+  const prediction = future();
+  prediction.resultJson!.anatomy!.forecast.experimental = true;
+  prediction.resultJson!.anatomy!.visits =
+    prediction.resultJson!.anatomy!.visits.map((v) => ({
+      ...v,
+      sourceSha256: "0".repeat(64),
+    }));
+  resources.cached = [prediction];
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Future anatomy unavailable")).toBeVisible();
+  expect(screen.queryByTestId("canvas-predicted")).not.toBeInTheDocument();
+  expect(resources.post).not.toHaveBeenCalled();
 });
 
 it("loads matching predicted MRI with hippocampus highlighting and brain boundaries", () => {
@@ -170,6 +358,34 @@ it("loads matching predicted MRI with hippocampus highlighting and brain boundar
   expect(screen.getByTestId("canvas-predicted")).toHaveAttribute(
     "data-meshes",
     "2",
+  );
+});
+
+it("uses each acquired visit's measured labels in the baseline comparison", () => {
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByLabelText("Compare with baseline"));
+  expect(screen.getByTestId("canvas-baseline")).toHaveAttribute(
+    "data-labels",
+    "/api/analysis/measurement/visits/v0/anatomy/regions",
+  );
+  expect(screen.getByTestId("canvas-selected")).toHaveAttribute(
+    "data-labels",
+    "/api/analysis/measurement/visits/v1/anatomy/regions",
+  );
+  fireEvent.click(screen.getByLabelText("Hippocampus highlight"));
+  expect(screen.getByTestId("canvas-baseline")).not.toHaveAttribute(
+    "data-labels",
+  );
+  expect(screen.getByTestId("canvas-selected")).not.toHaveAttribute(
+    "data-labels",
   );
 });
 
@@ -231,8 +447,9 @@ it("renders observed visits and experimental future positions (+12m, +24m, +36m)
   expect(screen.getByText("+12m Predicted")).toBeVisible();
   expect(screen.getByText("+24m Predicted")).toBeVisible();
   expect(screen.getByText("+36m Predicted")).toBeVisible();
-  const badges = screen.getAllByText("Experimental (unsupported horizon)");
-  expect(badges.length).toBeGreaterThanOrEqual(3);
+  expect(
+    screen.queryByText("Unvalidated experimental preview"),
+  ).not.toBeInTheDocument();
 });
 
 it("navigates into future positions past the cutoff scan using Later MRI and renders predicted MRI and meshes with experimental badge", () => {
@@ -262,7 +479,7 @@ it("navigates into future positions past the cutoff scan using Later MRI and ren
     "/api/analysis/predicted/future/mri",
   );
   expect(canvas).toHaveAttribute("data-kind", "predicted");
-  expect(canvas).toHaveAttribute("data-meshes", "2");
+  expect(canvas).toHaveAttribute("data-meshes", "0");
   expect(canvas).toHaveAttribute(
     "data-labels",
     "/api/analysis/predicted/future/labels",

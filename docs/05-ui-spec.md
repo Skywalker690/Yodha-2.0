@@ -1,5 +1,76 @@
 # Next.js UI Specification
 
+## Patient-specific experimental forecasts (D046)
+
+D062 supersedes the whole-field magnifier below. The default experimental viewer
+uses separate scalar-guided hippocampus illustrations with acquired head geometry
+fixed. Yellow labels and local MRI use the same field. Identify the illustration
+in the canvas title and show acquired/displayed mask volumes, displayed change and
+the learned scalar estimate. Original spatial model measurements are expandable
+diagnostics. Playback advances through the prepared 12/24/36-month illustrations.
+No whole-head magnification control or raw mesh overlay is enabled in this view.
+API regional keys use camel case; annual scalar values accept these keys correctly.
+
+D061 selects experimental mode by default for the five pinned patients
+(OAS2_0048/0070/0073/0127/0017). Forecast positions load their matching generated
+12/24/36-month output without requiring a query parameter. Show actual changes;
+increasing change is not guaranteed and monthly anatomy is not interpolated.
+The annual scalar table shows bilateral hippocampus changes at the same cutoff.
+The presentation magnifier is selected initially for these patients but uses
+only separately generated artifacts passing scalar magnitude/geometry limits.
+Display its gain and presentation status in the canvas title. At gain 1, explain
+that enlargement failed those limits. The control can restore the original MRI;
+yellow labels follow the chosen MRI and raw meshes appear only with the original.
+Comparison measurements always describe the original forecast. Playback changes
+both selected future position and time, cycling completed predictions only.
+
+D049 opens explicit experimental links/actions in a side-by-side slice comparison
+of the actual cutoff MRI and generated MRI. D050 restores yellow labels by default
+following the user's clarification; separate mesh boundaries remain optional. Show
+brain displacement and actual native hippocampus mask volume change separately
+from scalar percent changes. Highlight layers are optional orientation aids.
+The cutaway must clip label and difference volumes along with the MRI. Camera and
+zoom act on MRI and labels together, with no stationary screen overlay.
+D051 also loads measured labels in the baseline panel and acquired side of saved
+previews. One highlight toggle controls both sides; acquired labels must match the
+original cutoff source/segmentation. Missing measured labels stay unavailable.
+
+D048 adds a visible `Show experimental forecast` action in the future panel. It
+sets the existing opt-in. Explicit patient links with `experimentalForecast` set
+to 183/365/731/1096 days open that experimental time at the prepared cutoff and
+load matching saved artifacts; they do not start a job. D060 removes the repeated
+`Unvalidated experimental preview` badges from the forecast timeline and unavailable
+anatomy card. Experimental controls, model provenance and evaluation warnings remain.
+
+The MRI workspace offers unchecked `Experimental forecasts (small-cohort model)`.
+With at least two prepared scans, select a future timeline time or compare
+current/predicted and press `Generate experimental forecast`. Queue asynchronously;
+display only artifacts matching patient, cutoff, interval, mode, source hashes and
+candidate fingerprint. Show training count, unvalidated language and expandable
+evaluation/output warnings. Missing inputs stay unavailable. The +229-day saved
+preview retains its original subject and interval on its separate page.
+
+## Saved multi-horizon preview (D047)
+
+The separate `/preview` page offers saved OAS2_0073 outputs at +229 days and
+365/731/1,096 days. The 12/24/36-month outputs use the earlier six-subject,
+20-epoch candidate (three gradient-training, one selection, one calibration,
+one held-out test) and the same four-scan cutoff history. The +229-day output
+remains the later fixed-reference candidate. Identify the model version for the
+selected interval. Show that the longer horizons lack matched acquired scans,
+and display the actual spatial-mask/scalar-volume discrepancy and experimental
+status. This is a visualization gallery, not another patient's forecast.
+
+## Saved experimental preview (D045)
+
+Unavailable future panels link to `/preview`, a separate view of the saved
+OAS2_0073 +229-day evaluation example. Compare acquired cutoff MRI and generated
+MRI, support slices/3D and the yellow hippocampus highlight, and disclose the
+original cutoff, exact day interval, historical model and failed release gates.
+Show `Preview ready (pre-generated)` instead of inventing an ETA. Missing,
+changed or unowned source/artifacts show an unavailable state. No 365-day or
+current-patient forecast is inferred from this example.
+
 The approved longitudinal anatomy direction is integrated into both existing workspace
 variants; see [17](17-longitudinal-anatomy.md). It adds measured labels, QC provenance,
 source observations, continuous-score availability/history, head-size ratios and a
@@ -9,10 +80,12 @@ accepts owned GIFTI buffers, but the real model-to-artifact-to-viewer path is in
 
 ## Separate baseline forecast panel
 
-Default ML-only workspace replaces mode selectors with a single Clinical + FastSurfer
-panel and original MRI viewing/upload. Unready/QC-failed/partial releases show blocked
-prediction and null cards, not legacy scores. Settings separates service health from
-model readiness. The retained UI modes below apply only to explicit research opt-out.
+D053 supersedes D052: the default ML-only patient workspace omits the complete
+Clinical + FastSurfer baseline forecast panel, its readiness button, descriptions,
+blocked status, risk cards and release warnings. It retains MRI viewing/upload,
+anatomy measurements and the separate experimental future MRI workspace. Settings
+still separates service health from model readiness. The retained UI modes below
+apply only to explicit research opt-out.
 
 Imported OASIS patient workspaces also display a separate baseline forecast panel.
 Its clinical, clinical-matched and clinical+FastSurfer choices call the same adapter
@@ -32,9 +105,12 @@ Provide a researcher login screen with email, password, validation, loading stat
 
 ## Application layout
 
+D054 omits the standalone `MRI timeline` panel from the default patient page;
+scan selection uses `MRI visit` and the 3D workspace's existing navigation.
+
 ```
-Header: NeuroPredict AI | Researcher | Online
-Sidebar: Dashboard, Patients, MRI Analysis, Reports, Settings
+Header: Alzhio | Researcher | Online
+Sidebar: Dashboard, Patients, Reports, Settings
 Dashboard: overview metrics and recent patients
 Patient page: summary, MRI timeline, risk chart, biomarkers, Analyze MRI
 Analysis workspace: visit selector, MRI, heatmap, navigation, risk, confidence
@@ -50,6 +126,19 @@ checks pass, with unreviewed research status visible. Do not ask for a manual re
 action to reveal descriptive values. Provide a link to the full patient case for 3D MRI.
 
 ## Core interactions
+
+MRI Analysis initially selects OAS2_0048 (D058). Preserve subsequent manual
+patient selection across refresh polling; fall back to the first available
+patient if OAS2_0048 is absent.
+
+After `Save visit`, select the newly added visit's upload screen. Empty visits
+offer `Delete visit` beside the `MRI visit` selector (D056/D057), refresh selection on success and show
+errors on failure. Upload, deletion and file selection are disabled during either
+request; deleting does not require an MRI selection or submit the upload form.
+
+The patient directory defaults to OAS2_0048, OAS2_0070, OAS2_0073, OAS2_0127,
+then OAS2_0017 at the top (D055). Search still filters every patient; remaining
+rows retain their original order and absent priority patients are omitted.
 
 In the MRI analysis anatomy panel, show the first four regional measurements by
 default. A dropdown button reveals/collapses the remaining rows and resets on

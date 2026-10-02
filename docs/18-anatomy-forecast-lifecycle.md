@@ -1,5 +1,57 @@
 # Anatomy forecasting lifecycle
 
+D062 replaces D061's full-field magnification with local scalar-guided hippocampus
+illustrations. The experimental generation path prepares MRI/labels/local field
+using the acquired cutoff and learned scalar ratios. The presentation CLI now
+prepares the same regional mode for existing forecasts, preserving raw files and
+prior results. It uses native-grid volume fitting, 8-mm smooth support within
+brain labels, positive Jacobians, source coverage and exact head identity.
+This representation is not an evaluated spatial forecast or a disease diagnosis.
+
+D061 prepares 12/24/36-month outputs for the five pinned patients using the same
+frozen v3 predictor. It also creates explicitly labeled presentation artifacts
+with bounded field magnification, independent of raw outputs and measurements.
+Thin-region surface refinement repairs mesh approximation while retaining the
+5% native-volume guard; saved source/model files and review status are unchanged.
+See the decision log for the scalar limit and queued preprocessing policy.
+The queue CLI accepts `--subjects CODE ...` to restrict a batch to requested cases.
+`python -m scripts.prepare_forecast_presentations --batch-report PATH --output PATH`
+adds new presentation variants for the completed 15-entry annual batch using the
+shared compute lock. Earlier results and all original prediction file hashes remain
+unchanged; new variants share immutable raw files through local hard links. The
+edited manifest and display files are written separately. It does not refit models.
+
+D046 now permits explicit experimental patient-specific inference with the frozen
+historical v3 candidate. This does not satisfy the promoted lifecycle below. Use
+`experimental: true`, two-to-five prepared observations, and the configured pinned
+candidate; preserve unreviewed statuses and disclose failed evaluation gates.
+Scalar/mask disagreement is visible in this mode; native geometry still must pass.
+The optional CPU `--experimental-only` worker leaves paused preprocessing untouched.
+Earlier statements that no real candidate was trained describe the initial stage;
+actual historical v3 training/evaluation are recorded in [19](19-fixed-reference-anatomy-run.md).
+
+The first D046 +365-day batch completed six of nine prepared patients. Three failed
+regional mesh/mask volume agreement; unavailable outputs were retained as failed
+jobs. See [07](07-testing-validation.md) for actual checks and the private runtime
+audit. Remaining unprepared patients require the paused Docker preprocessing path.
+
+Current D044 uses a training-only baseline reference and removes the minimum ten
+rule. The waiting v3 coordinator was stopped before fitting; all files remain.
+Fresh v4 runs reuse verified registrations. The updated worker and offline
+coordinator share a PostgreSQL advisory GPU slot. Reload the older worker only
+after its active job finishes. See [20](20-training-reference-anatomy-run.md).
+
+## Current fixed-reference feature contract
+
+D043 supersedes training-only reference estimation: use the user's supplied
+fixed age-bin means and sample SDs, saved unchanged with each new checkpoint.
+The current real run, exact feature definitions, evidence and blockers are in
+[19 Fixed-reference anatomy run](19-fixed-reference-anatomy-run.md). Older
+checkpoint versions are explicitly rejected. The 44/4/4/4 subject split is
+unchanged; partial research fitting never reassigns a training subject to
+calibration. Missing calibration yields unavailable uncertainty intervals.
+The execution evidence below describes earlier runs and is retained as history.
+
 ## Implementation and evidence (2026-10-02)
 
 Latest user direction supersedes the earlier matched-ablation/frozen-40 design:

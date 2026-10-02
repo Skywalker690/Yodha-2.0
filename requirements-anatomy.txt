@@ -1,3 +1,4 @@
 -r backend/requirements.txt
 SimpleITK>=2.4,<3
 scikit-image>=0.25,<0.27
+./nwbv_reference_module

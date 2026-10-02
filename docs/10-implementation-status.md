@@ -1,5 +1,58 @@
 # Implementation Status
 
+## Main branch integration (2026-10-03, D067)
+
+The combined `feat/ml` branch at `5eb3818` is merged into `main`, including
+the anatomy/forecast workflow, hippocampus display corrections, patient workspace
+updates and Alzhio Bot. The merge required no conflicts or application code edits.
+Production build, TypeScript, Ruff, Python compilation and staged whitespace
+checks passed; automated test suites were not run for this integration.
+
+## Combined chatbot and ML application (2026-10-03, D066)
+
+Remote `chatbot` at `7165081` is integrated into the current ML branch, including
+Alzhio branding, the patient chat widget, follow-up history, suggested questions,
+research references and the authenticated Gemini adapter. The current anatomy
+and forecast workflow remains integrated. Frontend build/type checks, backend
+lint/compilation and API startup checks passed. The local API serves the merged
+code; live bot replies require a backend Gemini API key. No provider call or
+automated test suite was run for this merge.
+
+## Regional hippocampus display correction (2026-10-03, D062)
+
+The default forecast viewer now shows scalar-guided local hippocampus changes
+with the acquired skull/head fixed. All fifteen five-patient annual illustrations
+completed. Bilateral displayed mask volumes decrease at 12/24/36 months; actual
+scalar estimates and voxel quantization are shown separately. The full-head
+magnifier is retired. Source MRI, previous outputs and weights are preserved.
+This is a presentation mapping from learned scalar volumes, not an evaluated
+spatial MRI predictor or evidence of Alzheimer's progression.
+
+## Five-patient annual forecasts (2026-10-03, D061)
+
+The five pinned patients have completed patient-specific 12/24/36-month outputs
+from the frozen historical v3 model, plus separately identified presentation
+variants. The workspace defaults these patients to experimental mode, offers
+annual scalar progression and plays completed horizons. Five of fifteen views
+permit 1.5x/3x magnification; others show original scale. Original outputs,
+model weights, training membership and unvalidated status remain unchanged.
+See [07](07-testing-validation.md) for runtime counts and check limitations.
+
+## Gemini clinical assistant (2026-10-03)
+
+The patient workspace includes temporary contextual chat, three suggested questions and
+optional Google Search references with supported passages. One authenticated backend
+endpoint builds an allowlisted context and uses the existing httpx dependency. No model
+training, schema migration or additional service is required. Raw MRI/identifiers/notes
+are excluded; unreviewed anatomy and unavailable forecasts retain their status.
+
+On the original chatbot branch, frontend unit tests, TypeScript, production build,
+focused backend tests, Ruff and the synthetic Edge desktop/mobile workflow passed.
+That branch's running backend was updated and healthy;
+the existing MRI worker remained running. Live responses need GEMINI_API_KEY in the local
+backend environment. Full Python verification remains limited by existing missing reference
+data and anatomy/forecast dependencies. See [21 Clinical assistant](21-clinical-assistant.md).
+
 ## Optional nWBV module integration (2026-10-02)
 
 The supplied package is extracted at `nwbv_reference_module/`, installed with

@@ -1,5 +1,32 @@
 # ML and Explainability Plan
 
+## Frozen historical inference (D046)
+
+An explicit compatibility adapter loads original v3 scalar/spatial weights without
+fitting. Four training subjects supplied 129 conditioning columns. Its saved fixed
+reference is separate from current v4 training-reference construction. Earlier MRIs
+register to the latest input; a learned time-conditioned field warps that patient's
+MRI and masks. Scalar prediction uses saved mixed-effects coefficients and observed
+history adaptation. Future targets never enter inference. Annual horizons remain
+exploratory; scalar/mask disagreement is visible and geometry failures block.
+
+Current D044 models use `anatomy-input-v4-train-age-reference`: a frozen
+training-baseline-CDR-zero reference with no ten-subject cutoff and no held-out
+members. The v3 discussion below is preserved history. The reference uses
+baseline metadata from all 44 declared training subjects; a partial fit separately
+reports its actual gradient subjects and that wider declared reference cohort.
+The full fit requires all 44 subjects. Chronological cutoff rules, physical units
+and train-only imputation/scaling are unchanged. See [20](20-training-reference-anatomy-run.md).
+
+The current anatomy implementation is `anatomy-input-v3-fixed-age-reference`;
+see D043 and [19 Fixed-reference anatomy run](19-fixed-reference-anatomy-run.md).
+Both scalar and spatial models use the same feature builder and saved fixed
+reference. The means/SDs are copied from the supplied table without fitting them
+to this run. Imputation/scaling still fit on gradient-training subjects only.
+Exclude raw nWBV, age and other demographics from conditioning. Reference overlap
+with this OASIS-2 holdout is possible and prevents a claim of independent reference
+validation. Historical/baseline-classifier feature contracts remain unchanged.
+
 For the separate anatomy extension and its incomplete scientific gates, see
 [17 Longitudinal anatomy](17-longitudinal-anatomy.md). Neither historical CDR model
 forecasts future geometry. Cutoff-local registration, score-conditioned mixed-effects/3D

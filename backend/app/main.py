@@ -10,7 +10,7 @@ from backend.app.core.config import get_settings
 
 settings = get_settings()
 app = FastAPI(
-    title="NeuroPredict AI",
+    title="Alzhio",
     version="1.0.0",
     description="Local longitudinal MRI research prototype. Not a medical diagnosis.",
 )

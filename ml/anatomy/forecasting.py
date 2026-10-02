@@ -18,7 +18,7 @@ from ml.anatomy.study import cutoff_inputs, physical_source
 from src.common import sha256, write_json
 from src.fastsurfer.regions import REGIONS
 
-RELEASE_VERSION = "anatomy-research-release-v2-score-conditioned"
+RELEASE_VERSION = "anatomy-research-release-v5-train-age-reference"
 
 
 def load_models(
@@ -26,6 +26,13 @@ def load_models(
 ) -> tuple[SpatialPredictor, FeatureScaler, dict, RegularizedMixedEffects]:
     name = "with_scores" if with_scores else "without_scores"
     checkpoint = torch.load(directory / f"{name}.pt", map_location="cpu", weights_only=True)
+    from ml.anatomy.features import VERSION as FEATURE_VERSION, reference_hash, validate_reference
+
+    if checkpoint.get("version") != VERSION or checkpoint.get("feature_contract") != FEATURE_VERSION:
+        raise ValueError("Incompatible older score-conditioned spatial checkpoint")
+    validate_reference(checkpoint["nwbv_reference"])
+    if reference_hash(checkpoint["nwbv_reference"]) != checkpoint["nwbv_reference_sha256"]:
+        raise ValueError("Saved spatial reference changed")
     if (
         checkpoint["version"] != VERSION
         or checkpoint["with_scores"] is not with_scores
@@ -41,6 +48,8 @@ def load_models(
     structural = RegularizedMixedEffects.from_dict(json.loads((directory / f"{name}.json").read_text()))
     if structural.with_scores is not with_scores or structural.feature_names != checkpoint["feature_names"]:
         raise ValueError("Scalar/spatial feature schemas do not match")
+    if structural.reference != checkpoint["nwbv_reference"]:
+        raise ValueError("Scalar/spatial references do not match")
     return model, scaler, checkpoint, structural
 
 
@@ -70,6 +79,7 @@ def generate(
     *,
     with_scores: bool = True,
     allow_unreviewed_research: bool = False,
+    experimental_preview: bool = False,
 ) -> dict:
     """Shared serving/evaluation path. Never receives a later MRI or target features."""
     if len(history) != len(sources) or not 2 <= len(history) <= 5 or not 0 <= interval <= 3650:
@@ -81,11 +91,25 @@ def generate(
             or sha256(Path(record["labels_path"])) != record["labels_sha256"]
         ):
             raise ValueError("Cutoff MRI/labels changed")
-    model, scaler, checkpoint, structural = load_models(directory, with_scores=with_scores)
+    if experimental_preview:
+        from ml.anatomy.experimental import load_models as historical_models
+
+        model, scaler, checkpoint, structural = historical_models(directory)
+    else:
+        model, scaler, checkpoint, structural = load_models(directory, with_scores=with_scores)
     # zero-time is identity, but still requires the same verified inputs/release.
-    row, names = history_features(
-        history, max(interval, 1), with_scores, require_review=not allow_unreviewed_research
-    )
+    if experimental_preview:
+        from ml.anatomy.experimental import features
+
+        row, names = features(history, interval, checkpoint["nwbv_reference"])
+    else:
+        row, names = history_features(
+            history,
+            max(interval, 1),
+            with_scores,
+            require_review=not allow_unreviewed_research,
+            reference=checkpoint.get("nwbv_reference"),
+        )
     if names != checkpoint["feature_names"]:
         raise ValueError("Conditioning schema changed")
     images = [
@@ -129,7 +153,7 @@ def generate(
         ratio = (data == identifier).sum() / (before == identifier).sum()
         expected = volumes[region] / history[-1].volumes_mm3[region]
         consistency[region] = float(abs(ratio - expected))
-    if max(consistency.values()) > 0.12:
+    if max(consistency.values()) > 0.12 and not experimental_preview:
         raise ValueError("Native mask/scalar relative-change agreement exceeds 12 percentage points")
     output.mkdir(parents=True, exist_ok=False)
     nib.save(predicted_mri, output / "mri.nii.gz")
@@ -147,6 +171,18 @@ def generate(
         meshes[region] = mesh(
             nifti((data == identifier).astype(np.uint8), labels.affine), output / f"{region}.gii"
         )
+    display_magnification = None
+    display_metadata = None
+    if experimental_preview:
+        from ml.anatomy.hippocampus_display import hippocampus_display
+
+        display_mri, display_labels, display_field, display_metadata = hippocampus_display(
+            images[-1], labels, history[-1].volumes_mm3, volumes,
+        )
+        display_magnification = 1
+        nib.save(display_mri, output / "mri_display.nii.gz")
+        nib.save(display_labels, output / "labels_display.nii.gz")
+        nib.save(display_field, output / "pull_display.nii.gz")
     artifacts = {
         p.stem.removesuffix(".nii"): {
             "relative_path": p.name,
@@ -154,16 +190,24 @@ def generate(
             "kind": "mesh"
             if p.suffix == ".gii"
             else "mri"
-            if p.name == "mri.nii.gz"
+            if p.name in {"mri.nii.gz", "mri_display.nii.gz"}
             else "field"
-            if p.name == "pull.nii.gz"
+            if p.name in {"pull.nii.gz", "pull_display.nii.gz"}
             else "labels",
         }
         for p in output.iterdir()
         if p.is_file()
     }
     manifest = {
-        "version": VERSION,
+        "version": checkpoint["version"],
+        "experimental": experimental_preview,
+        "display_magnification": display_magnification,
+        "display_mode": "hippocampus_scalar" if display_metadata else None,
+        "display_metadata": display_metadata,
+        "display_policy": "scalar-guided hippocampus illustration; acquired head unchanged; not a spatial model prediction or diagnosis",
+        "feature_contract": checkpoint.get("feature_contract"),
+        "nwbv_reference_sha256": checkpoint.get("nwbv_reference_sha256"),
+        "nwbv_reference_profile_id": checkpoint.get("nwbv_reference", {}).get("profile_id"),
         "registration_version": REGISTRATION_VERSION,
         "cutoff_visit_id": history[-1].visit_id,
         "interval_days": interval,
@@ -241,15 +285,13 @@ def predict(
     *,
     allow_unreviewed_research: bool = False,
 ) -> StructuralForecast:
-    if (directory / "release.json").is_file():
-        metadata, release_hash = release(directory)
-    elif allow_unreviewed_research and (directory / "evaluation.json").is_file():
-        report = json.loads((directory / "evaluation.json").read_text())
-        verify_candidate(directory, report)
-        release_hash = sha256(directory / "with_scores.pt")
+    if allow_unreviewed_research:
+        from ml.anatomy.experimental import candidate, INTERVALS
+
+        report, release_hash = candidate(directory)
         metadata = {
-            "supported_intervals_days": report.get("supported_intervals_days", []),
-            "experimental_intervals_days": [183, 365, 731, 1096],
+            "supported_intervals_days": [],
+            "experimental_intervals_days": INTERVALS,
             "measurement_method": "FastSurfer-2.5.4-native-T1",
             "dictionary_version": "dkt-longitudinal-v1",
             "score_method": "AVRA-v0.8-ensemble-continuous",
@@ -257,7 +299,9 @@ def predict(
     else:
         metadata, release_hash = release(directory)
 
-    allowed = set([0, *metadata.get("supported_intervals_days", []), *metadata.get("experimental_intervals_days", [183, 365, 731, 1096])])
+    allowed = set(
+        [0, *metadata.get("supported_intervals_days", []), *metadata.get("experimental_intervals_days", [])]
+    )
     if release_hash != expected_release or interval not in allowed:
         raise ValueError("Queued release changed or interval unsupported")
     if any(
@@ -268,12 +312,21 @@ def predict(
     ):
         raise ValueError("Measurement/rating methodology differs from evaluated training")
     manifest = generate(
-        directory, subject_id, history, sources, interval, output, allow_unreviewed_research=allow_unreviewed_research
+        directory,
+        subject_id,
+        history,
+        sources,
+        interval,
+        output,
+        allow_unreviewed_research=allow_unreviewed_research,
+        experimental_preview=allow_unreviewed_research,
     )
     manifest["release_sha256"] = release_hash
     write_json(output / "future-artifacts.json", manifest)
     report = json.loads((directory / "evaluation.json").read_text())
-    calibration = report.get("interval_calibration") if interval > 0 else None
+    calibration = (
+        report.get("interval_calibration") if interval > 0 and not allow_unreviewed_research else None
+    )
     bands, evidence = None, None
     if calibration:
         values = manifest["volumes_mm3"]
@@ -292,7 +345,9 @@ def predict(
                     "calibration_subjects": calibration["calibration_subjects"],
                 },
             )
-    is_experimental = interval in [183, 365, 731, 1096] and interval not in metadata.get("supported_intervals_days", [])
+    is_experimental = interval in [183, 365, 731, 1096] and interval not in metadata.get(
+        "supported_intervals_days", []
+    )
     warnings = [
         "Research structural estimates, not a medical diagnosis or clinical validation.",
         "Categorical mask-boundary meshes are not reconstructed cortical surfaces.",
@@ -305,6 +360,15 @@ def predict(
         warnings.append(
             "Experimental research candidate: automated geometry and score checks only, pending manual review."
         )
+        warnings.extend(report.get("release_failures", []))
+        warnings.append(
+            "Historical fixed-reference model; OASIS-2 reference may overlap held-out subjects. Not a promoted release."
+        )
+        discrepancy = max(manifest["volume_change_discrepancy"].values())
+        if discrepancy > 0.12:
+            warnings.append(
+                f"Scalar/mask change disagreement: {100 * discrepancy:.1f} percentage points; experimental preview only."
+            )
     return StructuralForecast(
         status="available",
         cutoff_visit_id=history[-1].visit_id,
@@ -313,9 +377,17 @@ def predict(
         volumes_mm3=manifest["volumes_mm3"],
         prediction_intervals=bands,
         interval_evidence=evidence,
-        spatial_model_version=VERSION,
+        spatial_model_version=manifest["version"],
         model_sha256=manifest["model_sha256"],
         release_sha256=release_hash,
+        experimental=allow_unreviewed_research,
+        display_magnification=manifest.get("display_magnification"),
+        display_mode=manifest.get("display_mode"),
+        display_regions=(manifest.get("display_metadata") or {}).get("regions"),
+        training_subject_count=report.get("counts", {}).get("train") if allow_unreviewed_research else None,
+        feature_contract=manifest.get("feature_contract"),
+        reference_sha256=manifest.get("nwbv_reference_sha256"),
+        reference_profile_id=manifest.get("nwbv_reference_profile_id"),
         artifacts=[
             ForecastArtifact(name=name, kind=entry["kind"], sha256=entry["sha256"])
             for name, entry in manifest["artifacts"].items()

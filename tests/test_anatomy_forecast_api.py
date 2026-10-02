@@ -161,12 +161,14 @@ def test_forecast_requires_release_review_and_freezes_cutoff_without_running_in_
 
 
 def test_future_artifacts_never_fall_back_to_observed_mri(authenticated, anatomy_job):
+    assert authenticated.get("/analysis/synthetic-anatomy/forecast-comparison").status_code == 404
     response = authenticated.get("/analysis/synthetic-anatomy/future/mri")
     assert response.status_code == 404
     assert authenticated.get("/patients/anatomy-patient/anatomy-forecasts").json() == []
     assert authenticated.get("/anatomy-model/readiness").json()["status"] == "unavailable"
     authenticated.post("/auth/login", json={"email": "b@example.test", "password": "correct-password-123"})
     assert authenticated.get("/patients/anatomy-patient/anatomy-forecasts").status_code == 404
+    assert authenticated.get("/analysis/synthetic-anatomy/forecast-comparison").status_code == 404
 
 
 def test_available_future_artifact_hashes_owner_isolation_and_report(

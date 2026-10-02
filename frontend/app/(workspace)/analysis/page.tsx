@@ -11,7 +11,10 @@ export default function AnalysisPage() {
     2000,
   );
   const [id, setId] = useState("");
-  const selected = data?.find((p) => p.id === id) || data?.[0];
+  const selected =
+    data?.find((p) => p.id === id) ||
+    data?.find((p) => p.code === "OAS2_0048") ||
+    data?.[0];
   return (
     <>
       <PageTitle

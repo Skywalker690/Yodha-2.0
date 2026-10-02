@@ -14,6 +14,57 @@ from scripts.train_anatomy import export_study, queue_cohort
 from src.common import write_json
 
 
+def test_reuse_requires_unchanged_physical_source_and_target_records():
+    import copy
+    from scripts.train_anatomy import same_registration_sources
+
+    original = [
+        {
+            "labels_sha256": "a" * 64,
+            "mri_path": "same-source.nii.gz",
+            "measurement": {
+                "qc": "pending_review",
+                "ratings": {"status": "pending_alignment_qc"},
+                "source_sha256": "b" * 64,
+                "volumes_mm3": {"region": 5000},
+            },
+        }
+    ]
+    current = copy.deepcopy(original)
+    current[0]["measurement"].update(qc="passed", ratings={"status": "ok"}, reviewer_id="reviewer")
+    assert same_registration_sources(original, current)
+    current[0]["labels_sha256"] = "c" * 64
+    assert not same_registration_sources(original, current)
+
+
+def test_frozen_source_cutoff_excludes_user_added_visits(tmp_path):
+    from scripts.train_anatomy import cohort_days
+    from src.common import sha256
+
+    split = tmp_path / "subject_split.csv"
+    split.write_text("subject_id,split\nsubject,train\n")
+    write_json(
+        tmp_path / "cohort.json",
+        {
+            "split_sha256": sha256(split),
+            "subjects": [
+                {
+                    "subject_id": "subject",
+                    "visits": [
+                        {"days_from_baseline": 0},
+                        {"days_from_baseline": 500},
+                        {"days_from_baseline": 1000},
+                    ],
+                }
+            ],
+        },
+    )
+    assert cohort_days(split, "subject") == {0, 500, 1000}
+    split.write_text("changed")
+    with pytest.raises(ValueError, match="split changed"):
+        cohort_days(split, "subject")
+
+
 def test_completed_history_preparation_preserves_full_cohort_indices(tmp_path, monkeypatch):
     from scripts import train_anatomy
     from ml.anatomy import study

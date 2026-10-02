@@ -10,6 +10,14 @@ import numpy as np
 import torch
 
 from ml.anatomy.evaluation import calibrate_intervals, geometry_metrics, interval_coverage
+from ml.anatomy.features import (
+    VERSION as FEATURE_VERSION,
+    availability_summary,
+    feature_availability,
+    fit_reference,
+    reference_hash,
+    validate_reference_split,
+)
 from ml.anatomy.model import FeatureScaler, SpatialPredictor, VERSION, spatial_loss
 from ml.anatomy.registration import nifti
 from ml.anatomy.spatial import warp
@@ -48,19 +56,28 @@ def development_roles(split: dict[str, str]) -> dict[str, str]:
     return {**split, **{s: "selection" if i < 4 else "calibration" for i, s in enumerate(subjects)}}
 
 
-def _features(example, with_scores: bool) -> tuple[np.ndarray, list[str]]:
+def _features(example, with_scores: bool, reference: dict) -> tuple[np.ndarray, list[str]]:
     return history_features(
         example.history,
         example.interval_days,
         with_scores,
         require_review=not example.allow_unreviewed_research,
+        reference=reference,
     )
 
 
 def predict_field(
-    model: SpatialPredictor, scaler: FeatureScaler, example, data: dict, with_scores: bool, device: str
+    model: SpatialPredictor,
+    scaler: FeatureScaler,
+    example,
+    data: dict,
+    with_scores: bool,
+    device: str,
+    reference: dict | None = None,
 ) -> np.ndarray:
-    row, _ = _features(example, with_scores)
+    if reference is None:
+        raise ValueError("Spatial prediction requires the saved training reference")
+    row, _ = _features(example, with_scores, reference)
     with torch.inference_mode():
         field = model(
             torch.from_numpy(data["images"])[None].to(device),
@@ -70,11 +87,13 @@ def predict_field(
     return field[0].cpu().numpy().transpose(1, 2, 3, 0)
 
 
-def _spatial_evaluation(model, scaler, cases: list, with_scores: bool, device: str) -> dict:
+def _spatial_evaluation(
+    model, scaler, cases: list, with_scores: bool, device: str, reference: dict | None = None
+) -> dict:
     errors, baseline, invalid = defaultdict(list), defaultdict(list), 0
     for _, example, data in cases:
         try:
-            field = predict_field(model, scaler, example, data, with_scores, device)
+            field = predict_field(model, scaler, example, data, with_scores, device, reference)
             predicted = warp(
                 nifti(data["labels"], data["affine"]), nifti(field, data["affine"]), categorical=True
             )
@@ -164,6 +183,8 @@ def train(
     device: str = "cpu",
     synthetic: bool = False,
     allow_unreviewed_research: bool = False,
+    allow_partial_cohort: bool = False,
+    reference: dict | None = None,
 ) -> dict:
     if not 1 <= epochs <= 500 or device not in {"cpu", "cuda"}:
         raise ValueError("Bounded epoch count and cpu/cuda device required")
@@ -185,21 +206,27 @@ def train(
         for role in ("train", "selection", "calibration", "test")
     }
     active_roles = dict(roles)
-    if allow_unreviewed_research and not grouped["calibration"] and len(grouped["train"]) >= 4:
-        extra_subject = grouped["train"][-1][0]["subject_id"]
-        active_roles[extra_subject] = "calibration"
-        grouped["calibration"] = [c for c in cases if c[0]["subject_id"] == extra_subject]
-        grouped["train"] = [
-            c for c in cases if c[0]["subject_id"] != extra_subject and roles[c[0]["subject_id"]] == "train"
-        ]
+    required_roles = ("train", "selection", "test") if allow_partial_cohort else tuple(grouped)
     if (
-        any(not values for values in grouped.values())
+        any(not grouped[role] for role in required_roles)
         or len({c[0]["subject_id"] for c in grouped["train"]}) < 2
     ):
         raise ValueError("Training, selection, independent calibration and held-out test examples required")
     if output.exists():
         raise ValueError("A training run is immutable; choose a new output directory")
     output.mkdir(parents=True)
+    reference = reference or fit_reference({e.subject_id: e.history for _, e, _ in grouped["train"]}, roles)
+    validate_reference_split(reference, roles)
+    write_json(output / "nwbv-reference.json", reference)
+    if (
+        not synthetic
+        and not allow_partial_cohort
+        and any(
+            len({c[0]["subject_id"] for c in grouped[role]}) != list(roles.values()).count(role)
+            for role in grouped
+        )
+    ):
+        raise ValueError("Complete frozen cohort required; explicitly request provisional partial fitting")
     random.seed(SEED)
     np.random.seed(SEED)
     torch.manual_seed(SEED)
@@ -227,7 +254,7 @@ def train(
         for fixed in (1.0, 10.0, 100.0):
             for random_penalty in (1.0, 10.0, 100.0):
                 model = RegularizedMixedEffects(fixed, random_penalty, with_scores).fit(
-                    [e for _, e, _ in grouped["train"]], manifest["split"]
+                    [e for _, e, _ in grouped["train"]], manifest["split"], reference=reference
                 )
                 try:
                     errors = _volume_errors({name: model}, grouped["selection"])[0][name]["mean_mae_mm3"]
@@ -237,9 +264,24 @@ def train(
         if not candidates:
             raise ValueError("No valid structural candidate on selection subjects")
         structural[name] = min(candidates, key=lambda item: item[0])[1]
-        rows = np.stack([_features(e, with_scores)[0] for _, e, _ in grouped["train"]])
+        rows = np.stack([_features(e, with_scores, reference)[0] for _, e, _ in grouped["train"]])
         scaler = FeatureScaler.fit(rows)
-        names = _features(grouped["train"][0][1], with_scores)[1]
+        names = _features(grouped["train"][0][1], with_scores, reference)[1]
+        write_json(
+            output / "preprocessing.json",
+            {
+                "feature_contract": FEATURE_VERSION,
+                "feature_names": names,
+                "nwbv_reference_sha256": reference_hash(reference),
+                "spatial": scaler.to_dict(),
+                "structural": {
+                    "median": structural[name].median.tolist(),
+                    "scale": structural[name].scale.tolist(),
+                },
+                "training_feature_availability": feature_availability(rows, names),
+                "missing_value_policy": "training medians and per-column missingness; all-missing columns zero",
+            },
+        )
         torch.manual_seed(SEED)
         model = SpatialPredictor(len(names) * 2).to(device)
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
@@ -252,9 +294,9 @@ def train(
                 _, example, data = grouped["train"][index]
                 images = torch.from_numpy(data["images"])[None].to(device)
                 affine = torch.from_numpy(data["affine"])[None].to(device)
-                features = torch.from_numpy(scaler.transform(_features(example, with_scores)[0]))[None].to(
-                    device
-                )
+                features = torch.from_numpy(scaler.transform(_features(example, with_scores, reference)[0]))[
+                    None
+                ].to(device)
                 field = model(images, features, torch.tensor([example.interval_days / 365.25], device=device))
                 loss, _ = spatial_loss(
                     field,
@@ -273,7 +315,7 @@ def train(
                 optimizer.step()
                 losses.append(float(loss.detach()))
             model.eval()
-            scores = _spatial_evaluation(model, scaler, grouped["selection"], with_scores, device)
+            scores = _spatial_evaluation(model, scaler, grouped["selection"], with_scores, device, reference)
             metric = (
                 float("inf")
                 if scores["invalid_cases"] or scores["mean"] is None
@@ -285,6 +327,9 @@ def train(
                 torch.save(
                     {
                         "version": VERSION,
+                        "feature_contract": FEATURE_VERSION,
+                        "nwbv_reference": reference,
+                        "nwbv_reference_sha256": reference_hash(reference),
                         "with_scores": with_scores,
                         "feature_names": names,
                         "scaler": scaler.to_dict(),
@@ -301,16 +346,20 @@ def train(
         model.load_state_dict(saved["state_dict"])
         model.eval()
         spatial[name] = (model, scaler)
-        selection[name] = _spatial_evaluation(model, scaler, grouped["selection"], with_scores, device)
+        selection[name] = _spatial_evaluation(
+            model, scaler, grouped["selection"], with_scores, device, reference
+        )
         write_json(output / f"{name}.json", structural[name].to_dict())
-    calibration_metrics, calibration_errors = _volume_errors(structural, grouped["calibration"])
+    calibration_metrics, calibration_errors = (
+        _volume_errors(structural, grouped["calibration"]) if grouped["calibration"] else ({}, {})
+    )
     calibration = None
     if len(calibration_errors) >= 4:
         calibration = calibrate_intervals(calibration_errors, GATES["interval_level"])
     # Final test is opened only AFTER checkpoints and hyperparameters are frozen.
     test_volume, test_errors = _volume_errors(structural, grouped["test"])
     test_spatial = {
-        name: _spatial_evaluation(model, scaler, grouped["test"], name == "with_scores", device)
+        name: _spatial_evaluation(model, scaler, grouped["test"], name == "with_scores", device, reference)
         for name, (model, scaler) in spatial.items()
     }
     coverage = interval_coverage(calibration, test_errors) if calibration and len(test_errors) >= 4 else None
@@ -365,6 +414,18 @@ def train(
     native = {"status": "not_evaluated", "reason": "Run native evaluation before promotion"}
     report = {
         "version": VERSION,
+        "feature_contract": FEATURE_VERSION,
+        "nwbv_reference_sha256": reference_hash(reference),
+        "nwbv_reference_provenance": {
+            "reference_subjects": reference["reference_subjects"],
+            "reference_origin": reference["reference_origin"],
+            "heldout_reference_overlap_possible": False,
+            "independent_population_norm": False,
+        },
+        "nwbv_availability": {
+            role: availability_summary([c[1].history for c in values], reference)
+            for role, values in grouped.items()
+        },
         "synthetic": synthetic,
         "model_policy": "MTA-Koedam-conditioned-only",
         "review_complete": review_complete,
@@ -377,6 +438,16 @@ def train(
             "gpu": torch.cuda.get_device_name(0) if device == "cuda" else None,
         },
         "counts": counts,
+        "example_counts": {role: len(values) for role, values in grouped.items()},
+        "actual_training_subjects": sorted({c[0]["subject_id"] for c in grouped["train"]}),
+        "reference_training_subjects": reference["training_subjects"],
+        "eligible_reference_subjects": reference["reference_subject_ids"],
+        "feature_availability": {
+            role: feature_availability(np.stack([_features(c[1], True, reference)[0] for c in values]), names)
+            if values
+            else {}
+            for role, values in grouped.items()
+        },
         "gates": GATES,
         "candidate_sha256": {name: sha256(output / name) for name in ("with_scores.pt", "with_scores.json")},
         "study_sha256": sha256(study),

@@ -40,11 +40,7 @@ export function BaselineForecast({
       data.qc !== "passed");
   return (
     <section className="panel" style={{ padding: "1.5rem", marginTop: "1rem" }}>
-      <h2>
-        {research
-          ? "Baseline-only outcome forecast"
-          : "Clinical + FastSurfer ML forecast"}
-      </h2>
+      {research && <h2>Baseline-only outcome forecast</h2>}
       <Button variant="outline" onClick={reload} disabled={loading}>
         Check prediction readiness
       </Button>

@@ -1,4 +1,20 @@
 export type Mode = "demo" | "precomputed" | "inference" | "trained" | "anatomy";
+export type AssistantResponse = {
+  answer: string;
+  sources: { title: string; url: string; supportedText: string[] }[];
+  searchSuggestions: string | null;
+  researchRequested: boolean;
+  contextSummary: {
+    visitCount: number;
+    clinicalFieldsUsed: string[];
+    anatomyIncluded: boolean;
+    anatomyReviewed: boolean;
+    forecastIncluded: boolean;
+    rawMriSent: false;
+  };
+  model: string;
+  disclaimer: string;
+};
 export type AnatomyVisit = {
   visitId: string;
   daysFromBaseline: number;
@@ -49,6 +65,16 @@ export type AnatomyResult = {
   }[];
   signConvention: string;
   forecast: {
+    experimental?: boolean;
+    displayMagnification?: number | null;
+    displayMode?: "hippocampus_scalar" | null;
+    displayRegions?: Record<string, {
+      inputMaskMm3: number;
+      displayMaskMm3: number;
+      scalarChangePercent: number;
+      displayChangePercent: number;
+    }> | null;
+    trainingSubjectCount?: number | null;
     status: "unavailable" | "available";
     cutoffVisitId: string;
     intervalDays: number;
@@ -64,6 +90,14 @@ export type AnatomyResult = {
     spatialModelVersion?: string | null;
     modelSha256?: string | null;
     releaseSha256?: string | null;
+    featureContract?: string | null;
+    referenceSha256?: string | null;
+    referenceProfileId?: string | null;
+    featureAvailability?: {
+      visitId: string;
+      nwbvAgeZ: { status: string; zScore: number | null; referencePolicy?: string };
+      MMSE: { status: string };
+    }[] | null;
     artifacts: {
       name: string;
       kind: "mri" | "labels" | "field" | "mesh";

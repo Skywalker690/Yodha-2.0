@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { ClinicalAssistant } from "@/components/clinical-assistant";
 import {
   ArrowLeft,
   ArrowRight,
@@ -8,6 +9,7 @@ import {
   Play,
   Plus,
   ScanLine,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -26,7 +28,7 @@ function VisitForm({
   onDone,
 }: {
   patient: Patient;
-  onDone: () => void;
+  onDone: (visitId?: string) => void;
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,11 +41,18 @@ function VisitForm({
         setBusy(true);
         const fd = new FormData(e.currentTarget);
         try {
-          await post(`/patients/${patient.id}/visits`, {
-            label: fd.get("label"),
-            daysFromBaseline: Number(fd.get("day")),
-          });
-          onDone();
+          const updated = await post<Patient>(
+            `/patients/${patient.id}/visits`,
+            {
+              label: fd.get("label"),
+              daysFromBaseline: Number(fd.get("day")),
+            },
+          );
+          onDone(
+            updated.visits.find(
+              (v) => !patient.visits.some((old) => old.id === v.id),
+            )?.id,
+          );
         } catch (e) {
           setError((e as Error).message);
         } finally {
@@ -86,64 +95,100 @@ function VisitForm({
 function UploadForm({
   visit,
   onDone,
+  onDeleted,
+  visitSelector,
   mlOnly = false,
 }: {
   visit: Visit;
   onDone: () => void;
+  onDeleted?: () => void;
+  visitSelector?: ReactNode;
   mlOnly?: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   return (
-    <form
-      className="upload-form"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!file) return;
-        setBusy(true);
-        setError("");
-        const fd = new FormData();
-        fd.append("file", file);
-        try {
-          await api<Analysis>(`/visits/${visit.id}/upload`, {
-            method: "POST",
-            body: fd,
-          });
-          onDone();
-        } catch (e) {
-          setError((e as Error).message);
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <Upload size={28} />
-      <h3>Add the MRI for {visit.label}</h3>
-      <p>
-        NIfTI volume (.nii or .nii.gz), up to 100 MiB.
-        <br />
-        {mlOnly
-          ? "Stored after validation; reviewed FastSurfer processing and trained model release are required before prediction."
-          : "A local analysis job starts after validation."}
-      </p>
-      <label className="file-picker">
-        <span className="sr-only">MRI file</span>
-        <input
-          type="file"
-          accept=".nii,.nii.gz"
-          required
-          onChange={(e) => {
-            setFile(e.target.files?.[0] || null);
-            setError("");
-          }}
-        />
-      </label>
+    <>
+      <div className="panel-heading">
+        {visitSelector}
+        {!visit.hasMri && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={async () => {
+              if (busy) return;
+              setBusy(true);
+              setDeleting(true);
+              setError("");
+              try {
+                await api(`/visits/${visit.id}`, { method: "DELETE" });
+                (onDeleted || onDone)();
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+                setDeleting(false);
+              }
+            }}
+          >
+            <Trash2 size={16} />
+            {deleting ? "Deleting…" : "Delete visit"}
+          </Button>
+        )}
+      </div>
       {error && <ErrorState message={error} />}
-      <Button type="submit" disabled={!file || busy}>
-        {busy ? "Uploading and validating…" : "Upload MRI"}
-      </Button>
-    </form>
+      <form
+        className="upload-form"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!file || busy) return;
+          setBusy(true);
+          setError("");
+          const fd = new FormData();
+          fd.append("file", file);
+          try {
+            await api<Analysis>(`/visits/${visit.id}/upload`, {
+              method: "POST",
+              body: fd,
+            });
+            onDone();
+          } catch (e) {
+            setError((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <Upload size={28} />
+        <h3>Add the MRI for {visit.label}</h3>
+        <p>
+          NIfTI volume (.nii or .nii.gz), up to 100 MiB.
+          <br />
+          {mlOnly
+            ? "Stored after validation; reviewed FastSurfer processing and trained model release are required before prediction."
+            : "A local analysis job starts after validation."}
+        </p>
+        <label className="file-picker">
+          <span className="sr-only">MRI file</span>
+          <input
+            type="file"
+            accept=".nii,.nii.gz"
+            required
+            disabled={busy}
+            onChange={(e) => {
+              setFile(e.target.files?.[0] || null);
+              setError("");
+            }}
+          />
+        </label>
+        <Button type="submit" disabled={!file || busy}>
+          {busy && !deleting ? "Uploading and validating…" : "Upload MRI"}
+        </Button>
+      </form>
+    </>
   );
 }
 
@@ -244,7 +289,8 @@ function LegacyAnalysisWorkspace({
           <h3>Add a chronological visit</h3>
           <VisitForm
             patient={patient}
-            onDone={() => {
+            onDone={(visitId) => {
+              if (visitId) selectVisit(visitId);
               setAddVisit(false);
               reload();
             }}
@@ -412,7 +458,15 @@ function LegacyAnalysisWorkspace({
               </p>
             </>
           ) : visit ? (
-            <UploadForm key={visit.id} visit={visit} onDone={reload} />
+            <UploadForm
+              key={visit.id}
+              visit={visit}
+              onDone={reload}
+              onDeleted={() => {
+                selectVisit("");
+                reload();
+              }}
+            />
           ) : (
             <Empty title="No MRI visits">
               Add a visit above, then upload a NIfTI scan.
@@ -654,6 +708,18 @@ function MLWorkspace({
   const [addVisit, setAddVisit] = useState(false);
   const visit =
     patient.visits.find((v) => v.id === selectedId) || patient.visits[0];
+  const visitSelector = visit && (
+    <label style={{ flex: 1, minWidth: 0 }}>
+      MRI visit
+      <select value={visit.id} onChange={(e) => setSelectedId(e.target.value)}>
+        {patient.visits.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
   return (
     <>
       <section className="panel" style={{ padding: "1.5rem" }}>
@@ -668,14 +734,14 @@ function MLWorkspace({
         {addVisit && (
           <VisitForm
             patient={patient}
-            onDone={() => {
+            onDone={(visitId) => {
+              if (visitId) setSelectedId(visitId);
               setAddVisit(false);
               reload();
             }}
           />
         )}
       </section>
-      <BaselineForecast key={patient.id} patientId={patient.id} />
       {visit && (
         <AnatomyPanel
           key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}
@@ -684,80 +750,9 @@ function MLWorkspace({
           reload={reload}
         />
       )}
-      {patient.visits.length > 0 && (
-        <section className="panel timeline-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>MRI timeline</h2>
-              <p>Select an observation or future prediction horizon</p>
-            </div>
-            <span className="muted small">DAYS FROM BASELINE</span>
-          </div>
-          <div className="timeline">
-            {patient.visits.map((v, i) => (
-              <button
-                key={v.id}
-                onClick={() => setSelectedId(v.id)}
-                className={`timeline-visit ${visit.id === v.id ? "selected" : ""}`}
-              >
-                <div className="timeline-track">
-                  <span>{(i + 1).toString().padStart(2, "0")}</span>
-                  <i />
-                </div>
-                <strong>{v.label}</strong>
-                <small>
-                  Day {v.daysFromBaseline.toLocaleString()}{" "}
-                  {i === 0 && "· Baseline"}
-                </small>
-                <span className={`visit-ready ${v.hasMri ? "" : "missing"}`}>
-                  {v.hasMri ? "MRI available" : "Awaiting upload"}
-                </span>
-              </button>
-            ))}
-            {[12, 24, 36].map((months) => {
-              const cutoff =
-                patient.visits.filter((v) => v.hasMri).at(-1) ||
-                patient.visits[patient.visits.length - 1];
-              const intervalDays =
-                months === 12 ? 365 : months === 24 ? 731 : 1096;
-              const projectedDays = cutoff.daysFromBaseline + intervalDays;
-              return (
-                <div
-                  key={`future-${months}`}
-                  className="timeline-visit future"
-                >
-                  <div className="timeline-track">
-                    <span>+{months}m</span>
-                    <i />
-                  </div>
-                  <strong>+{months}m Prediction</strong>
-                  <small>
-                    Day {projectedDays.toLocaleString()} · from {cutoff.label}
-                  </small>
-                  <span className="visit-experimental">
-                    Experimental (unsupported horizon)
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
       {visit ? (
         <section className="panel" style={{ padding: "1.5rem" }}>
-          <label>
-            MRI visit
-            <select
-              value={visit.id}
-              onChange={(e) => setSelectedId(e.target.value)}
-            >
-              {patient.visits.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {visit.hasMri && visitSelector}
           <p>
             Follow-up MRI viewing does not change the baseline prediction or add
             future inputs.
@@ -782,7 +777,17 @@ function MLWorkspace({
               )}
             </>
           ) : (
-            <UploadForm visit={visit} onDone={reload} mlOnly />
+            <UploadForm
+              key={visit.id}
+              visit={visit}
+              visitSelector={visitSelector}
+              onDone={reload}
+              onDeleted={() => {
+                setSelectedId("");
+                reload();
+              }}
+              mlOnly
+            />
           )}
         </section>
       ) : (
@@ -799,9 +804,14 @@ export function AnalysisWorkspace(props: {
   patient: Patient;
   reload: () => void;
 }) {
-  return props.patient.servingPolicy === "research" ? (
-    <LegacyAnalysisWorkspace {...props} />
-  ) : (
-    <MLWorkspace {...props} />
+  return (
+    <>
+      <ClinicalAssistant patient={props.patient} />
+      {props.patient.servingPolicy === "research" ? (
+        <LegacyAnalysisWorkspace {...props} />
+      ) : (
+        <MLWorkspace {...props} />
+      )}
+    </>
   );
 }
