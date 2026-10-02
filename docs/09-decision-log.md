@@ -1,5 +1,40 @@
 # Decision Log
 
+## D046: Implement original English cognitive demo with separate scoring
+
+Status: Accepted and implemented (2026-10-03, explicit user clarification)
+
+The user requested implementation, then confirmed they have no authorized questionnaire
+content and asked for an English demo. This supersedes D045's initial standard-content
+scope for the current release. Use original demonstration prompts covering eleven
+cognitive task groups with a 30-point arithmetic total, label them MMSE-style demo,
+and persist `cognitiveDemoScore` separately. Never fill clinical `MMSE` or change model
+inputs from a demo. A separately configured authorized original-MMSE definition can
+use the standard storage branch; no actual licensed questionnaire is bundled.
+
+Deliver clinician-recorded task points, deterministic server totals, draft/resume,
+immutable completed attempts, selected-visit isolation, sanitized summaries and
+dashboard values before anatomy. Preserve MRI metadata with refreshed row locks,
+add PATCH browser support, and keep imported observations and historical reports
+unchanged. See [20 Cognitive assessment](20-cognitive-assessment.md) for evidence.
+
+## D045: Plan standard MMSE scoring from assessment results
+
+Status: Accepted for planning (2026-10-03, explicit user clarification; not implemented)
+
+The user selected a standard MMSE assessment with the score calculated directly from
+recorded task performance, rather than ten custom questions per area. Plan a
+clinician-guided assessment attached to a visit, using authorized instrument content
+and deterministic backend scoring. The total is not an editable input. Only a valid
+completed standardized assessment can publish `metadata.MMSE`; drafts and custom
+questionnaires cannot supply that model-compatible field.
+
+Reuse visit JSON for the MVP, fix MRI upload metadata replacement/concurrent-write
+handling, display the score without requiring completed anatomy, and preserve imported
+observations, historical input snapshots and forecast eligibility. No training, worker
+or model changes are included. Implementation and verification remain future work;
+see [MMSE assessment plan](../mmse-plan.md).
+
 ## D044: Alzhio text-only product and bot branding
 
 Status: Accepted (2026-10-03, explicit user request)

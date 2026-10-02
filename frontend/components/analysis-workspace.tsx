@@ -1,5 +1,6 @@
 "use client";
 import { ClinicalAssistant } from "@/components/clinical-assistant";
+import { MMSEAssessment } from "@/components/mmse-assessment";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -229,6 +230,14 @@ function LegacyAnalysisWorkspace({
         </Button>
       </div>
       {patient.notes && <p className="patient-notes">{patient.notes}</p>}
+      {visit && (
+        <MMSEAssessment
+          key={`${patient.id}:${visit.id}`}
+          patient={patient}
+          visit={visit}
+          reload={reload}
+        />
+      )}
       {patient.source === "oasis-2" && (
         <BaselineForecast key={patient.id} patientId={patient.id} research />
       )}
@@ -678,6 +687,14 @@ function MLWorkspace({
       </section>
       <BaselineForecast key={patient.id} patientId={patient.id} />
       {visit && (
+        <MMSEAssessment
+          key={`${patient.id}:${visit.id}`}
+          patient={patient}
+          visit={visit}
+          reload={reload}
+        />
+      )}
+      {visit && (
         <AnatomyPanel
           key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}
           patient={patient}
@@ -723,10 +740,7 @@ function MLWorkspace({
                 months === 12 ? 365 : months === 24 ? 731 : 1096;
               const projectedDays = cutoff.daysFromBaseline + intervalDays;
               return (
-                <div
-                  key={`future-${months}`}
-                  className="timeline-visit future"
-                >
+                <div key={`future-${months}`} className="timeline-visit future">
                   <div className="timeline-track">
                     <span>+{months}m</span>
                     <i />

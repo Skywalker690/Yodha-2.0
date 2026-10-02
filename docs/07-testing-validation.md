@@ -1,5 +1,16 @@
 # Testing and Validation
 
+## Cognitive assessment checks (2026-10-03)
+
+The focused MMSE/patient/upload/chatbot and ML-only runs passed 54 tests. Two real PostgreSQL
+checks passed in an isolated disposable database, verifying stale metadata refresh
+in both scan/assessment write orders. All 67 frontend tests, TypeScript, production
+build and the desktop/mobile Edge assessment workflow passed. Checks cover strict
+points, incomplete/zero distinction, stale revisions, owned visits, imported-record
+protection, idempotent completion, draft persistence, separate demo/standard storage,
+filtered chatbot context and MRI metadata preservation. All data is synthetic;
+these checks do not establish clinical validity. See [20](20-cognitive-assessment.md).
+
 ## Clinical assistant checks (2026-10-03)
 
 Run `pytest tests/test_assistant_api.py -q`, frontend unit tests, TypeScript and production

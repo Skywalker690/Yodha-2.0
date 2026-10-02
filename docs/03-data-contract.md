@@ -1,5 +1,15 @@
 # Data Contract
 
+## Cognitive assessment extension
+
+Visit metadata stores versioned `mmseAssessment` attempts internally; public patient
+payloads expose only an assessment summary. The original English demo publishes
+`cognitiveDemoScore` and never changes `MMSE`. Only completion through an explicitly
+configured authorized original-MMSE protocol publishes a standard `MMSE` value.
+Assessment APIs validate ownership, revision, timezone-aware time and task points.
+MRI uploads merge scan fields after a refreshed visit row lock. See
+[20 Cognitive assessment](20-cognitive-assessment.md) for complete API/storage details.
+
 Longitudinal anatomy has its own optional versioned `anatomy` result and patient
 `latestAnatomy`/`completedAnatomy` payloads. It never populates legacy risk/proxy fields.
 Native stats/masks, hashes, dictionary, source units, review provenance, continuous

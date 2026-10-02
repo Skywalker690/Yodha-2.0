@@ -26,12 +26,16 @@ from backend.app.schemas.contracts import (
     VisitCreate,
     AssistantRequest,
     AssistantResponse,
+    MMSEStart,
+    MMSEDraftSave,
+    MMSEComplete,
 )
 from backend.app.services.analysis import enqueue, latest_completed, latest_anatomy, trained_model_version
 from backend.app.services.reports import build_report
 from backend.app.services.forecast import patient_forecast
 from src.risk.release import readiness
 from backend.app.services.storage import new_key, resolve_key
+from backend.app.services import mmse
 from ml.contracts import MODEL_VERSION
 from ml.preprocessing import render_preview
 from src.common import sha256
@@ -134,7 +138,7 @@ def patient_payload(db: Session, patient: Patient) -> dict:
                 "label": v.label,
                 "daysFromBaseline": v.days_from_baseline,
                 "hasMri": bool(v.mri_key),
-                "metadata": v.metadata_json,
+                "metadata": mmse.public_metadata(v),
                 "previewUrl": f"/api/visits/{v.id}/preview" if v.preview_key else None,
                 "volumeUrl": f"/api/visits/{v.id}/volume" if v.mri_key else None,
             }
@@ -263,12 +267,58 @@ def create_visit(
     return patient_payload(db, patient)
 
 
+def locked_assessment_visit(db: Session, user: User, visit_id: str) -> Visit:
+    visit = owned_visit(db, user, visit_id)
+    patient = owned_patient(db, user, visit.patient_id)
+    mmse.ensure_editable_case(patient.source)
+    locked = db.scalar(
+        select(Visit).where(Visit.id == visit_id).with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if locked is None:
+        raise HTTPException(404, "Visit not found.")
+    return locked
+
+
+@router.post("/visits/{visit_id}/mmse")
+def start_mmse(
+    visit_id: str, body: MMSEStart,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> dict:
+    visit = locked_assessment_visit(db, user, visit_id)
+    result = mmse.start(visit, user.id)
+    db.commit()
+    return mmse.public_assessment(result)
+
+
+@router.patch("/visits/{visit_id}/mmse/{assessment_id}")
+def save_mmse(
+    visit_id: str, assessment_id: str, body: MMSEDraftSave,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> dict:
+    visit = locked_assessment_visit(db, user, visit_id)
+    result = mmse.save(visit, assessment_id, body)
+    db.commit()
+    return mmse.public_assessment(result)
+
+
+@router.post("/visits/{visit_id}/mmse/{assessment_id}/complete")
+def complete_mmse(
+    visit_id: str, assessment_id: str, body: MMSEComplete,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> dict:
+    visit = locked_assessment_visit(db, user, visit_id)
+    result = mmse.complete(visit, assessment_id, body.revision)
+    db.commit()
+    return mmse.public_assessment(result)
+
+
 @router.post("/visits/{visit_id}/upload", status_code=202)
 def upload(
     visit_id: str, file: UploadFile, db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> dict:
     visit = owned_visit(db, user, visit_id)
-    db.execute(select(Visit).where(Visit.id == visit_id).with_for_update()).scalar_one()
+    visit = db.scalar(select(Visit).where(Visit.id == visit_id).with_for_update().execution_options(populate_existing=True))
     if visit.mri_key:
         raise HTTPException(409, "This visit already has an MRI. Create another visit for a new scan.")
     name = (file.filename or "").lower()
@@ -298,7 +348,8 @@ def upload(
                     raise HTTPException(413, "MRI exceeds the 100 MiB upload limit.")
                 dest.write(chunk)
         metadata = render_preview(path, thumbnail)
-        visit.mri_key, visit.preview_key, visit.metadata_json = key, preview, metadata
+        visit.mri_key, visit.preview_key = key, preview
+        mmse.merge_scan_metadata(visit, metadata)
         db.flush()
         patient = owned_patient(db, user, visit.patient_id)
         if get_settings().ml_only:

@@ -1,5 +1,23 @@
 # Product Requirements
 
+## English cognitive assessment demo (2026-10-03)
+
+The user requested implementation and original English demo content because authorized
+MMSE material is unavailable. Provide a clinician-guided, visit-scoped assessment with
+calculated totals, draft/resume and visible demo labeling. Its non-standardized score
+is stored separately from MMSE and is not a model feature. Preserve existing study
+observations, forecast gates and research intended use. D046 supersedes the initial
+standard-content scope below for this release; see [20](20-cognitive-assessment.md).
+
+## Planned standard MMSE assessment (2026-10-03)
+
+The user requested a plan for a clinician-guided standard MMSE assessment whose
+completed score is calculated and saved directly to the patient visit. This planned
+intake feature extends recorded clinical values; it does not change prediction
+eligibility, study observations or clinical-production non-goals. Authorized content,
+MRI metadata preservation and integration checks are specified in
+[the MMSE plan](../mmse-plan.md) and D045. It is not yet implemented.
+
 ## Hackathon clinical assistant (2026-10-03)
 
 Add an authenticated floating patient-workspace chat widget using Gemini for concise case summaries,

@@ -1,5 +1,15 @@
 # Next.js UI Specification
 
+## Guided English cognitive demo
+
+Uploaded patient visits include a compact Start/Resume assessment action in both
+workspace modes. An accessible dialog shows one clinician-administered task at a
+time, rubric, point controls, draft saving and review/completion. The backend supplies
+and calculates the saved total. Display MMSE-style demo and Demo cognitive score;
+never label original demo prompts/results as standardized MMSE. Imported OASIS scores
+are read-only. Recorded source visits/values are available on the dashboard before
+anatomy processing. See [20](20-cognitive-assessment.md).
+
 The approved longitudinal anatomy direction is integrated into both existing workspace
 variants; see [17](17-longitudinal-anatomy.md). It adds measured labels, QC provenance,
 source observations, continuous-score availability/history, head-size ratios and a

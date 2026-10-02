@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr = SecretStr("")
     gemini_model: str = Field(default="gemini-2.5-flash", pattern=r"^[a-zA-Z0-9._-]+$")
     gemini_search_enabled: bool = True
+    mmse_protocol_path: Path | None = None
 
     @field_validator("jwt_secret")
     @classmethod
