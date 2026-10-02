@@ -1,5 +1,22 @@
 # Decision Log
 
+## D042: Gemini assistant for the five-hour hackathon
+
+Status: Accepted (2026-10-03, explicit user implementation request)
+
+Implement one stateless authenticated patient assistant endpoint and one chat panel shared
+by both workspace modes. Use the existing httpx dependency with Gemini generateContent
+REST, optional Google Search grounding, backend-only SecretStr API key and configurable
+model. No local training, database migrations, SDK installation or worker changes.
+
+This extends D007 with an explicit cloud text-processing exception for synthetic/OASIS
+de-identified demonstration cases. Send only allowlisted structured clinical/anatomy
+values, preserving unreviewed research status and unavailable forecasts; omit source
+identifiers, patient/visit codes, free text, paths, raw MRI and owner data. User questions
+and recent exchanges are sent to Gemini and must omit identifying details. No chat is
+persisted by NeuroPredict; provider retention terms still apply. Preserve existing forecast
+gates and user worktree changes. Record configuration and verification in doc 19.
+
 ## D041: Compact regional measurements and remove the regional comparison chart
 
 Status: Accepted (2026-10-02, explicit user request)

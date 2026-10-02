@@ -1,5 +1,16 @@
 # Product Requirements
 
+## Hackathon clinical assistant (2026-10-03)
+
+Add an authenticated patient-workspace chat using Gemini for concise case summaries,
+missing-information review, explanations of current outputs and optional web references.
+Patient context is rebuilt server-side, with numeric source fields and explicitly labeled
+anatomy/QC and forecast availability. Raw MRI, patient codes/UUIDs, notes, paths and owner
+information are excluded. Recent chat lives only in browser memory. Gemini receives the
+structured context and user messages; use synthetic/OASIS de-identified demo cases.
+This is an explicit exception to fully local computation (D042), preserving the clinical
+research intended use and existing ML-only release gates. See [19 Clinical assistant](19-clinical-assistant.md).
+
 ## Product
 
 The user-provided nWBV reference is an optional descriptive biomarker alongside

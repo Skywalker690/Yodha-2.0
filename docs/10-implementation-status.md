@@ -1,5 +1,19 @@
 # Implementation Status
 
+## Gemini clinical assistant (2026-10-03)
+
+The patient workspace includes temporary contextual chat, four suggested questions and
+optional Google Search references with supported passages. One authenticated backend
+endpoint builds an allowlisted context and uses the existing httpx dependency. No model
+training, schema migration or additional service is required. Raw MRI/identifiers/notes
+are excluded; unreviewed anatomy and unavailable forecasts retain their status.
+
+Frontend unit tests, TypeScript, production build, focused backend tests, Ruff and the
+synthetic Edge desktop/mobile workflow passed. The running backend is updated and healthy;
+the existing MRI worker remained running. Live responses need GEMINI_API_KEY in the local
+backend environment. Full Python verification remains limited by existing missing reference
+data and anatomy/forecast dependencies. See [19 Clinical assistant](19-clinical-assistant.md).
+
 ## Optional nWBV module integration (2026-10-02)
 
 The supplied package is extracted at `nwbv_reference_module/`, installed with

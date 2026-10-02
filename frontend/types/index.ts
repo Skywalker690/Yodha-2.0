@@ -1,4 +1,20 @@
 export type Mode = "demo" | "precomputed" | "inference" | "trained" | "anatomy";
+export type AssistantResponse = {
+  answer: string;
+  sources: { title: string; url: string; supportedText: string[] }[];
+  searchSuggestions: string | null;
+  researchRequested: boolean;
+  contextSummary: {
+    visitCount: number;
+    clinicalFieldsUsed: string[];
+    anatomyIncluded: boolean;
+    anatomyReviewed: boolean;
+    forecastIncluded: boolean;
+    rawMriSent: false;
+  };
+  model: string;
+  disclaimer: string;
+};
 export type AnatomyVisit = {
   visitId: string;
   daysFromBaseline: number;

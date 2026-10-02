@@ -24,6 +24,8 @@ from backend.app.schemas.contracts import (
     Login,
     PatientCreate,
     VisitCreate,
+    AssistantRequest,
+    AssistantResponse,
 )
 from backend.app.services.analysis import enqueue, latest_completed, latest_anatomy, trained_model_version
 from backend.app.services.reports import build_report
@@ -229,6 +231,22 @@ def create_patient(
 @router.get("/patients/{patient_id}")
 def get_patient(patient_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
     return patient_payload(db, owned_patient(db, user, patient_id))
+
+
+@router.post("/patients/{patient_id}/assistant", response_model=AssistantResponse)
+def ask_assistant(
+    patient_id: str, body: AssistantRequest,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> AssistantResponse:
+    from backend.app.services.assistant import build_context, generate_answer
+
+    patient = owned_patient(db, user, patient_id)
+    if not get_settings().gemini_api_key.get_secret_value().strip():
+        raise HTTPException(503, "Clinical Assistant needs GEMINI_API_KEY in the backend environment. Configure it and restart the backend.")
+    context, summary = build_context(db, patient)
+    # Release the read transaction before waiting on the external text API.
+    db.rollback()
+    return generate_answer(context, summary, body)
 
 
 @router.post("/patients/{patient_id}/visits", status_code=201)

@@ -1,4 +1,5 @@
 "use client";
+import { ClinicalAssistant } from "@/components/clinical-assistant";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -799,9 +800,14 @@ export function AnalysisWorkspace(props: {
   patient: Patient;
   reload: () => void;
 }) {
-  return props.patient.servingPolicy === "research" ? (
-    <LegacyAnalysisWorkspace {...props} />
-  ) : (
-    <MLWorkspace {...props} />
+  return (
+    <>
+      <ClinicalAssistant patient={props.patient} />
+      {props.patient.servingPolicy === "research" ? (
+        <LegacyAnalysisWorkspace {...props} />
+      ) : (
+        <MLWorkspace {...props} />
+      )}
+    </>
   );
 }

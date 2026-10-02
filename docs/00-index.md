@@ -22,6 +22,7 @@ This folder is the working specification for the full-stack NeuroPredict AI plat
 | [16 ML-only serving](16-ml-only-serving.md) | Strict combined-model serving, actual processing/training workflow, promotion gates and Docker repair |
 | [17 Longitudinal anatomy](17-longitudinal-anatomy.md) | Native masks, review-bound measurements, automatic scoring and scientific completion boundary |
 | [18 Anatomy forecasting lifecycle](18-anatomy-forecast-lifecycle.md) | Implemented registration/training/release, asynchronous forecasts, API, real runtime evidence and remaining gates |
+| [19 Clinical assistant](19-clinical-assistant.md) | Gemini hackathon chat, filtered patient context, optional web references, configuration and checks |
 | [Cohort definition](cohort_definition.md) | Observed CDR conversion, horizon censoring and inspected event counts |
 | [FastSurfer dictionary](fastsurfer_feature_dictionary.md) | Exact versioned labels, physical units and visual-review gate |
 | [Forecast evaluation](evaluation.md) | Matched comparisons, unsupported metrics and monotonic risk semantics |

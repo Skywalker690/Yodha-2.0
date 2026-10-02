@@ -1,5 +1,14 @@
 # Testing and Validation
 
+## Clinical assistant checks (2026-10-03)
+
+Run `pytest tests/test_assistant_api.py -q`, frontend unit tests, TypeScript and production
+build. Synthetic/mock tests verify ownership before provider access, filtered context,
+ML-only availability, request limits, server-only configuration, bounded history,
+grounded references, timeout/errors, retry and patient-switch isolation. See
+[19 Clinical assistant](19-clinical-assistant.md). Live Gemini checks require an API key;
+no real patient information is used by automated tests.
+
 ## AVRA raw-regression research inputs (2026-10-02)
 
 `python -m pytest tests/test_anatomy.py tests/test_anatomy_lifecycle.py -q` passed
