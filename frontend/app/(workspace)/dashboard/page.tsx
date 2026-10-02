@@ -10,17 +10,12 @@ import {
   ScanLine,
   Users,
 } from "lucide-react";
-import {
-  PageTitle,
-  Loading,
-  ErrorState,
-  ModeBadge,
-  Empty,
-} from "@/components/common";
+import { PageTitle, Loading, ErrorState, ModeBadge } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { PatientTable } from "@/components/patient-table";
 import { PatientValuesPanel } from "@/components/patient-values-panel";
 import { TrajectoryChart } from "@/components/trajectory-chart";
+import { formatModelScore } from "@/components/trained-prediction";
 import { useResource } from "@/lib/use-resource";
 import type { Patient } from "@/types";
 
@@ -32,10 +27,34 @@ export default function Dashboard() {
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={reload} />;
   const patients = data || [];
+  const patientsWithResults = patients.filter((patient) => {
+    const result = patient.latestCompleted?.resultJson;
+    if (!result) return false;
+    if (result.outputMode === "trained") {
+      return (
+        !!result.prediction &&
+        [
+          result.prediction.score,
+          result.prediction.decisionThreshold,
+          result.prediction.testAccuracy,
+          result.prediction.testBalancedAccuracy,
+          result.prediction.testRocAuc,
+          result.prediction.majorityBaselineAccuracy,
+        ].every((value) => formatModelScore(value) !== "Unavailable")
+      );
+    }
+    return (
+      result.visitIds.length > 0 &&
+      result.riskScores.length === result.visitIds.length &&
+      result.daysFromBaseline.length === result.visitIds.length &&
+      result.riskScores.every(Number.isFinite) &&
+      result.daysFromBaseline.every(Number.isFinite)
+    );
+  });
   const featured =
-    patients.find(
+    patientsWithResults.find(
       (p) => (p.latestCompleted?.resultJson?.visitIds.length || 0) >= 3,
-    ) || patients.find((p) => p.latestCompleted?.resultJson);
+    ) || patientsWithResults[0];
   const trainedFeatured =
     featured?.latestCompleted?.resultJson?.outputMode === "trained";
   const stats = [
@@ -96,48 +115,48 @@ export default function Dashboard() {
         ))}
       </div>
       <PatientValuesPanel patients={patients} />
-      <div className="dashboard-middle">
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <div className="eyebrow">
-                {trainedFeatured
-                  ? "RETROSPECTIVE MODEL"
-                  : "LONGITUDINAL INSIGHTS"}
+      <div
+        className="dashboard-middle"
+        style={!featured ? { gridTemplateColumns: "1fr" } : undefined}
+      >
+        {featured && (
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <div className="eyebrow">
+                  {trainedFeatured
+                    ? "RETROSPECTIVE MODEL"
+                    : "LONGITUDINAL INSIGHTS"}
+                </div>
+                <h2>
+                  {trainedFeatured
+                    ? "Experimental sequence classification"
+                    : "Progression-risk trajectory"}
+                </h2>
               </div>
-              <h2>
-                {trainedFeatured
-                  ? "Experimental sequence classification"
-                  : "Progression-risk trajectory"}
-              </h2>
+              {featured?.latestCompleted && (
+                <ModeBadge mode={featured.latestCompleted.outputMode} />
+              )}
             </div>
-            {featured?.latestCompleted && (
-              <ModeBadge mode={featured.latestCompleted.outputMode} />
+            {featured.latestCompleted?.resultJson && (
+              <>
+                <div className="chart-identity">
+                  <span className="mini-avatar">
+                    <Brain size={17} />
+                  </span>
+                  <strong>{featured.code}</strong>
+                  <span>
+                    {featured.latestCompleted.resultJson.visitIds.length} visits
+                  </span>
+                  <Link href={`/patients/${featured.id}`}>
+                    Review case <ArrowUpRight size={14} />
+                  </Link>
+                </div>
+                <TrajectoryChart result={featured.latestCompleted.resultJson} />
+              </>
             )}
-          </div>
-          {featured?.latestCompleted?.resultJson ? (
-            <>
-              <div className="chart-identity">
-                <span className="mini-avatar">
-                  <Brain size={17} />
-                </span>
-                <strong>{featured.code}</strong>
-                <span>
-                  {featured.latestCompleted.resultJson.visitIds.length} visits
-                </span>
-                <Link href={`/patients/${featured.id}`}>
-                  Review case <ArrowUpRight size={14} />
-                </Link>
-              </div>
-              <TrajectoryChart result={featured.latestCompleted.resultJson} />
-            </>
-          ) : (
-            <Empty title="Your first research result starts here">
-              Complete an analysis to review sequence classification or baseline
-              image comparisons.
-            </Empty>
-          )}
-        </section>
+          </section>
+        )}
         <section className="panel quick-panel">
           <div className="eyebrow">FROM SCAN TO STORY</div>
           <h2>

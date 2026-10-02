@@ -1,5 +1,45 @@
 # Implementation Status
 
+## Default axial MRI view and segmentation visibility (2026-10-03, D072)
+
+The spatial MRI workspace opens in axial mode, including direct forecast links,
+and reset returns to axial. Manual alternative layouts remain available. A
+matching hippocampus mask is highlighted by default; uploads without a mask show
+the FastSurfer prerequisite and keep the highlight control visible but disabled.
+Build/type/whitespace checks and live uploaded-MRI inspection passed. Rendering
+does not generate segmentation. The current uploaded patient still has a pending
+earlier baseline and no anatomy result; Docker and a normal anatomy worker are
+unavailable. No segmentation run or automated tests were performed.
+
+## Paired MRI file uploads (2026-10-03, D071)
+
+The MRI uploader accepts matching `.hdr`/`.img` pairs, including the supplied
+`.nifti.hdr`/`.nifti.img` names, and retains `.nii`/`.nii.gz` support. Selecting
+several complete pairs offers one acquisition for the selected visit, preferring
+`mpr-1`. The backend validates and converts pairs into managed `.nii.gz` for the
+existing viewer/processing path, preserving geometry and scaled float32 values.
+Size limits, age/nWBV requirements and serving/release policies remain enforced.
+Build/type/lint/compilation, API startup and upload-form inspection passed. No
+real pair upload, new analysis execution or automated tests were performed.
+
+## Patient entry and MRI metadata (2026-10-03, D070)
+
+New patients receive automatic owner-scoped `RESEARCH_001`-style codes. Age and
+nWBV are required, stored in the new pending baseline visit and prefilled on its
+MRI upload screen. All uploads require scan-time age/nWBV and preserve existing
+metadata when merging image details. Researcher-entered values retain their
+unverified measurement provenance. Existing imported patient IDs are preserved.
+Build/type/lint/compilation checks passed; the API is restarted and the form was
+inspected. No real data was submitted and no automated test suite was run.
+
+## Dashboard card cleanup (2026-10-03, D068)
+
+The dashboard omits BMI, total hippocampus and hippocampal volume change cards.
+Missing remaining measurements/source values and empty result panels are hidden;
+available numeric zero and recorded sex/handedness remain visible. TypeScript,
+production build and whitespace checks passed, and the current dashboard was
+visually inspected. No automated test suite was run for this change.
+
 ## Main branch integration (2026-10-03, D067)
 
 The combined `feat/ml` branch at `5eb3818` is merged into `main`, including
@@ -171,7 +211,7 @@ See [13 OASIS-2 data and forecast scope](13-oasis2-data-and-forecast-scope.md).
 |---|---|
 | Researcher login | JWT in an HTTP-only same-site cookie; Argon2 password hashes; protected, researcher-owned data |
 | Patient records | Persisted list, creation, search, optional demographics and chronological visits |
-| MRI upload/storage | Validated .nii/.nii.gz, bounded size/shape, generated local object keys, immutable visit MRI, previews |
+| MRI upload/storage | Validated .nii/.nii.gz or matched .hdr/.img pairs converted to managed NIfTI, bounded size/shape, generated local object keys, immutable visit MRI, previews |
 | Asynchronous analysis | Persisted PostgreSQL queue, one Python worker, progress polling, safe failure and restart states |
 | Longitudinal cases | Five prepared OASIS-2 subjects with three real visits each, joined to observed demographic metadata |
 | Trajectory/metrics | Documented feature-delta baseline; foreground and feature-change proxies; separately labeled source nWBV/eTIV |

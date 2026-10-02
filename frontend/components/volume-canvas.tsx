@@ -120,7 +120,7 @@ export function VolumeCanvas({
           multiplanarLayout: MULTIPLANAR_TYPE.GRID,
           multiplanarShowRender: SHOW_RENDER.ALWAYS,
           multiplanarEqualSize: true,
-          sliceType: SLICE_TYPE.RENDER,
+          sliceType: SLICE_TYPE.AXIAL,
           dragAndDropEnabled: false,
           drawingEnabled: false,
           scrollRequiresFocus: true,

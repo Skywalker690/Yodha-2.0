@@ -173,7 +173,10 @@ export type Visit = {
   previewUrl: string | null;
   volumeUrl?: string | null;
   metadata: {
+    Age?: number;
     nWBV?: number;
+    nwbv_measurement_method?: string;
+    clinical_metadata_source?: string;
     eTIV?: number;
     CDR?: number;
     MMSE?: number;

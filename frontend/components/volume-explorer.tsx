@@ -20,7 +20,7 @@ import { useResource } from "@/lib/use-resource";
 import Link from "next/link";
 
 const DEFAULTS: VolumeSettings = {
-  layout: "render",
+  layout: "axial",
   colormap: "gray",
   opacity: 1,
   lower: 12,
@@ -167,6 +167,9 @@ export function VolumeExplorer({
   const result = analysis?.resultJson;
   const anatomy = anatomyAnalysis?.resultJson?.anatomy;
   const anatomyVisit = anatomy?.visits.find((v) => v.visitId === visit.id);
+  const displayedAnatomyVisit = anatomy?.visits.find(
+    (v) => v.visitId === comparisonVisit.id,
+  );
   const observedLabelUrl = (visitId: string) =>
     !alignment &&
     regions &&
@@ -212,6 +215,17 @@ export function VolumeExplorer({
         a.resultJson?.anatomy?.forecast.displayMode === "hippocampus_scalar"),
   );
   const future = futureAnalysis?.resultJson?.anatomy?.forecast;
+  const highlightAvailable =
+    !!displayedAnatomyVisit ||
+    (!!futureAnalysis && (selectedFutureMonth !== null || futureCompare));
+  const pendingAnatomy = patient.latestAnatomy;
+  const highlightProcessing =
+    pendingAnatomy?.visitId === comparisonVisit.id &&
+    (pendingAnatomy.status === "queued" ||
+      pendingAnatomy.status === "processing");
+  const missingEarlierMri = patient.visits.some(
+    (v) => v.daysFromBaseline <= comparisonVisit.daysFromBaseline && !v.hasMri,
+  );
   const regionalDisplay = future?.displayMode === "hippocampus_scalar";
   const predictedUrl = futureAnalysis
     ? `/api/analysis/${futureAnalysis.id}/future/${regionalDisplay ? "mri_display" : "mri"}`
@@ -261,7 +275,6 @@ export function VolumeExplorer({
       setFutureCompare(true);
       setRegions(true);
       setMeshes(false);
-      setSettings((previous) => ({ ...previous, layout: "multiplanar" }));
     }
   }, [patient.id, patient.code]);
   useEffect(() => {
@@ -496,6 +509,21 @@ export function VolumeExplorer({
           {fullscreenError && (
             <p className="volume-warning" role="status">
               {fullscreenError}
+            </p>
+          )}
+          {!displayedAnatomyVisit && selectedFutureMonth === null && (
+            <p
+              className="volume-help"
+              role="status"
+              aria-label="Hippocampus highlight status"
+            >
+              Hippocampus highlight needs a FastSurfer segmentation for this
+              MRI.{" "}
+              {highlightProcessing
+                ? `Anatomical analysis is ${pendingAnatomy!.status}; the highlight appears when processing completes.`
+                : missingEarlierMri
+                  ? "Complete the earlier pending MRI visits, then choose “Run anatomical analysis” above."
+                  : "Choose “Run anatomical analysis” above to generate the mask."}
             </p>
           )}
           {patient.visits.length > 0 && (
@@ -963,23 +991,22 @@ export function VolumeExplorer({
               <div className="volume-control-divider">
                 <h3>Longitudinal comparison</h3>
               </div>
-              {anatomyAnalysis && (
-                <>
-                  <label className="volume-check">
-                    <input
-                      type="checkbox"
-                      checked={regions}
-                      disabled={!anatomyVisit}
-                      onChange={(e) => setRegions(e.target.checked)}
-                    />
-                    Hippocampus highlight
-                  </label>
-                  <small className="volume-note">
-                    Hippocampus yellow. QC: {anatomyVisit?.qc ?? "unavailable"};
-                    nearest-neighbour label rendering.
-                  </small>
-                </>
-              )}
+              <label className="volume-check">
+                <input
+                  type="checkbox"
+                  checked={regions && highlightAvailable}
+                  disabled={!highlightAvailable}
+                  onChange={(e) => setRegions(e.target.checked)}
+                />
+                Hippocampus highlight
+              </label>
+              <small className="volume-note">
+                {displayedAnatomyVisit
+                  ? `Hippocampus yellow. QC: ${displayedAnatomyVisit.qc}; nearest-neighbour label rendering.`
+                  : highlightAvailable
+                    ? "Yellow hippocampus labels from the generated forecast."
+                    : "Requires a FastSurfer segmentation for this scan."}
+              </small>
               <label className="volume-check">
                 <input
                   type="checkbox"

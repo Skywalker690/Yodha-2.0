@@ -15,8 +15,9 @@ class Login(Schema):
 
 
 class PatientCreate(Schema):
-    code: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$")
-    age: int | None = Field(default=None, ge=18, le=120)
+    model_config = ConfigDict(extra="forbid")
+    age: int = Field(ge=18, le=120)
+    nwbv_fraction: float = Field(gt=0, le=1, allow_inf_nan=False)
     sex: Literal["Female", "Male", "Other", "Unspecified"] | None = None
     notes: str = Field(default="", max_length=1000)
 

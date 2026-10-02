@@ -13,6 +13,20 @@ research intended use and existing ML-only release gates. See [21 Clinical assis
 
 ## Product
 
+D072 opens the spatial MRI workspace in axial view and explains when hippocampus
+highlighting awaits a matching FastSurfer segmentation.
+
+D071 accepts paired `.hdr`/`.img` MRI acquisitions directly in the upload screen,
+alongside existing `.nii`/`.nii.gz` volumes.
+
+D070 generates patient codes automatically and requires age and nWBV for new
+patients and MRI uploads. New patients start with a pending baseline MRI visit.
+
+D069 removes Settings from sidebar navigation.
+
+D068 removes dashboard BMI, total hippocampus and hippocampal volume change cards,
+and hides unavailable dashboard measurement cards and result panels.
+
 D062 restores head geometry in the forecast viewer and shows hippocampal volume
 progression in a separately identified scalar-guided illustration.
 
@@ -150,7 +164,7 @@ The primary user is a researcher or clinician reviewing longitudinal cases. The 
 - Structural-change metrics.
 - MRI and explanation comparison.
 - Interactive 3D MRI volume exploration, multiplanar slices, cutaway clipping and linked longitudinal comparison (user-requested extension, 2026-10-01).
-- Dashboard snapshot for a selected patient and observed visit: source demographics, recorded clinical values, automatically available MTA/Koedam research estimates, regional hippocampal measurements and provenance-labeled longitudinal volume change. Unreviewed outputs remain explicitly labeled; missing source values remain unavailable.
+- Dashboard snapshot for a selected patient and observed visit: available source demographics, recorded clinical values, MTA/Koedam research estimates and regional measurements. Unreviewed outputs remain explicitly labeled; missing values are hidden. BMI, total hippocampus and hippocampal volume change cards are omitted (D068).
 - Short, cautious interpretation.
 - Research report generation and download.
 - Explicit output provenance: demo, precomputed, or inference.

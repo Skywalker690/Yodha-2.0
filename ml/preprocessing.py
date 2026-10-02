@@ -53,6 +53,20 @@ def canonical_data(img: nib.spatialimages.SpatialImage) -> np.ndarray:
     return np.squeeze(nib.as_closest_canonical(img).get_fdata(dtype=np.float32, caching="unchanged"))
 
 
+def convert_paired_volume(source: Path, output: Path) -> None:
+    """Convert a validated header/image pair without changing its voxel grid or affine."""
+    img = load_validated(source, allow_pair=True)
+    if not {"header", "image"}.issubset(img.file_map):
+        raise ValueError("The selected files must contain a paired header/image MRI, not a renamed single volume")
+    voxels = np.squeeze(img.get_fdata(dtype=np.float32, caching="unchanged"))
+    header = nib.Nifti1Header.from_header(img.header)
+    converted = nib.Nifti1Image(voxels, img.affine, header=header)
+    converted.set_data_dtype(np.float32)
+    # get_fdata has already applied the source intensity scaling.
+    converted.header.set_slope_inter(1.0, 0.0)
+    nib.save(converted, output)
+
+
 def normalize(data: np.ndarray) -> np.ndarray:
     low, high = np.percentile(data, [1, 99.5])
     if high <= low:

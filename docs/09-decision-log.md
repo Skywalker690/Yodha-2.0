@@ -1,5 +1,72 @@
 # Decision Log
 
+## D072: Default axial MRI view and explain hippocampus mask availability
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Open patient spatial MRI workspaces in axial mode, including direct experimental
+forecast links. Initialize the canvas in axial mode and retain later manual layout
+choices; resetting the view returns to axial. Keep measured hippocampus labels
+enabled by default when a matching segmentation is available. Always show the
+highlight control, disabled/unchecked when no displayed mask exists, and explain
+that uploaded MRI voxels alone do not identify hippocampus tissue. Show an
+actionable FastSurfer segmentation message, distinguishing a pending anatomy job
+and missing earlier MRI visits. Preserve the existing source-grid mask, geometry
+and ownership gates. No approximate overlay or new segmentation pipeline is added.
+
+## D071: Upload paired MRI header/image acquisitions
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Accept matching uncompressed `.hdr`/`.img` files, including the supplied
+`mpr-1.nifti.hdr`/`mpr-1.nifti.img` naming, through the patient MRI uploader.
+The file picker accepts multiple complete pairs and offers one acquisition per
+visit, defaulting to `mpr-1` when available. Repeated acquisitions are not treated
+as longitudinal visits or averaged. Keep single `.nii`/`.nii.gz` uploads.
+Validate pairing, content, shape, finite voxels and spatial geometry, use generated
+staging paths, and convert the selected pair to managed `.nii.gz` while preserving
+scaled voxel values and spatial metadata. Bound the combined selected inputs and
+managed volume to 100 MiB; clean staging/failure artifacts. Age/nWBV remain required.
+Continue the existing preview/viewer and asynchronous analysis serving policy;
+format support does not add a new service or bypass anatomy/model release gates.
+
+## D070: Automatic patient codes and required MRI metadata
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Generate uploaded research patient codes on the backend using the existing
+`RESEARCH_001` pattern, incrementing the highest existing research code for that
+owner while locking the owner row. Imported OASIS identifiers remain source IDs.
+Require age (18–120 years) and finite nWBV (a fraction greater than zero and at
+most one) when creating a patient. Create its pending day-zero baseline visit
+with those values, then open the existing MRI upload flow. Each MRI upload also
+requires scan-time age and nWBV, prefilled from that visit when available.
+Preserve clinical metadata when adding validated image metadata. Mark entered
+nWBV as researcher supplied with an unverified measurement method; collecting it
+does not establish OASIS method compatibility or unlock a model release.
+Use existing patient/visit storage without a database migration.
+
+## D069: Remove Settings from sidebar navigation
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Remove Settings from the shared desktop/mobile sidebar. The navigation contains
+Dashboard, Patients and Reports. Direct access to the settings page retains its
+existing behavior and breadcrumb title.
+
+## D068: Hide removed and unavailable dashboard measurements
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Remove the BMI, total hippocampus and hippocampal volume change cards from the
+dashboard snapshot. Render the remaining measurement/source cards only when a
+valid value exists, preserving numerical zero and valid recorded sex/handedness.
+Keep research provenance for available estimates. Hide empty measurement sections,
+missing regional columns/cells and unavailable trajectory/result cards. Preserve
+the existing dashboard styling and patient/visit selection. This updates D036's
+dashboard presentation; stored measurements, models and other pages retain their
+existing contracts.
+
 ## D067: Integrate the combined ML branch into main
 
 Status: Accepted (2026-10-03, explicit user merge request)

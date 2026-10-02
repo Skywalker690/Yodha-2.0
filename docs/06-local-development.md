@@ -174,7 +174,7 @@ python -m scripts.preprocess --manifest data/manifests/demo.csv
 python -m scripts.generate_demo_data --manifest data/manifests/demo.csv
 ```
 
-The importer reads XLSX or CSV metadata and uses MRI ID/MR Delay for matching and chronology. Public uploads use `.nii`/`.nii.gz`; offline import converts paired NIfTI automatically. Default import prepares five subjects, three real visits each, spread across the eligible cohort. It is idempotent. Precomputed outputs are actual offline baseline calculations, not invented risk values.
+The importer reads XLSX or CSV metadata and uses MRI ID/MR Delay for matching and chronology. Public uploads accept `.nii`/`.nii.gz` or matching `.hdr`/`.img` files selected together (D071). Multiple complete pairs offer an acquisition selector; only the selected pair is uploaded for that visit. Uploads and offline import convert paired NIfTI into managed volumes. Default import prepares five subjects, three real visits each, spread across the eligible cohort. It is idempotent. Precomputed outputs are actual offline baseline calculations, not invented risk values.
 
 `python -m scripts.import_oasis --all` performs explicit offline full-cohort import. Add `--precompute` to process all subjects; this takes longer and is not needed for the one-minute demo. Subject-level split assignment is deterministic and is not an evaluation claim.
 

@@ -1238,6 +1238,13 @@ textarea:focus {
   margin-bottom: 17px;
   align-items: end;
 }
+.mri-metadata-fields {
+  width: 100%;
+  max-width: 640px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  text-align: left;
+}
 .form-panel textarea {
   margin-bottom: 17px;
 }
@@ -1676,6 +1683,14 @@ progress::-webkit-progress-value {
 .file-picker {
   width: 100%;
   max-width: 340px;
+}
+.mri-file-selection {
+  width: 100%;
+  max-width: 640px;
+  text-align: left;
+}
+.mri-file-selection p {
+  margin: 10px 0;
 }
 .patient-selector {
   min-width: 210px;

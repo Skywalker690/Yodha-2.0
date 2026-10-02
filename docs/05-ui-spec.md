@@ -1,5 +1,16 @@
 # Next.js UI Specification
 
+## Initial MRI layout and hippocampus highlights (D072)
+
+Start the patient spatial MRI workspace in axial mode, including direct forecast
+links. Preserve later manual layout selection and use axial for reset. The
+hippocampus highlight is enabled by default when a matching measured/generated
+mask exists. Always show its control; missing masks leave it disabled/unchecked
+and explain that FastSurfer anatomical segmentation must be completed first.
+For a new uploaded MRI, show a notice near the layout toolbar, with the existing
+analysis action or missing-earlier-MRI prerequisite. Do not substitute an atlas
+blob or guess a hippocampus region from the displayed head.
+
 ## Patient-specific experimental forecasts (D046)
 
 D062 supersedes the whole-field magnifier below. The default experimental viewer
@@ -110,7 +121,7 @@ scan selection uses `MRI visit` and the 3D workspace's existing navigation.
 
 ```
 Header: Alzhio | Researcher | Online
-Sidebar: Dashboard, Patients, Reports, Settings
+Sidebar: Dashboard, Patients, Reports
 Dashboard: overview metrics and recent patients
 Patient page: summary, MRI timeline, risk chart, biomarkers, Analyze MRI
 Analysis workspace: visit selector, MRI, heatmap, navigation, risk, confidence
@@ -118,14 +129,32 @@ Reports page: generated reports and download action
 ```
 
 The dashboard also provides a patient-value snapshot with patient and observed-visit
-selectors. It shows recorded OASIS values, available anatomy estimates, the complete
-regional volume table and provenance-labeled hippocampal change. BMI is displayed
-only when source BMI is supplied; it is not derived without height and weight. MTA/Koedam
-values and automated longitudinal changes are shown as soon as integrity
-checks pass, with unreviewed research status visible. Do not ask for a manual review
-action to reveal descriptive values. Provide a link to the full patient case for 3D MRI.
+selectors. D068 removes the BMI, total hippocampus and hippocampal volume change
+cards. It shows available recorded OASIS values, anatomy estimates and regional
+volumes. Hide cards with missing/nonfinite values, empty measurement sections,
+unavailable regional columns/cells and result panels without complete displayable
+data. Zero remains a valid measurement. Display recorded sex/handedness as text.
+Keep the research provenance of available MTA/Koedam estimates. Provide a link to
+the full patient case for 3D MRI.
 
 ## Core interactions
+
+The MRI file picker accepts one `.nii`/`.nii.gz` volume or complete `.hdr`/`.img`
+pairs, including `.nifti.hdr`/`.nifti.img` names. Permit selecting all files from
+several paired acquisitions, then show `MRI acquisition` and default to `mpr-1`
+when present. Show which pair will be uploaded; one acquisition belongs to the
+selected visit. Missing partners, duplicate files, mixed formats and oversized
+acquisitions show actionable errors and disable upload. Keep required age/nWBV
+and the pending visit delete action. Convert pairs locally for the existing MRI
+viewer and processing policy; no archive extraction is introduced (D071).
+
+`Add patient` requires baseline age and nWBV (fraction). The patient code is
+assigned automatically; show this as explanatory text, with no editable code
+field. Creation opens the patient with its pending baseline MRI upload screen,
+prefilling the entered values. Every upload requires age and nWBV alongside the
+MRI file or header/image pair; follow-up visits collect their own scan-time values. Optional sex and
+notes remain available. Display validation/request errors and disable submission
+and fields while saving or uploading (D070).
 
 MRI Analysis initially selects OAS2_0048 (D058). Preserve subsequent manual
 patient selection across refresh polling; fall back to the first available

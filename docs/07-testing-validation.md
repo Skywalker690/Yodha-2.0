@@ -1,5 +1,48 @@
 # Testing and Validation
 
+## Default axial view and hippocampus mask status (D072)
+
+Strict TypeScript, the production frontend build and diff whitespace checks passed.
+Live browser inspection of the uploaded `RESEARCH_001` MRI confirmed axial selected
+on a fresh workspace mount, a disabled/unchecked hippocampus control and the
+segmentation prerequisite with the earlier pending baseline explanation. The
+existing measured mask rendering remains enabled by default when available.
+The inspected patient has no anatomy job or completed mask; the Docker Linux
+engine is unavailable and the running worker only accepts experimental forecasts.
+No segmentation was launched, patient data changed or automated tests added/run.
+The ignored screenshot is `artifacts/axial-mri-workspace-20261003.png`.
+
+## Paired MRI upload support (D071)
+
+Strict TypeScript, production frontend build, focused Ruff/Python compilation and
+diff whitespace checks passed. The restarted API is online; its multipart schema
+exposes `file`, `header` and `image` alongside required age/nWBV, with selection
+validation enforcing one volume or a complete pair. Browser inspection of an
+existing pending baseline confirms `.nii,.nii.gz,.hdr,.img` acceptance, multiple
+file selection, pair instructions and preserved age/nWBV defaults. No records
+were created, real pairs submitted or automated tests added/run for this change.
+This establishes build/startup/UI availability, not a completed real upload or
+model-processing run. The ignored screenshot is under `artifacts/`.
+
+## Automatic patient codes and required MRI metadata (D070)
+
+Strict TypeScript, the production frontend build, focused backend Ruff/Python
+compilation and diff whitespace checks passed. The restarted API is online and
+its OpenAPI contract requires `age`/`nwbvFraction` for new patients and
+`file`/`age`/`nwbvFraction` for uploads. Browser inspection confirms the automatic
+code explanation and age/nWBV fields. No patient records were created, MRI files
+uploaded or automated tests added/run for this change. Historical creation/upload
+test fixtures below use the previous contract and require revision before rerun.
+
+## Dashboard available-value cleanup (D068)
+
+Strict TypeScript, the production frontend build and diff whitespace checks passed.
+Browser inspection of OAS2_0127's dashboard snapshot confirmed that BMI, total
+hippocampus and hippocampal volume change cards are absent, available MTA/Koedam,
+asymmetry/reference and source values remain, and sex/handedness display their
+recorded text. The empty trajectory card is hidden. No automated tests were added
+or run for this change. The local screenshot is ignored under `artifacts/`.
+
 ## Main branch integration (D067)
 
 The merge of `feat/ml` at `5eb3818` into `main` completed without conflicts.

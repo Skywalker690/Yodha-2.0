@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
@@ -31,9 +31,9 @@ from backend.app.services.analysis import enqueue, latest_completed, latest_anat
 from backend.app.services.reports import build_report
 from backend.app.services.forecast import patient_forecast
 from src.risk.release import readiness
-from backend.app.services.storage import new_key, resolve_key
+from backend.app.services.storage import resolve_key
+from backend.app.services.mri_upload import store_mri_upload
 from ml.contracts import MODEL_VERSION
-from ml.preprocessing import render_preview
 from src.common import sha256
 from src.fastsurfer.regions import REGIONS
 from ml.anatomy.measurements import changes as anatomy_changes
@@ -224,14 +224,38 @@ def patients(db: Session = Depends(get_db), user: User = Depends(current_user)) 
 def create_patient(
     body: PatientCreate, db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> dict:
-    item = Patient(**body.model_dump(), owner_id=user.id)
+    # Serialize code allocation per owner; the existing unique constraint is the final guard.
+    db.scalar(select(User).where(User.id == user.id).with_for_update())
+    codes = db.scalars(select(Patient.code).where(Patient.owner_id == user.id))
+    highest = max(
+        (int(match[1]) for code in codes if (match := re.fullmatch(r"RESEARCH_([0-9]+)", code))),
+        default=0,
+    )
+    item = Patient(
+        code=f"RESEARCH_{highest + 1:03d}", owner_id=user.id,
+        age=body.age, sex=body.sex, notes=body.notes,
+    )
     db.add(item)
     try:
+        db.flush()
+        db.add(Visit(
+            patient_id=item.id, label="Baseline", days_from_baseline=0,
+            metadata_json=mri_clinical_metadata(body.age, body.nwbv_fraction),
+        ))
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(409, "This patient code already exists.") from None
+        raise HTTPException(409, "Patient creation conflicted with another request. Please try again.") from None
     return patient_payload(db, item)
+
+
+def mri_clinical_metadata(age: int, nwbv_fraction: float) -> dict:
+    return {
+        "Age": age,
+        "nWBV": nwbv_fraction,
+        "clinical_metadata_source": "researcher_entered",
+        "nwbv_measurement_method": "researcher_entered_nwbv_fraction_v1",
+    }
 
 
 @router.get("/patients/{patient_id}")
@@ -291,41 +315,32 @@ def delete_pending_visit(
 
 @router.post("/visits/{visit_id}/upload", status_code=202)
 def upload(
-    visit_id: str, file: UploadFile, db: Session = Depends(get_db), user: User = Depends(current_user)
+    visit_id: str,
+    age: int = Form(ge=18, le=120),
+    nwbv_fraction: float = Form(alias="nwbvFraction", gt=0, le=1, allow_inf_nan=False),
+    file: UploadFile | None = None,
+    header: UploadFile | None = None,
+    image: UploadFile | None = None,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
 ) -> dict:
     visit = owned_visit(db, user, visit_id, lock=True)
     if visit.mri_key:
         raise HTTPException(409, "This visit already has an MRI. Create another visit for a new scan.")
-    name = (file.filename or "").lower()
-    suffix = ".nii.gz" if name.endswith(".nii.gz") else ".nii" if name.endswith(".nii") else None
-    if suffix is None:
-        raise HTTPException(
-            415, "Upload a .nii or .nii.gz file. Use the offline importer for OASIS header/image pairs."
-        )
-    if file.content_type not in {
-        "application/octet-stream",
-        "application/gzip",
-        "application/x-gzip",
-        "application/x-nifti",
-        "application/nifti",
-        None,
-        "",
-    }:
-        raise HTTPException(415, "Unsupported MRI content type.")
-    key, preview = new_key("raw", suffix), new_key("derived", ".png")
-    path, thumbnail = resolve_key(key), resolve_key(preview)
+    path: Path | None = None
+    thumbnail: Path | None = None
     try:
-        size = 0
-        with path.open("wb") as dest:
-            while chunk := file.file.read(1024 * 1024):
-                size += len(chunk)
-                if size > get_settings().max_upload_bytes:
-                    raise HTTPException(413, "MRI exceeds the 100 MiB upload limit.")
-                dest.write(chunk)
-        metadata = render_preview(path, thumbnail)
+        key, preview, image_metadata = store_mri_upload(file, header, image)
+        path, thumbnail = resolve_key(key), resolve_key(preview)
+        metadata = {
+            **visit.metadata_json,
+            **image_metadata,
+            **mri_clinical_metadata(age, nwbv_fraction),
+        }
         visit.mri_key, visit.preview_key, visit.metadata_json = key, preview, metadata
         db.flush()
         patient = owned_patient(db, user, visit.patient_id)
+        if visit.days_from_baseline == 0:
+            patient.age = age
         if get_settings().ml_only:
             db.commit()
             return {
@@ -352,22 +367,33 @@ def upload(
                 patient_id=patient.id,
                 visit_id=visit.id,
                 input_json=[
-                    {"visit_id": visit.id, "days_from_baseline": visit.days_from_baseline, "mri_key": key}
+                    {
+                        "visit_id": visit.id, "days_from_baseline": visit.days_from_baseline,
+                        "mri_key": key,
+                        "nwbv_reference_input": {
+                            "age": age, "nwbv": nwbv_fraction,
+                            "measurement_method": metadata["nwbv_measurement_method"],
+                        },
+                    }
                 ],
                 output_mode="inference",
             )
             db.add(job)
         db.commit()
         return analysis_payload(job)
-    except (ValueError, HTTPException) as exc:
+    except Exception as exc:
         db.rollback()
-        path.unlink(missing_ok=True)
-        thumbnail.unlink(missing_ok=True)
-        if isinstance(exc, HTTPException):
-            raise
-        raise HTTPException(422, str(exc)) from None
+        if path is not None:
+            path.unlink(missing_ok=True)
+        if thumbnail is not None:
+            thumbnail.unlink(missing_ok=True)
+        if isinstance(exc, ValueError):
+            raise HTTPException(422, str(exc)) from None
+        raise
     finally:
-        file.file.close()
+        for uploaded in (file, header, image):
+            if uploaded is not None:
+                uploaded.file.close()
 
 
 @router.get("/visits/{visit_id}/preview")

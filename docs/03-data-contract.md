@@ -1,5 +1,26 @@
 # Data Contract
 
+## Patient creation and required MRI entry (D070)
+
+`POST /patients` accepts required `age` (integer, 18–120) and `nwbvFraction`
+(finite number, greater than zero and at most one), optional `sex` and `notes`.
+The caller does not supply `code`; other fields are rejected. The backend assigns
+the next owner-scoped `RESEARCH_001`-style code under an owner-row lock and the
+existing owner/code uniqueness constraint. The transaction creates both the
+patient and a pending `Baseline` visit at day zero. The normal patient response
+includes that visit and its recorded `Age` and `nWBV` metadata.
+
+`POST /visits/{id}/upload` requires multipart `age` and `nwbvFraction`, plus either
+`file` or both `header` and `image` (D071),
+using the same value limits. The UI prefills values already recorded for the
+selected visit. Uploads preserve existing metadata and merge validated image
+shape/voxel sizes with entered scan-time values. A day-zero upload also updates
+the patient's baseline age. Required fields are validated before storing files.
+New manual values have `clinical_metadata_source: researcher_entered` and
+`nwbv_measurement_method: researcher_entered_nwbv_fraction_v1`; they are not
+silently relabeled as method-matched OASIS measurements. Historical imported
+patients retain their source identifiers and metadata. No migration is required.
+
 D062 adds optional `display_mode: hippocampus_scalar` (API `displayMode`) and
 `display_regions` (API `displayRegions`) with bilateral input/display mask volumes
 and scalar/display percent change. This mode requires all three separate display
@@ -105,7 +126,20 @@ OASIS-2 is the sole study dataset for this project. The supplied paired MRI file
 
 ## Supported MRI input
 
-Public uploads accept `.nii` and `.nii.gz`, at most 100 MiB. The supplied OASIS-2 files are paired NIfTI-1 (`Nifti1Pair`, `ni1` magic) with `.nifti.hdr`/`.nifti.img` files. The offline importer converts one acquisition per visit to managed `.nii.gz`, preserving affine and voxel values. Singleton fourth dimensions are reduced to 3D. `mpr-1` is selected when present.
+Public uploads accept one `.nii`/`.nii.gz` file or a matching uncompressed
+`.hdr`/`.img` pair (D071). The combined selected input and stored managed volume
+must each fit within 100 MiB. The pair filenames must match before the last
+extension, including `mpr-1.nifti.hdr` and `mpr-1.nifti.img`. Missing partners,
+mismatched names, mixed single/pair input and invalid contents are rejected.
+The supplied OASIS-2 files are paired NIfTI-1 (`Nifti1Pair`, `ni1` magic).
+Uploads convert pairs through generated staging paths to managed `.nii.gz`,
+preserving the affine, spatial header metadata and scaled float32 voxel values.
+Singleton fourth dimensions are reduced to 3D; scans are not resized, averaged
+or deformed during conversion. Staging files and failed artifacts are removed.
+Metadata identifies `mri_upload_format` as `nifti_single` or `hdr_img_pair`.
+The existing offline importer continues to select one acquisition per visit.
+When several complete pairs are selected in the browser, offer acquisition
+selection with `mpr-1` first; submit only that acquisition to the selected visit.
 
 Validate extension, MIME type, readable image structure, real numeric dtype, finite voxels, non-singular affine, and shape. Accept 3D or a singleton 4D volume, at least 8 voxels per spatial axis and at most 32 million voxels. Existing visit files cannot be overwritten; create another visit for a new MRI.
 
@@ -167,7 +201,7 @@ ProgressionResult(
 
 Risk scores are normalized to 0–1 internally and displayed as percentages only with an explicit label. Internal Python fields use snake_case; frontend API responses use camelCase.
 
-The implementation also includes `days_from_baseline` and `model_version`. All series lengths match; visits are unique and chronological. Confidence is null for the baseline. Analyses persist ordered input snapshots, progress and the validated result. API responses exclude snapshots, host paths, storage keys and password hashes. Observed visit metadata keeps original source field names (`nWBV`, `eTIV`, `CDR`, `MMSE`, `ASF`). Patients have researcher ownership, optional age/sex, notes and source.
+The implementation also includes `days_from_baseline` and `model_version`. All series lengths match; visits are unique and chronological. Confidence is null for the baseline. Analyses persist ordered input snapshots, progress and the validated result. API responses exclude snapshots, host paths, storage keys and password hashes. Observed visit metadata keeps original source field names (`Age`, `nWBV`, `eTIV`, `CDR`, `MMSE`, `ASF`). Patients have researcher ownership, age/sex, notes and source. Age is required for new manual entries; historical records may have null age.
 
 Experimental `trained` output adds an optional structured `prediction` (score, saved validation threshold, classification, checkpoint fingerprint, cohort role and aggregate reused-holdout evidence). It provides one retrospective sequence prediction and an empty `risk_scores`, not a fabricated visit trajectory. Other modes retain their existing aligned score series. Trained input snapshots additionally contain only the eleven source covariates; CDR/Group/identifiers are excluded. Confidence remains null. See [14 Trained inference](14-trained-inference.md).
 

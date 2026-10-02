@@ -26,6 +26,10 @@ Primary sources inspected:
 
 ## Product behavior
 
+- Default axial view on patient entry and reset, with the existing alternative
+  layouts available for manual selection (D072). Uploaded scans without measured
+  masks show a FastSurfer segmentation prerequisite; valid masks remain highlighted
+  by default. MRI volume rendering alone does not perform this segmentation.
 - Actual selected MRI voxels, not a stock brain illustration.
 - Rotatable/zoomable 3D rendering and orthogonal axial, coronal and sagittal slices.
 - Four-up slice/volume layout and individual view modes.

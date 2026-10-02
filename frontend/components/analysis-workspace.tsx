@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { api, post } from "@/lib/api";
+import type { MriAcquisition } from "@/lib/mri-upload";
 import { percent } from "@/lib/utils";
 import type { Analysis, Mode, Patient, Report, Visit } from "@/types";
 import { Button } from "./ui/button";
@@ -22,6 +23,8 @@ import { TrajectoryChart } from "./trajectory-chart";
 import { VolumeExplorer } from "./volume-explorer";
 import { BaselineForecast } from "./baseline-forecast";
 import { AnatomyPanel } from "./anatomy-panel";
+import { MriMetadataFields } from "./mri-metadata-fields";
+import { MriFilePicker } from "./mri-file-picker";
 
 function VisitForm({
   patient,
@@ -105,7 +108,7 @@ function UploadForm({
   visitSelector?: ReactNode;
   mlOnly?: boolean;
 }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [selection, setSelection] = useState<MriAcquisition | null>(null);
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -144,11 +147,16 @@ function UploadForm({
         className="upload-form"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!file || busy) return;
+          if (!selection || busy) return;
           setBusy(true);
           setError("");
-          const fd = new FormData();
-          fd.append("file", file);
+          const fd = new FormData(e.currentTarget);
+          if (selection.kind === "volume") {
+            fd.append("file", selection.file);
+          } else {
+            fd.append("header", selection.header);
+            fd.append("image", selection.image);
+          }
           try {
             await api<Analysis>(`/visits/${visit.id}/upload`, {
               method: "POST",
@@ -165,26 +173,26 @@ function UploadForm({
         <Upload size={28} />
         <h3>Add the MRI for {visit.label}</h3>
         <p>
-          NIfTI volume (.nii or .nii.gz), up to 100 MiB.
+          NIfTI volume (.nii/.nii.gz) or a matching .hdr/.img pair, up to 100
+          MiB per acquisition.
           <br />
           {mlOnly
             ? "Stored after validation; reviewed FastSurfer processing and trained model release are required before prediction."
             : "A local analysis job starts after validation."}
         </p>
-        <label className="file-picker">
-          <span className="sr-only">MRI file</span>
-          <input
-            type="file"
-            accept=".nii,.nii.gz"
-            required
-            disabled={busy}
-            onChange={(e) => {
-              setFile(e.target.files?.[0] || null);
-              setError("");
-            }}
-          />
-        </label>
-        <Button type="submit" disabled={!file || busy}>
+        <MriMetadataFields
+          age={visit.metadata.Age}
+          nwbv={visit.metadata.nWBV}
+          disabled={busy}
+        />
+        <MriFilePicker
+          disabled={busy}
+          onSelection={(selected) => {
+            setSelection(selected);
+            setError("");
+          }}
+        />
+        <Button type="submit" disabled={!selection || busy}>
           {busy && !deleting ? "Uploading and validating…" : "Upload MRI"}
         </Button>
       </form>

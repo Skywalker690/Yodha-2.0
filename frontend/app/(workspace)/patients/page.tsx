@@ -5,6 +5,7 @@ import { Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorState, Loading, PageTitle } from "@/components/common";
 import { PatientTable } from "@/components/patient-table";
+import { MriMetadataFields } from "@/components/mri-metadata-fields";
 import { useResource } from "@/lib/use-resource";
 import { post } from "@/lib/api";
 import type { Patient } from "@/types";
@@ -62,13 +63,14 @@ export default function Patients() {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (busy) return;
               setBusy(true);
               setFormError("");
               const fd = new FormData(e.currentTarget);
               try {
                 const p = await post<Patient>("/patients", {
-                  code: fd.get("code"),
-                  age: fd.get("age") ? Number(fd.get("age")) : null,
+                  age: Number(fd.get("age")),
+                  nwbvFraction: Number(fd.get("nwbvFraction")),
                   sex: fd.get("sex") || null,
                   notes: fd.get("notes"),
                 });
@@ -80,30 +82,15 @@ export default function Patients() {
               }
             }}
           >
+            <p className="muted">
+              Patient code is generated automatically. Age and nWBV are required.
+              Upload the baseline MRI on the next screen.
+            </p>
+            <MriMetadataFields disabled={busy} />
             <div className="form-grid">
               <label>
-                Patient code
-                <input
-                  name="code"
-                  placeholder="e.g. RESEARCH_001"
-                  required
-                  pattern="[A-Za-z0-9][A-Za-z0-9_-]{1,63}"
-                  maxLength={64}
-                />
-              </label>
-              <label>
-                Age (optional)
-                <input
-                  name="age"
-                  type="number"
-                  min={18}
-                  max={120}
-                  placeholder="Age in years"
-                />
-              </label>
-              <label>
                 Sex (optional)
-                <select name="sex">
+                <select name="sex" disabled={busy}>
                   <option value="">Unspecified</option>
                   <option>Female</option>
                   <option>Male</option>
@@ -118,6 +105,7 @@ export default function Patients() {
                 maxLength={1000}
                 placeholder="Add context for this research case"
                 rows={2}
+                disabled={busy}
               />
             </label>
             {formError && <ErrorState message={formError} />}
