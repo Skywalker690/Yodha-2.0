@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ml.anatomy.contracts import AnatomyResult
+from ml.nwbv_contract import NWBV_REFERENCE_KEY, NwbvAgeReferenceBiomarker
 
 MODEL_VERSION = "feature-delta-v1"
 
@@ -45,7 +46,7 @@ class ProgressionResult(BaseModel):
     patient_id: str
     visit_ids: list[str]
     risk_scores: list[float]
-    biomarkers: dict[str, list[float]]
+    biomarkers: dict[str, list[float] | NwbvAgeReferenceBiomarker]
     selected_visit: str
     heatmap_url: str | None = None
     output_mode: Literal["demo", "precomputed", "inference", "trained", "anatomy"]
@@ -69,7 +70,7 @@ class ProgressionResult(BaseModel):
                 self.anatomy is None
                 or self.prediction is not None
                 or self.risk_scores
-                or self.biomarkers
+                or any(name != NWBV_REFERENCE_KEY for name in self.biomarkers)
                 or self.confidence is not None
                 or self.volume_overlays_ready
             ):
@@ -89,9 +90,16 @@ class ProgressionResult(BaseModel):
             raise ValueError("Scores must match visits, or trained mode must provide one sequence prediction")
         if any(not 0 <= v <= 1 for v in self.risk_scores):
             raise ValueError("Risk scores must be finite and within [0, 1]")
-        if any(len(v) != n for v in self.biomarkers.values()):
+        for name, value in self.biomarkers.items():
+            if name == NWBV_REFERENCE_KEY:
+                if not isinstance(value, NwbvAgeReferenceBiomarker) or value.visit_id != self.selected_visit:
+                    raise ValueError("nWBV reference must describe the selected observed visit")
+            elif not isinstance(value, list):
+                raise ValueError("Only the versioned nWBV biomarker can contain a structured reference")
+        series = [value for value in self.biomarkers.values() if isinstance(value, list)]
+        if any(len(v) != n for v in series):
             raise ValueError("Biomarker lengths must match visits")
-        if any(not isfinite(value) for series in self.biomarkers.values() for value in series):
+        if any(not isfinite(value) for values in series for value in values):
             raise ValueError("Biomarker values must be finite")
         if any(day < 0 for day in self.days_from_baseline):
             raise ValueError("Visit days must be nonnegative")

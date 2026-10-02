@@ -54,3 +54,4 @@ class AnatomyReview(Schema):
 
 class AnatomyForecastCreate(Schema):
     interval_days: int = Field(ge=0, le=3650)
+    cutoff_visit_id: str | None = Field(default=None, min_length=1, max_length=64)

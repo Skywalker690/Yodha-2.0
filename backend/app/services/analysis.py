@@ -145,6 +145,16 @@ def enqueue(
     if mode == "trained":
         snapshot = trained_snapshot(list(visits))
         model_version = trained_model_version()
+    for item, visit in zip(snapshot, visits):
+        if "Age" in visit.metadata_json or "nWBV" in visit.metadata_json:
+            from backend.app.services.nwbv_reference import OASIS_SOURCE_METHOD
+
+            item["nwbv_reference_input"] = {
+                "age": visit.metadata_json.get("Age"),
+                "nwbv": visit.metadata_json.get("nWBV"),
+                "measurement_method": visit.metadata_json.get("nwbv_measurement_method")
+                or (OASIS_SOURCE_METHOD if patient.source == "oasis-2" else "unknown"),
+            }
     if mode == "precomputed" and not resolve_key(cache_key(snapshot)).is_file():
         raise HTTPException(
             409, "No matching precomputed result. Run local inference once to prepare the cache."

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Niivue, NiiVueLocation } from "@niivue/niivue";
 import {
   Box,
@@ -14,6 +14,8 @@ import type { CameraPreset, ClipAxis, VolumeLayout } from "@/lib/volume-viewer";
 import type { Analysis, Patient, Visit } from "@/types";
 import { Button } from "./ui/button";
 import { ModeBadge } from "./common";
+import { post } from "@/lib/api";
+import { useResource } from "@/lib/use-resource";
 
 const DEFAULTS: VolumeSettings = {
   layout: "render",
@@ -32,6 +34,14 @@ const DEFAULTS: VolumeSettings = {
   position: [50, 50, 50],
   positionRevision: 0,
   resetRevision: 0,
+};
+
+const FORECAST_DAYS: Record<number, number> = {
+  0: 0,
+  6: 183,
+  12: 365,
+  24: 731,
+  36: 1096,
 };
 
 function RangeControl({
@@ -74,12 +84,14 @@ export function VolumeExplorer({
   analysis,
   anatomyAnalysis = null,
   onSelectVisit,
+  reload,
 }: {
   patient: Patient;
   visit: Visit;
   analysis: Analysis | null;
   anatomyAnalysis?: Analysis | null;
   onSelectVisit: (id: string) => void;
+  reload?: () => void;
 }) {
   const panel = useRef<HTMLElement>(null);
   const instances = useRef(new Map<string, Niivue>());
@@ -92,6 +104,21 @@ export function VolumeExplorer({
   const [regions, setRegions] = useState(true);
   const [futureCompare, setFutureCompare] = useState(false);
   const [futureMonths, setFutureMonths] = useState(12);
+  const [alignment, setAlignment] = useState(false);
+  const [meshes, setMeshes] = useState(false);
+  const [animating, setAnimating] = useState(false);
+  const [forecastBusy, setForecastBusy] = useState(false);
+  const [forecastError, setForecastError] = useState("");
+  const model = useResource<{
+    status: string;
+    intervalsDays: number[];
+    releaseSha256?: string;
+    reason?: string;
+  }>("/anatomy-model/readiness", 10000);
+  const cached = useResource<Analysis[]>(
+    `/patients/${patient.id}/anatomy-forecasts`,
+    2500,
+  );
   const [closed, setClosed] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
   const baseline = patient.visits.find((v) => v.hasMri);
@@ -100,9 +127,83 @@ export function VolumeExplorer({
   const anatomy = anatomyAnalysis?.resultJson?.anatomy;
   const anatomyVisit = anatomy?.visits.find((v) => v.visitId === visit.id);
   const labelUrl =
-    regions && anatomyVisit && anatomyAnalysis
+    !alignment && regions && anatomyVisit && anatomyAnalysis
       ? `/api/analysis/${anatomyAnalysis.id}/visits/${visit.id}/anatomy/regions`
       : undefined;
+  const intervalDays = FORECAST_DAYS[futureMonths];
+  const matches = useMemo(
+    () =>
+      (cached.data || []).filter((a) => {
+        const candidate = a.resultJson?.anatomy;
+        return (
+          candidate?.forecast.status === "available" &&
+          candidate.forecast.cutoffVisitId === visit.id &&
+          candidate.forecast.releaseSha256 === model.data?.releaseSha256 &&
+          candidate.visits.every(
+            (v, i) =>
+              v.sourceSha256 === anatomy?.visits[i]?.sourceSha256 &&
+              v.segmentationSha256 === anatomy?.visits[i]?.segmentationSha256 &&
+              v.statisticsSha256 === anatomy?.visits[i]?.statisticsSha256 &&
+              v.ratings.provenanceSha256 ===
+                anatomy?.visits[i]?.ratings.provenanceSha256,
+          )
+        );
+      }),
+    [cached.data, visit.id, model.data?.releaseSha256, anatomy],
+  );
+  const futureAnalysis = matches.find(
+    (a) => a.resultJson?.anatomy?.forecast.intervalDays === intervalDays,
+  );
+  const future = futureAnalysis?.resultJson?.anatomy?.forecast;
+  const meshInputs = useMemo(
+    () =>
+      future?.artifacts
+        .filter((a) => a.kind === "mesh")
+        .map((a) => ({
+          url: `/api/analysis/${futureAnalysis!.id}/future/${a.name}`,
+          color: (a.name.includes("hippocampus")
+            ? [255, 220, 65, 255]
+            : a.name.includes("ventricle")
+              ? [155, 120, 255, 255]
+              : [80, 210, 200, 255]) as [number, number, number, number],
+          opacity: a.name === "brain_mesh" ? 0.15 : 0.7,
+        })),
+    [future, futureAnalysis],
+  );
+  useEffect(() => {
+    setAlignment(false);
+    setAnimating(false);
+    setForecastError("");
+  }, [visit.id]);
+  useEffect(() => {
+    if (!animating || !futureCompare || closed || matches.length < 2) return;
+    const days = [
+      ...new Set(
+        matches.map((a) => a.resultJson!.anatomy!.forecast.intervalDays),
+      ),
+    ].sort((a, b) => a - b);
+    const timer = setInterval(
+      () =>
+        setFutureMonths((previous) => {
+          const current = FORECAST_DAYS[previous];
+          const next = days[(days.indexOf(current) + 1) % days.length];
+          return (
+            [0, 6, 12, 24, 36].find((m) => FORECAST_DAYS[m] === next) ??
+            previous
+          );
+        }),
+      2000,
+    );
+    return () => clearInterval(timer);
+  }, [animating, futureCompare, matches, closed]);
+  const cutoffHistory =
+    anatomy?.visits.filter(
+      (v) => v.daysFromBaseline <= visit.daysFromBaseline,
+    ) || [];
+  const reviewedCutoff =
+    cutoffHistory.length >= 2 &&
+    !!anatomyVisit &&
+    cutoffHistory.every((v) => v.qc === "passed" && v.ratings.status === "ok");
   const available =
     !!result?.volumeOverlaysReady && result.visitIds.includes(visit.id);
   const overlayUrl =
@@ -266,38 +367,64 @@ export function VolumeExplorer({
                 <VolumeCanvas
                   key={`${visit.id}:${overlayUrl || "original"}`}
                   id="selected"
-                  label={`Selected · ${visit.label}`}
+                  label={
+                    alignment
+                      ? "Automatic rating alignment · inspect three planes"
+                      : `Selected · ${visit.label}`
+                  }
                   patientCode={patient.code}
-                  url={visit.volumeUrl || `/api/visits/${visit.id}/volume`}
-                  overlayUrl={overlayUrl}
+                  url={
+                    alignment
+                      ? `/api/analysis/${anatomyAnalysis!.id}/visits/${visit.id}/rating-alignment`
+                      : visit.volumeUrl || `/api/visits/${visit.id}/volume`
+                  }
+                  overlayUrl={alignment ? undefined : overlayUrl}
                   labelUrl={labelUrl}
                   settings={settings}
                   onReady={onReady}
                   onLocation={onLocation}
                 />
-                {futureCompare && (
-                  <div className="volume-card" role="status">
-                    <div className="volume-card-heading">
-                      <strong>
-                        Predicted anatomy · {futureMonths} months after latest
-                        input
-                      </strong>
-                      <span className="badge">Not an acquired MRI</span>
+                {futureCompare && futureAnalysis && future ? (
+                  <VolumeCanvas
+                    key={`predicted:${visit.id}:${intervalDays}:${future.modelSha256}`}
+                    id="predicted"
+                    kind="predicted"
+                    label={`Predicted anatomy · ${futureMonths} months after cutoff`}
+                    patientCode={patient.code}
+                    url={`/api/analysis/${futureAnalysis.id}/future/mri`}
+                    labelUrl={
+                      regions
+                        ? `/api/analysis/${futureAnalysis.id}/future/labels`
+                        : undefined
+                    }
+                    meshes={meshes ? meshInputs : undefined}
+                    settings={settings}
+                    onReady={onReady}
+                  />
+                ) : (
+                  futureCompare && (
+                    <div className="volume-card" role="status">
+                      <div className="volume-card-heading">
+                        <strong>
+                          Predicted anatomy · {futureMonths} months after latest
+                          input
+                        </strong>
+                        <span className="badge">Not an acquired MRI</span>
+                      </div>
+                      <div className="empty">
+                        <h3>Future anatomy unavailable</h3>
+                        <p>
+                          No matching evaluated prediction is available for this
+                          cutoff and interval. No acquired scan, crossfade or
+                          uniformly shrunken mesh is substituted.
+                        </p>
+                        <p>
+                          Requested interval: {intervalDays} days. All future
+                          artifacts remain unavailable.
+                        </p>
+                      </div>
                     </div>
-                    <div className="empty">
-                      <h3>Future anatomy unavailable</h3>
-                      <p>
-                        No trained and evaluated time-conditioned spatial
-                        predictor exists. No acquired scan, crossfade or
-                        uniformly shrunken mesh is substituted.
-                      </p>
-                      <p>
-                        Requested interval:{" "}
-                        {Math.round((futureMonths * 365.25) / 12)} days. All
-                        future artifacts remain unavailable.
-                      </p>
-                    </div>
-                  </div>
+                  )
                 )}
               </div>
               <div className="volume-navigation">
@@ -495,27 +622,110 @@ export function VolumeExplorer({
                   checked={futureCompare}
                   onChange={(e) => {
                     setFutureCompare(e.target.checked);
+                    setAlignment(false);
                     if (e.target.checked) setCompare(false);
                   }}
                 />
                 Compare current vs predicted
               </label>
               {futureCompare && (
-                <label>
-                  Future time after latest scan
-                  <select
-                    aria-label="Future time after latest scan"
-                    value={futureMonths}
-                    onChange={(e) => setFutureMonths(Number(e.target.value))}
+                <>
+                  <label>
+                    Future time after latest scan
+                    <select
+                      aria-label="Future time after latest scan"
+                      value={futureMonths}
+                      onChange={(e) => {
+                        setAnimating(false);
+                        setFutureMonths(Number(e.target.value));
+                      }}
+                    >
+                      {[0, 6, 12, 24, 36].map((m) => (
+                        <option key={m} value={m}>
+                          {m} months
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button
+                    variant="outline"
+                    disabled={
+                      forecastBusy ||
+                      patient.latestAnatomy?.status === "queued" ||
+                      patient.latestAnatomy?.status === "processing" ||
+                      !anatomyAnalysis ||
+                      !reviewedCutoff ||
+                      model.data?.status !== "available" ||
+                      !model.data.intervalsDays.includes(intervalDays) ||
+                      !!future
+                    }
+                    onClick={async () => {
+                      setForecastBusy(true);
+                      setForecastError("");
+                      try {
+                        await post(
+                          `/analysis/${anatomyAnalysis!.id}/forecast`,
+                          { intervalDays, cutoffVisitId: visit.id },
+                        );
+                        reload?.();
+                      } catch (e) {
+                        setForecastError((e as Error).message);
+                      } finally {
+                        setForecastBusy(false);
+                      }
+                    }}
                   >
-                    {[0, 6, 12, 24, 36].map((m) => (
-                      <option key={m} value={m}>
-                        {m} months
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    {forecastBusy
+                      ? "Queuing prediction…"
+                      : "Generate evaluated future anatomy"}
+                  </Button>
+                  <p className="volume-note">
+                    {model.data?.reason ||
+                      `Cutoff ${visit.label}; model ${future?.spatialModelVersion || "not yet generated"}. Unsupported times stay unavailable.`}
+                  </p>
+                  {forecastError && <p role="alert">{forecastError}</p>}
+                  <label className="volume-check">
+                    <input
+                      type="checkbox"
+                      checked={meshes}
+                      onChange={(e) => setMeshes(e.target.checked)}
+                    />
+                    Predicted mask-boundary meshes
+                  </label>
+                  <Button
+                    variant="outline"
+                    disabled={matches.length < 2}
+                    onClick={() => setAnimating((v) => !v)}
+                  >
+                    {animating
+                      ? "Pause forecast timeline"
+                      : "Play generated forecast timeline"}
+                  </Button>
+                  <small>
+                    Discrete model-generated intervals only; no crossfade or
+                    mesh scaling.
+                  </small>
+                </>
               )}
+              {anatomyVisit &&
+                ["pending_alignment_qc", "ok"].includes(
+                  anatomyVisit.ratings.status,
+                ) && (
+                  <label className="volume-check">
+                    <input
+                      type="checkbox"
+                      checked={alignment}
+                      onChange={(e) => {
+                        setAlignment(e.target.checked);
+                        setFutureCompare(false);
+                        setCompare(false);
+                        setDifference(false);
+                        if (e.target.checked) update("layout", "multiplanar");
+                      }}
+                    />
+                    Inspect automatic rating alignment
+                  </label>
+                )}
               <label className="volume-check">
                 <input
                   type="checkbox"
@@ -591,7 +801,7 @@ export function VolumeExplorer({
               Observed MRI research visualization
               {labelUrl
                 ? " with measured anatomical labels; inspect QC"
-            : ", not segmented anatomy (no segmentation layer selected)"}
+                : ", not segmented anatomy (no segmentation layer selected)"}
               .
             </strong>{" "}
             MRI includes non-brain head tissue. Linked views are not registered.

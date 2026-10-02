@@ -72,7 +72,13 @@ def mesh(mask: nib.Nifti1Image, destination: Path) -> dict:
     if any(np.take(data, edge, axis=axis).any() for axis in range(3) for edge in (0, -1)):
         raise ValueError("Mask intersects field-of-view boundary; surface is not closed")
     components = int(label(data)[1])
-    vertices, faces, _, _ = marching_cubes(data.astype(np.float32), 0.5, gradient_direction="ascent")
+    # Binary saddle contacts can give four faces on an edge at exactly 0.5.
+    # A fixed 0.0001 offset resolves the tie; labels stay unchanged, no smoothing
+    # is applied, and closure/face/physical-volume checks still must pass.
+    isovalue = 0.5001
+    vertices, faces, _, _ = marching_cubes(
+        data.astype(np.float32), isovalue, gradient_direction="ascent", allow_degenerate=False
+    )
     vertices = nib.affines.apply_affine(mask.affine, vertices).astype(np.float32)
     edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
     _, edge_counts = np.unique(edges, axis=0, return_counts=True)
@@ -95,6 +101,7 @@ def mesh(mask: nib.Nifti1Image, destination: Path) -> dict:
     nib.save(nib.gifti.GiftiImage(darrays=arrays), destination)
     return {
         "coordinate_units": "mm",
+        "isovalue": isovalue,
         "components": components,
         "voxel_volume_mm3": measured,
         "mesh_volume_mm3": abs(signed_volume),

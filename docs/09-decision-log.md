@@ -1,5 +1,170 @@
 # Decision Log
 
+## D034: Preserve unbounded AVRA outputs in provisional research training
+
+Status: Accepted (2026-10-02, investigation of the user-reported training blocker)
+
+The pinned upstream AVRA model ends in an unconstrained `nn.Linear` layer, and its
+runner writes the ensemble mean without clipping. OAS2_0070 MR4 has PA members
+0.01023519, -0.048216164, 0.044799566, 0.0032413006 and -0.013011694;
+the reported mean is -0.00059036014, with ensemble SD 0.030379687. Source/alignment
+artifact hashes pass. This is a finite near-zero regression estimate outside the
+nominal ordinal scale, not evidence of negative biological atrophy or a failed MRI.
+Alignment remains pending visual review. Source:+[pinned output head](https://github.com/gsmartensson/avra_public/blob/17e947606596e6594ec01d54ef38c992becf9395/model/model.py).
+
+Correct only the explicitly authorized provisional `--allow-unreviewed-research`
+path: preserve finite out-of-scale raw estimates under status `unreviewed_research`,
+method `AVRA-v0.8-ensemble-raw-regression-research`, and an explicit warning listing
+the extrapolated values. Do not clip, round, replace with zero or discard the subject.
+Default/reviewed parsing still enforces MTA 0–4 and PA 0–3; missing/nonfinite values,
+source tampering and malformed artifacts still fail. This permits candidate training
+and leaves app review/serving/promotion gates intact. Existing in-range examples retain
+their exact values and metadata so immutable prepared cases can resume.
+
+## D033: Optional source-matched nWBV age reference (user-provided module)
+
+Status: Accepted (2026-10-02, explicit user request)
+
+Extract and vendor the supplied `nwbv_reference_module` package at the repository
+root, preserving its aggregate reference and README. Install with `python -m pip
+install --no-deps ./nwbv_reference_module` in the backend environment and Docker image.
+The existing worker calls `NwbvReference.bundled().evaluate` after inference, storing
+the structured optional `biomarkers.nwbv_age_reference_v1` for the selected observed
+visit in result JSON and the existing biomarker table. No migration is needed.
+
+Freeze age, nWBV and measurement method at enqueue, separately from model covariates.
+Use the OASIS method only for imported OASIS values; unknown/different methods,
+missing/invalid values, unsupported ages and sparse bins remain explicit unavailable
+states. Normalize integral numeric ages from the existing float-valued importer;
+never coerce strings, impute missing values, derive nWBV from FastSurfer, or use
+future/currently edited metadata. Older queued anatomy snapshots can use their
+already-frozen OASIS metadata/provenance flags. Older results remain compatible.
+
+Keep `task=descriptive_age_reference`, `intended_use=support_value`,
+`feature_use_allowed=false`, and `clinical_risk=null`. This whole-cohort reference
+does not alter model inputs, training, CDR risk, volumes, future MRI or review gates.
+An earlier cutoff clears the parent's later-visit reference and the worker evaluates
+the selected cutoff's observed inputs. Optional package/profile failures are logged
+and stored explicitly, without substituting a disease or forecasting model.
+The README's example UI card is context; the requested change is backend integration.
+## D032: Resolve binary isosurface ties without changing categorical anatomy
+
+Status: Accepted (2026-10-02, discovered on the first real five-scan history)
+
+The source middle-temporal mask produced three edges with four incident faces at
+marching-cubes level exactly 0.5, failing the existing closed two-manifold check.
+Use a fixed 0.5001 binary isovalue and remove degenerate triangles. The 0.0001-voxel
+interpolation offset resolves saddle ties without editing labels, smoothing, or
+simplifying surfaces. Keep closure, non-degenerate faces, orientation and <=5%
+physical volume checks mandatory; record the actual isovalue in mesh provenance.
+A synthetic saddle fixture reproduces the four-face failure and verifies a closed
+export and unchanged mask. Real source-mask checks are engineering evidence, not
+forecast accuracy or segmentation approval.
+
+## D031: Reuse the verified CUDA container for score-conditioned training
+
+Status: Accepted (2026-10-02; supersedes D030's wheel-install approach)
+
+Build `infra/anatomy/Dockerfile` from the locally verified pinned FastSurfer CUDA
+base. Retain its CUDA PyTorch and add the required Pydantic and matching geometry
+dependencies. Bind code/study read-only and the candidate output read-write, disable
+network access during fitting, and record the immutable image ID in run status.
+The host worker remains in its original Python environment. A synthetic CUDA
+training/save/host-reload check passed with PyTorch 2.7.1+cu128 on the RTX 3050;
+it is engineering evidence only. The coordinator will use this runtime after all
+56 real histories finish processing. It never silently falls back to CPU.
+
+Stopped the superseded isolated-wheel download and removed only its approximately
+2 GB package scratch file. Kept its scripts, environment and logs. Raw MRI, earlier
+model files and native analyses remain preserved. The full run needs additional
+disk space; the user was asked to free 10 GB or provide another location while
+processing continued. The drive subsequently has 77 GB free, which is sufficient.
+A lossless LZX compression probe preserved the aligned MRI
+digest and reduced one 28.9 MB file to 22.1 MB; it does not solve the full capacity need.
+
+## D030: Isolated CUDA runtime for the active anatomy training run
+
+Status: Superseded by D031 (2026-10-02)
+
+The host has an RTX 3050 and a working NVIDIA driver, but the application's Python
+environment contains PyTorch 2.14.0+cpu. The queued CUDA training run cannot fit
+with that build. Install the matching 2.14.0+cu130 wheel from PyTorch's official
+CUDA index in `artifacts/anatomy-cuda-runtime-20261002`, reusing the application's
+non-Torch dependencies through a `.pth` path. Keep the running API and segmentation
+worker in their original environment. Verify actual CUDA model forward/backward
+execution before resuming only the waiting training coordinator with the isolated
+interpreter. Preserve cohort, epochs, device, grid size and existing run artifacts.
+
+## D029: Score-conditioned training on the richest MRI histories
+
+Status: Accepted (2026-10-02, explicit user direction)
+
+Train only the anatomy predictor with MTA-left/right and Koedam inputs. Remove
+the no-score training/evaluation/release dependency. Keep inexpensive no-change and
+individual-trend comparisons; they do not train another neural model. Retain prior
+artifacts without treating their accuracy as evidence for the new study.
+
+Create a separately frozen anatomy cohort using source scan count, not CDR, Group,
+prediction outcomes or the old classifier's 40-subject assignment. All 56 supplied
+subjects with at least three scans qualify: four have five scans, nine have four,
+and 43 have three. Prioritize the longest histories for processing. Use 44 training,
+four selection, four interval-calibration and four test subjects. Reserve one four-scan
+subject for each held-out role and one five-scan subject for test, using a fixed seed;
+all remaining longest histories enter training. Freeze membership before model fitting.
+Old classifier/baseline splits remain unchanged. The new holdout is reused OASIS data,
+not independent clinical validation. Explicit image review and source integrity remain
+required; processing does not automatically become human approval.
+
+Permit an explicitly marked unreviewed research candidate to complete actual fitting
+after automated source/geometry/score checks. Private exports distinguish
+`automated_checks_only` anatomy and `unreviewed_research` score inputs. They do not
+modify application review records. Such training/evaluation remains provisional and
+cannot promote or serve until real reviews and a reviewed retraining pass. This
+separates the requested computation from the release approval gate.
+
+Spatial selection/test metrics average within each subject before averaging across
+subjects, matching structural and native evaluation. Extra examples from a five-scan
+history therefore improve training coverage without giving that subject extra weight
+in reported accuracy or checkpoint selection.
+
+Prepare completed, integrity-checked histories incrementally while the single worker
+processes later subjects. Stable case indices come from the full frozen split, not
+completion order. Partial preparation writes only progress, never a final study
+manifest; final export/preparation still requires all 56 subjects. Verified cases
+are reused and interrupted partial directories are preserved before retrying.
+The Windows coordinator holds a process-lifetime system-awake request during the
+run, released on exit. Display sleep and persistent power settings are unchanged.
+
+The local drive has limited headroom. Lossless NTFS compression was enabled for
+`storage/derived`, including inherited compression for new analysis folders. This
+preserves file bytes/hashes and formats, is reversible with `compact /U`, and leaves
+raw MRI storage unchanged. Processing still enforces its disk-headroom guard.
+
+## D028: Reviewed cutoff forecasts and reproducible licensed runtime
+
+Status: Accepted (2026-10-02)
+
+The user authorized non-commercial research use of FSL and asked this chat to
+continue implementation while stopping the other overlapping chat. Preserve the
+existing work and services. Provision AVRA from a pinned upstream commit and all
+15 released checkpoints in an isolated container. Retain failed candidates and
+logs; a successful real invocation still requires explicit alignment review.
+
+Queue anatomy forecasts through the existing worker and persist optional JSON
+fields. A selected earlier cutoff uses only its chronological prefix, with reviewed
+segmentation and rating provenance. Bind parent result, actual inference files,
+release, sources and generated artifacts by digest. Do not expose another owner's
+artifacts or return observed anatomy for failed prediction. Generate and retrieve
+18 separate regional masks in addition to labels, MRI, physical pull field and meshes.
+
+Divide the frozen eight development subjects deterministically into four selection
+and four calibration subjects; use subject-block 80% intervals with explicit limited
+sample size. Keep original 40/8/8 membership and acknowledge reused holdout. Require
+real native evaluation, matched score ablation and immutable promotion before serving.
+Code/synthetic verification is complete enough to run the lifecycle; real segmentation,
+review, model training and held-out release evidence remain outstanding. See
+[18](18-anatomy-forecast-lifecycle.md) for commands and current execution status.
+
 ## D027: Cutoff-local spatial learning and evaluated anatomy release
 
 Status: Accepted for implementation (2026-10-02, explicit completion request)
@@ -232,26 +397,33 @@ Train the MRI encoder, demographic MLP, LSTM and head together from fresh seeded
 
 Using MRI/MMSE/nWBV from every visit makes the target retrospective recognition of observed first-to-last CDR increase. It does not establish forecasting ability. Checkpoints remain offline experiment artifacts until a separately requested integration.
 
-## D020: Strict MCI-to-Alzheimer forecasting objective
+## D020: Strict diagnostic forecasting objective
 
-Status: Accepted (2026-10-01, explicit user selection)
+Status: Superseded by D028 (2026-10-02)
 
-Adopt the supplied complete PRD's strict forecasting direction: documented baseline MCI, followed by a documented study-defined Alzheimer dementia outcome, evaluated at 12/24/36 months. Neither CDR 0.5 nor OASIS Group is sufficient to relabel a subject as MCI. Do not reuse the 40-subject retrospective experiment as evidence for this endpoint or force the new cohort to contain those same subjects. Preserve its files and the active application while a new authorized cohort is acquired and audited. The existing local full-stack architecture remains in place.
-
-## D021: Conditional ADNI acquisition and governance gate
-
-Status: Acquisition plan accepted; access and data not yet verified (2026-10-01)
-
-ADNI is the selected acquisition candidate because its official documentation provides phase-specific baseline diagnosis fields and longitudinal diagnostic records. This is not a claim that a downloaded cohort contains sufficient events. Approved LONI IDA access, the researcher's data-use agreement and institutional requirements must be confirmed before acquisition. The agent must not accept the agreement, invent affiliations, bypass access controls or use unofficial redistributed participant files.
-
-The current ADNI agreement restricts participant-level sharing and use of third-party AI tools without data-containment guarantees. Do not upload participant records, MRI, derived individual predictions or data-bearing tool outputs into this chat. Develop with synthetic examples; real-data processing needs an approved contained workflow. Record download/dictionary versions and storage protections. Retrieve clinical/dictionary/QC metadata before selecting MRI downloads; only about 8.4 GiB was free on C: at the acquisition check, so bulk MRI storage is not approved by this observation. No actual ADNI acquisition or strict-model training has occurred. Details and primary sources are in [13 Strict forecasting data](13-strict-forecasting-data.md).
+An earlier request proposed a distinct documented-MCI-to-Alzheimer-dementia
+endpoint. OASIS-2 CDR and `Group` fields do not provide this diagnosis target.
+This endpoint is outside the current OASIS-2-only scope and must not be represented
+as trained or supported by the supplied data.
 
 ## D022: Explicit experimental trained-model integration
 
 Status: Accepted (2026-10-01, user-requested integration)
 
-Expose the audited 40-subject multimodal checkpoint through an explicit `trained` analysis mode, selected by default in the workspace. Preserve the old baseline/demo/cache modes and historical analyses. Freeze the original 40/8/8 subjects; never replace difficult candidates, tune on test results, or promise improved accuracy. This supersedes D018's offline-only restriction solely for experimental research use, not clinical deployment or strict forecasting.
+Expose the audited 40-subject multimodal checkpoint through an explicit `trained` analysis mode, selected by default in the workspace. Preserve the old baseline/demo/cache modes and historical analyses. Freeze the original 40/8/8 subjects; never replace difficult candidates, tune on test results, or promise improved accuracy. This supersedes D018's offline-only restriction solely for experimental research use, not clinical deployment or Alzheimer-specific forecasting.
 
 Return one uncalibrated sequence-classification score for observed CDR increase, with its validation-selected decision threshold, checkpoint fingerprint, cohort membership and recorded reused-holdout performance. Do not manufacture per-visit neural scores or future Alzheimer probabilities. Keep intensity-difference images and structural proxies explicitly separate from model attribution. Trained inference must load validated saved weights and train-only preprocessing, require at least three chronological MRI visits and the documented covariate schema, and fail explicitly instead of silently falling back to the baseline. Missing recorded SES/MMSE use the checkpoint's training-only imputation; absent covariate ingestion must not masquerade as complete demographics.
 
-Import the exact saved training cohort and all of its visits through an explicit offline command, adding source covariates without replacing existing MRI, accounts, splits, checkpoints or reports. Predictions on these 40 subjects are in-sample demonstrations, not accuracy evidence. The selected checkpoint's poor generalization remains prominently disclosed; this integration does not improve its measured performance or satisfy D020's strict forecasting requirement.
+Import the exact saved training cohort and all of its visits through an explicit offline command, adding source covariates without replacing existing MRI, accounts, splits, checkpoints or reports. Predictions on these 40 subjects are in-sample demonstrations, not accuracy evidence. The selected checkpoint's poor generalization remains prominently disclosed; this integration does not improve its measured performance or satisfy a diagnostic Alzheimer forecasting target.
+
+## D028: OASIS-2 is the sole project dataset
+
+Status: Accepted (2026-10-02, explicit user direction)
+
+Use only the OASIS-2 MRI data and its supplied demographics workbook/CSV. Do not
+acquire or combine another cohort. Clinical and demographic predictors must come
+from recorded OASIS-2 fields available at the prediction cutoff; later observations
+are outcome labels only. The supported baseline forecast endpoint is observed CDR
+conversion at horizons with adequate frozen-cohort support. CDR and `Group` do not
+establish Alzheimer-specific diagnosis, so the UI and reports must not claim one.
+Preserve OASIS-2 raw data, source values, subject splits and existing checkpoints.

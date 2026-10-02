@@ -33,7 +33,9 @@ def source_covariates(info: pd.Series) -> dict:
     }
 
 
-def create_training_manifest(metadata: Path, source_root: Path, checkpoint: Path, output: Path) -> None:
+def create_training_manifest(
+    metadata: Path, source_root: Path, checkpoint: Path, output: Path, *, include_holdout: bool = False
+) -> None:
     """Import the exact historical training cohort, not candidates chosen by prediction quality."""
     from scripts.train_longitudinal_model import load_subjects
     from scripts.train_multimodal_model import load_saved_split, sha256_file
@@ -47,6 +49,7 @@ def create_training_manifest(metadata: Path, source_root: Path, checkpoint: Path
     saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
     if sha256_file(metadata) != saved["metadata_sha256"]:
         raise ValueError("Workbook no longer matches the model's audited source")
+    selected_roles = ("train", "validation", "test") if include_holdout else ("train",)
     rows = [
         {
             "patient_id": record.subject_id,
@@ -54,12 +57,15 @@ def create_training_manifest(metadata: Path, source_root: Path, checkpoint: Path
             "visit_index": index,
             "days_from_baseline": days,
             "mri_path": str(path.resolve()),
-            "split": "train",
+            "split": role,
         }
-        for record in split["train"]
+        for role in selected_roles
+        for record in split[role]
         for index, (visit_id, days, path, _) in enumerate(record.visits)
     ]
-    if len(split["train"]) != 40 or len(rows) != bundle.metrics["split_counts"]["train"]["visits"]:
+    if len(split["train"]) != 40 or len(rows) != sum(
+        bundle.metrics["split_counts"][role]["visits"] for role in selected_roles
+    ):
         raise ValueError("Frozen training cohort must include every original subject and visit")
     output.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(output, index=False)
@@ -182,25 +188,48 @@ def main() -> None:
         action="store_true",
         help="Add source covariates to existing OASIS visits without replacing MRI or analyses",
     )
+    parser.add_argument(
+        "--anatomy-cohort",
+        action="store_true",
+        help="Import all 56 frozen anatomy-study subjects without training on holdouts",
+    )
     args = parser.parse_args()
     metadata = args.metadata or next(args.root.glob("*.xlsx"), None) or next(args.root.glob("*.csv"), None)
     if metadata is None:
         raise SystemExit("No demographics XLSX/CSV found. Supply --metadata.")
     if args.training_cohort and (args.all or args.manifest is not None):
         parser.error("Training-cohort selection cannot be combined with --all or --manifest")
+    if args.anatomy_cohort and (
+        args.training_cohort or args.all or args.manifest is not None or args.precompute
+    ):
+        parser.error(
+            "Anatomy-cohort selection uses only the frozen manifest; queue anatomy through the worker separately"
+        )
     manifest = args.manifest or Path(
-        "data/manifests/training_app.csv"
+        "data/manifests/anatomy_app.csv"
+        if args.anatomy_cohort
+        else "data/manifests/training_app.csv"
         if args.training_cohort
         else "data/manifests/full.csv"
         if args.all
         else "data/manifests/demo.csv"
     )
-    if args.training_cohort:
-        create_training_manifest(metadata, args.root, get_settings().trained_model_path, manifest)
+    if args.training_cohort or args.anatomy_cohort:
+        create_training_manifest(
+            metadata,
+            args.root,
+            get_settings().trained_model_path,
+            manifest,
+            include_holdout=args.anatomy_cohort,
+        )
     elif args.manifest is None:
         create_manifest(metadata, args.root, manifest, args.subjects, args.all)
     import_manifest(
-        manifest, metadata, args.root, args.precompute, args.refresh_covariates or args.training_cohort
+        manifest,
+        metadata,
+        args.root,
+        args.precompute,
+        args.refresh_covariates or args.training_cohort or args.anatomy_cohort,
     )
 
 

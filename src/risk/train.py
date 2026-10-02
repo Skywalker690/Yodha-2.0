@@ -71,7 +71,7 @@ def train(cfg: dict, model_kind: str, matched: bool = False) -> dict:
         "fastsurfer_version": str(frame["fastsurfer_version"].iloc[0]) if matched else None,
         "feature_set_version": FEATURE_SET if matched else None,
         "warnings": [
-            "Research prototype, not a diagnosis or strict MCI-to-Alzheimer forecast.",
+            "Research prototype, not a diagnosis or Alzheimer-specific forecast.",
             "Sparse observation timing is not biological onset; unknown horizons excluded.",
             "Small OASIS cohort; holdouts may overlap previously inspected studies.",
             "Probabilities are uncalibrated; cumulative-max adjustment is not calibration.",

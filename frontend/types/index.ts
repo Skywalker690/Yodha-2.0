@@ -24,6 +24,9 @@ export type AnatomyVisit = {
     mtaRight: number | null;
     posteriorAtrophy: number | null;
     warnings: string[];
+    provenanceSha256?: string | null;
+    reviewerId?: string | null;
+    reviewedAt?: string | null;
   };
 };
 export type AnatomyResult = {
@@ -46,11 +49,26 @@ export type AnatomyResult = {
   }[];
   signConvention: string;
   forecast: {
-    status: "unavailable";
+    status: "unavailable" | "available";
     cutoffVisitId: string;
     intervalDays: number;
     warnings: string[];
-    artifacts: never[];
+    volumesMm3?: Record<string, number> | null;
+    predictionIntervals?: Record<string, [number, number]> | null;
+    intervalEvidence?: {
+      level: number;
+      evaluated: boolean;
+      subjects: number;
+      method: string;
+    } | null;
+    spatialModelVersion?: string | null;
+    modelSha256?: string | null;
+    releaseSha256?: string | null;
+    artifacts: {
+      name: string;
+      kind: "mri" | "labels" | "field" | "mesh";
+      sha256: string;
+    }[];
   };
 };
 export type TrainedPrediction = {

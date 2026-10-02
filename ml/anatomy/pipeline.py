@@ -90,6 +90,10 @@ def run_anatomy(
         )
         observed = item.get("metadata", {})
         etiv = etiv_mm3(observed.get("eTIV")) if item.get("etiv_unit") == "cm3" else None
+        progress(
+            10 + index * 70 // len(inputs) + 35 // len(inputs), "AVRA alignment and MTA/Koedam estimation"
+        )
+        ratings = run_rating(source, output / f"rating_{index}", rating_runtime)
         visit = AnatomyVisit(
             visit_id=item["visit_id"],
             days_from_baseline=item["days_from_baseline"],
@@ -108,7 +112,7 @@ def run_anatomy(
                 volumes["hippocampus_left_mm3"], volumes["hippocampus_right_mm3"]
             ),
             observed_metadata=observed,
-            ratings=run_rating(source, output / f"rating_{index}", rating_runtime),
+            ratings=ratings,
         )
         visits.append(visit)
         files = [

@@ -7,6 +7,14 @@ automatic-rating availability and unsupported future horizons are defined in
 [17 Longitudinal anatomy](17-longitudinal-anatomy.md). Existing JSON persistence
 is sufficient; no migration or second ingestion system is added.
 
+Rating provenance adds optional digest, reviewer and timestamp fields. Forecast results
+add evaluated intervals, release/model identifiers, cutoff/time, volumes and named owned
+artifacts. Earlier-cutoff requests accept `{intervalDays, cutoffVisitId?}` and use only
+the reviewed prefix. Generation is HTTP 202 on the existing analysis queue. Future
+artifact routes enforce ownership, allowlisted names, matching cutoff/time/release and
+content hashes. See [18 Anatomy forecasting lifecycle](18-anatomy-forecast-lifecycle.md)
+for routes and available/unavailable semantics.
+
 ## New baseline-only forecast contract
 
 ML-only patient payloads add `servingPolicy=ml_only`, with historical latest-analysis
@@ -29,7 +37,7 @@ No existing longitudinal analysis contract or database record is relabeled or re
 
 The initial dataset is OASIS-2 longitudinal MRI data. Raw archives remain outside source control. MRI files and generated artifacts live on the local filesystem or in a local S3-compatible adapter such as MinIO. PostgreSQL stores metadata and analysis records.
 
-The new strict MCI-to-Alzheimer forecasting task requires a separate authorized dataset with documented baseline and future diagnoses. ADNI is the acquisition candidate; no ADNI files or cohort have been verified. Do not reuse OASIS Group/CDR as an MCI diagnosis or merge the old split into the new study. Real-data ingestion remains pending account, terms and containment review. See [13 Strict forecasting data](13-strict-forecasting-data.md); the existing MRI/API contract below continues to describe the running OASIS demonstration.
+OASIS-2 is the sole study dataset for this project. The supplied paired MRI files and demographics workbook provide chronological visits, source measurements and observed CDR values. OASIS Group and CDR are not Alzheimer-specific diagnostic labels. Future estimates use only documented OASIS-2 observations, and unsupported outcomes remain unavailable. See [13 OASIS-2 data and forecast scope](13-oasis2-data-and-forecast-scope.md).
 
 ## Supported MRI input
 
@@ -66,6 +74,17 @@ Do not introduce additional tables until a documented requirement exists.
 Allowed values are `queued`, `processing`, `completed`, and `failed`.
 
 ## Result contract
+
+`biomarkers` additionally permits the optional structured `nwbv_age_reference_v1`
+for the selected observed visit. It includes visit ID, source origin, actual and
+reference measurement methods, profile/source fingerprints, age bin/count, input
+nWBV fraction, Z-score when supported, descriptive band, and explicit unavailable
+status/reason. `task=descriptive_age_reference`, `intended_use=support_value`,
+`feature_use_allowed=false`, `clinical_risk=null`. This support value is permitted
+in anatomy analyses without permitting legacy proxy/risk outputs. Existing numeric
+biomarker series and historical results remain compatible. Its existing biomarker
+row stores an object with `unit=descriptive_reference`, rather than a fraction array.
+API camelCase naming exposes it as `biomarkers.nwbvAgeReferenceV1`.
 
 ```python
 ProgressionResult(

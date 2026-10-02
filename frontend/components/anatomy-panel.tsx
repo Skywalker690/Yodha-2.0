@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Play, Download } from "lucide-react";
 import {
   Line,
@@ -9,6 +9,8 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  Area,
+  ComposedChart,
 } from "recharts";
 import type { Analysis, Patient, Report, Visit } from "@/types";
 import { post } from "@/lib/api";
@@ -35,6 +37,14 @@ export function AnatomyPanel({
     [error, setError] = useState("");
   const [report, setReport] = useState<Report | null>(null);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [alignmentConfirmed, setAlignmentConfirmed] = useState(false);
+  useEffect(() => {
+    setReviewConfirmed(false);
+    setAlignmentConfirmed(false);
+    setReport(null);
+    setError("");
+  }, [visit.id, patient.completedAnatomy?.id]);
+  const [region, setRegion] = useState("");
   const job = patient.latestAnatomy;
   const anatomy = patient.completedAnatomy?.resultJson?.anatomy;
   const selected = anatomy?.visits.find((v) => v.visitId === visit.id);
@@ -44,6 +54,31 @@ export function AnatomyPanel({
   );
   const eligible = included.length <= 5 && included.every((v) => v.hasMri);
   const ratings = selected?.ratings;
+  const forecast = anatomy?.forecast;
+  const matchingForecast =
+    forecast?.status === "available" && forecast.cutoffVisitId === visit.id
+      ? forecast
+      : null;
+  const selectedRegion = region || Object.keys(selected?.volumesMm3 || {})[0];
+  const volumeSeries =
+    anatomy?.visits
+      .filter((v) => v.daysFromBaseline <= visit.daysFromBaseline)
+      .map((v) => ({
+        day: v.daysFromBaseline,
+        measured: v.volumesMm3[selectedRegion],
+        predicted:
+          v.visitId === visit.id && matchingForecast
+            ? v.volumesMm3[selectedRegion]
+            : null,
+        band: null as [number, number] | null,
+      })) || [];
+  if (matchingForecast && matchingForecast.intervalDays > 0)
+    volumeSeries.push({
+      day: visit.daysFromBaseline + matchingForecast.intervalDays,
+      measured: undefined!,
+      predicted: matchingForecast.volumesMm3?.[selectedRegion] ?? null,
+      band: matchingForecast.predictionIntervals?.[selectedRegion] ?? null,
+    });
   const includedIds = new Set(included.map((v) => v.id));
   const visibleChanges = anatomy?.changes.filter(
     (v) => includedIds.has(v.earlierVisitId) && includedIds.has(v.laterVisitId),
@@ -248,6 +283,156 @@ export function AnatomyPanel({
             </div>
           </div>
         )}
+        {selected?.qc === "passed" &&
+          ratings?.status === "pending_alignment_qc" && (
+            <div className="notice">
+              <div>
+                <p>
+                  Use “Inspect automatic rating alignment” in the MRI viewer.
+                  Check axial, coronal and sagittal alignment and anatomical
+                  coverage before accepting. This confirms alignment, not a
+                  manual score or independent rating agreement.
+                </p>
+                <label className="volume-check">
+                  <input
+                    type="checkbox"
+                    checked={alignmentConfirmed}
+                    onChange={(e) => setAlignmentConfirmed(e.target.checked)}
+                  />
+                  I inspected all three aligned planes and accept
+                  automatic-rating alignment QC.
+                </label>
+                <Button
+                  variant="outline"
+                  disabled={!alignmentConfirmed || busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setError("");
+                    try {
+                      await post(
+                        `/analysis/${patient.completedAnatomy!.id}/rating-qc/${visit.id}`,
+                        { visualReviewConfirmed: true },
+                      );
+                      setAlignmentConfirmed(false);
+                      reload();
+                    } catch (e) {
+                      setError((e as Error).message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Record automatic alignment review
+                </Button>
+              </div>
+            </div>
+          )}
+        {selected && (
+          <>
+            <h3>Observed versus model-predicted regional anatomy</h3>
+            <label>
+              Region
+              <select
+                aria-label="Anatomy chart region"
+                value={selectedRegion}
+                onChange={(e) => setRegion(e.target.value)}
+              >
+                {Object.keys(selected.volumesMm3).map((name) => (
+                  <option key={name} value={name}>
+                    {regionLabel(name)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="trajectory-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={volumeSeries}>
+                  <CartesianGrid stroke="#223141" />
+                  <XAxis
+                    dataKey="day"
+                    type="number"
+                    domain={["dataMin", "dataMax"]}
+                  />
+                  <YAxis domain={[0, "auto"]} />
+                  <Tooltip />
+                  <Area
+                    dataKey="band"
+                    name="Evaluated structural prediction interval (mm³)"
+                    fill="#66dfd2"
+                    fillOpacity={0.2}
+                    stroke="none"
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    dataKey="measured"
+                    name="Observed FastSurfer stats (mm³)"
+                    stroke="#66dfd2"
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                  <Line
+                    dataKey="predicted"
+                    name="Model-generated stats estimate (mm³)"
+                    stroke="#b99bff"
+                    strokeDasharray="5 4"
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            {matchingForecast ? (
+              <>
+                <p>
+                  Model-generated estimate at +{matchingForecast.intervalDays}{" "}
+                  days · {matchingForecast.spatialModelVersion}. Not an acquired
+                  measurement.
+                </p>
+                <p>
+                  Release {matchingForecast.releaseSha256?.slice(0, 12)} ·
+                  checkpoint {matchingForecast.modelSha256?.slice(0, 12)}.
+                </p>
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Region</th>
+                        <th>Predicted mm³</th>
+                        <th>Evaluated interval mm³</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(matchingForecast.volumesMm3 || {}).map(
+                        ([name, value]) => (
+                          <tr key={name}>
+                            <td>{regionLabel(name)}</td>
+                            <td>{value.toFixed(1)}</td>
+                            <td>
+                              {matchingForecast.predictionIntervals?.[name]
+                                ?.map((v) => v.toFixed(1))
+                                .join(" – ") || "Unavailable"}
+                            </td>
+                          </tr>
+                        ),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <p>
+                  {matchingForecast.intervalEvidence
+                    ? `${matchingForecast.intervalEvidence.level * 100}% target coverage; evaluated on ${matchingForecast.intervalEvidence.subjects} held-out subjects (${matchingForecast.intervalEvidence.method}). Small-cohort research evidence only.`
+                    : "Intervals are unavailable: physical bounds or held-out coverage gates were not satisfied."}
+                </p>
+              </>
+            ) : (
+              <p>
+                No matching evaluated structural forecast exists for this
+                cutoff. Observations above are not extrapolated.
+              </p>
+            )}
+          </>
+        )}
         <h3>Measured change history</h3>
         <h4>Automatic score history through selected cutoff</h4>
         <div className="table-wrap">
@@ -382,8 +567,8 @@ export function AnatomyPanel({
         )}
         <p>
           No later scan/Group field enters a forecast input. Rating agreement
-          and structural prediction accuracy are unverified; no evaluated
-          uncertainty bands are available.
+          requires independent reference ratings; model-specific structural
+          evidence is displayed only for an evaluated release.
         </p>
         <Button
           variant="outline"

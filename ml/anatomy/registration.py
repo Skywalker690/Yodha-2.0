@@ -7,7 +7,7 @@ import SimpleITK as sitk
 from ml.anatomy.masks import geometry
 from ml.anatomy.spatial import jacobians
 
-RAS_TO_LPS = np.diag([-1., -1., 1.])
+RAS_TO_LPS = np.diag([-1.0, -1.0, 1.0])
 VERSION = "cutoff-rigid-demons-v1"
 
 
@@ -66,14 +66,16 @@ def learning_grid(image: nib.Nifti1Image, size: int = 96) -> nib.Nifti1Image:
 def rigid(fixed: nib.Nifti1Image, moving: nib.Nifti1Image) -> tuple[sitk.Transform, dict]:
     """Transform maps fixed cutoff LPS coordinates into moving acquisition LPS coordinates."""
     fixed_itk, moving_itk = as_sitk(normalize(fixed)), as_sitk(normalize(moving))
-    initial = sitk.CenteredTransformInitializer(fixed_itk, moving_itk, sitk.Euler3DTransform(), sitk.CenteredTransformInitializerFilter.GEOMETRY)
+    initial = sitk.CenteredTransformInitializer(
+        fixed_itk, moving_itk, sitk.Euler3DTransform(), sitk.CenteredTransformInitializerFilter.GEOMETRY
+    )
     registration = sitk.ImageRegistrationMethod()
     registration.SetNumberOfThreads(2)
     registration.SetMetricAsMattesMutualInformation(32)
     registration.SetMetricSamplingStrategy(registration.RANDOM)
     registration.SetMetricSamplingPercentage(0.2, 42)
     registration.SetInterpolator(sitk.sitkLinear)
-    registration.SetOptimizerAsRegularStepGradientDescent(1., 0.001, 150)
+    registration.SetOptimizerAsRegularStepGradientDescent(1.0, 0.001, 150)
     registration.SetOptimizerScalesFromPhysicalShift()
     registration.SetShrinkFactorsPerLevel([4, 2, 1])
     registration.SetSmoothingSigmasPerLevel([2, 1, 0])
@@ -83,19 +85,34 @@ def rigid(fixed: nib.Nifti1Image, moving: nib.Nifti1Image) -> tuple[sitk.Transfo
     metric = float(registration.GetMetricValue())
     if not np.isfinite(metric):
         raise ValueError("Rigid registration failed")
-    return transform, {"method": VERSION, "metric": metric, "stop": registration.GetOptimizerStopConditionDescription(), "visual_qc": "pending_review"}
+    return transform, {
+        "method": VERSION,
+        "metric": metric,
+        "stop": registration.GetOptimizerStopConditionDescription(),
+        "visual_qc": "pending_review",
+    }
 
 
-def resample(moving: nib.Nifti1Image, fixed: nib.Nifti1Image, transform: sitk.Transform, *, categorical: bool) -> nib.Nifti1Image:
+def resample(
+    moving: nib.Nifti1Image, fixed: nib.Nifti1Image, transform: sitk.Transform, *, categorical: bool
+) -> nib.Nifti1Image:
     data = np.asarray(moving.dataobj)
     if categorical and not np.equal(data, np.rint(data)).all():
         raise ValueError("Categorical labels required")
-    result = sitk.Resample(as_sitk(moving), as_sitk(fixed), transform, sitk.sitkNearestNeighbor if categorical else sitk.sitkLinear, 0.)
+    result = sitk.Resample(
+        as_sitk(moving),
+        as_sitk(fixed),
+        transform,
+        sitk.sitkNearestNeighbor if categorical else sitk.sitkLinear,
+        0.0,
+    )
     values = sitk.GetArrayFromImage(result).transpose(2, 1, 0)
     return nifti(values.astype(np.int16 if categorical else np.float32), fixed.affine)
 
 
-def target_pull(current: nib.Nifti1Image, later_aligned: nib.Nifti1Image, iterations: int = 80) -> tuple[nib.Nifti1Image, dict]:
+def target_pull(
+    current: nib.Nifti1Image, later_aligned: nib.Nifti1Image, iterations: int = 80
+) -> tuple[nib.Nifti1Image, dict]:
     """Hidden later image is a supervision target only. Future -> current pull map."""
     if current.shape != later_aligned.shape or not np.allclose(current.affine, later_aligned.affine):
         raise ValueError("Target and cutoff require the same physical grid")
@@ -114,4 +131,10 @@ def target_pull(current: nib.Nifti1Image, later_aligned: nib.Nifti1Image, iterat
     jac = jacobians(ras, current.affine)
     if not np.isfinite(ras).all() or np.any(jac <= 0):
         raise ValueError("Nonlinear registration target folds")
-    return nifti(ras.astype(np.float32), current.affine), {"method": VERSION, "direction": "future_to_current_pull_RAS_mm", "minimum_jacobian": float(jac.min()), "metric": float(demons.GetMetric()), "visual_qc": "pending_review"}
+    return nifti(ras.astype(np.float32), current.affine), {
+        "method": VERSION,
+        "direction": "future_to_current_pull_RAS_mm",
+        "minimum_jacobian": float(jac.min()),
+        "metric": float(demons.GetMetric()),
+        "visual_qc": "pending_review",
+    }

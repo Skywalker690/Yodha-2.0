@@ -1,13 +1,60 @@
 # Testing and Validation
 
+## AVRA raw-regression research inputs (2026-10-02)
+
+`python -m pytest tests/test_anatomy.py tests/test_anatomy_lifecycle.py -q` passed
+26 checks; the full root suite passed 221 tests and Ruff passed. Added regressions preserve negative and above-scale finite estimates
+only in explicit provisional research mode, require the raw-method marker/warning,
+retain strict default parsing, block reviewed feature use and reject nonfinite or
+malformed outputs. The live hash-verified OAS2_0070 MR4 CSV reproduced the negative
+ensemble mean. Research export now includes all three completed five-scan histories,
+including that exact raw value; the three existing prepared source records are
+unchanged. App review records and source artifacts were not modified. The coordinator
+was resumed with the same frozen cohort, GPU image, 96³ grid and 20-epoch settings.
+See D034 and ignored `artifacts/avra-negative-output-investigation.json`.
+
+## Optional nWBV reference checks (2026-10-02)
+
+Run `python -m pytest tests/test_nwbv_reference.py nwbv_reference_module/tests/test_reference.py -q`
+and the full Python suite. The focused run passed 19 tests and four subtests;
+the full root suite passed 215 tests. Ruff and Alembic schema checks passed.
+All eight vendored source files match the supplied ZIP byte-for-byte; installation
+with `--no-deps` and the installed package's bundled reference were verified.
+
+Checks cover method-matched fractions and integral recorded ages, sparse/unsupported
+bins, malformed/nonfinite/missing input, optional package failure, descriptive-only
+contracts, frozen enqueue metadata, exclusion of later observations, clearing a
+parent's later-cutoff reference, unchanged model outputs, structured biomarker
+persistence, API serialization and researcher ownership. The existing trained-mode
+regression verifies the added object cannot change the original model covariates or
+sequence prediction. These are integration/arithmetic checks, not diagnostic validation.
+An additional read-only check evaluated the latest completed real anatomy job's
+frozen source metadata: age 77, nWBV 0.769165, reference bin count 19, status `ok`.
+Removing the optional comparison reproduced the existing result exactly. The audit
+is saved at ignored `artifacts/nwbv-real-input-check.json`; no stored result was rewritten.
+
+The local backend was reloaded with the new contract. A one-off deployment helper
+at ignored `artifacts/reload-nwbv-worker.py` holds queued jobs while the current MRI
+job finishes, then replaces only the verified worker processes at an idle boundary.
+It records `artifacts/nwbv-worker-reload-status.json`; `reloaded` and the capability
+`nwbv-age-reference-v1` confirm activation. A waiting state means code is installed
+but the current worker still uses its previous loaded code. It leaves native files,
+job outcomes, review gates and training artifacts unchanged.
+
 ## Longitudinal anatomy checks (2026-10-02)
 
-Run `python -m pytest tests/test_anatomy.py tests/test_anatomy_api.py -q` and the full
+Run `python -m pytest tests/test_anatomy.py tests/test_anatomy_api.py tests/test_anatomy_spatial.py tests/test_anatomy_forecast_api.py tests/test_anatomy_lifecycle.py -q` and the full
 Python suite. Synthetic checks cover verified eTIV conversion, irregular visit timing,
 source geometry/coverage and categorical labels, continuous score ranges, unavailable
 alignment, review provenance, owned artifacts/tampering, explicit report selection,
 train-only structural preprocessing and subject-held-out guards, zero-time physical
 warping, folding/coverage failures and closed physical GIFTI mesh volume agreement.
+Additional checks exercise a small explicitly synthetic score-conditioned training/save/reload
+run and native export of all 40 artifacts with zero-time identity, independent
+selection/calibration roles, physical RAS/LPS/vector resampling,
+registration units, earlier-cutoff exclusion, hash-bound rating approval, HTTP 202
+forecasts, changed-release/input failures, owned future artifacts and available PDF
+content. Synthetic candidates are rejected by promotion.
 These are engineering checks, NOT real-data anatomical accuracy.
 
 Run frontend TypeScript, `npm test`, production build and
@@ -16,12 +63,39 @@ cards separately from anatomy cards, verifies the added workspace panel, selecte
 future interval and explicit unavailable/non-acquired label; it does not load a real
 predicted artifact. Anatomy UI tests cover review confirmation, ratios, unavailable
 ratings, explicit report selection and bounded authenticated mesh loading.
-The synthetic anatomy PDF was rendered with Poppler and every page inspected.
+Forecast UI tests cover the exact 731-day interval, selected cutoff, measured/predicted
+URLs, two reviewed observations and stale measurement/provenance rejection.
+The synthetic measured and available-forecast PDFs were rendered with Poppler and
+every page inspected.
+
+Current verification: 199 Python tests and 54 frontend tests passed; Ruff, TypeScript,
+production build, the strict Edge browser check and Alembic schema check passed.
+AVRA's v2 container completed a real-MRI preprocessing/scoring smoke test, with its
+scores still pending visual alignment review. See [18](18-anatomy-forecast-lifecycle.md).
+
+New tests freeze the scan-count cohort at 44/4/4/4, show that changed CDR/Group does
+not alter assignment, reject unreviewed inputs by default, exercise explicit provisional
+candidate training without granting review, and verify no no-score model files are
+trained. A partial one-visit analysis does not satisfy full-history readiness.
+The offline CUDA container also completed an explicitly synthetic one-epoch
+training run, checkpoint save and reload in the host environment. Its runtime is
+recorded as PyTorch 2.7.1+cu128 / RTX 3050; promotion remains rejected. This verifies
+the training execution path, not real forecasting accuracy.
+The three actual prepared examples from OAS2_0048 also completed CUDA
+forward/backward/optimizer preflight steps at 96³ with finite losses and gradients.
+This single-subject preflight creates no release and is not the full-cohort fit.
+All 19 native source-mask meshes from its second scan passed the corrected binary
+isosurface closure/volume checks. Neither check grants human review.
+Additional regressions check subject-balanced spatial metrics for repeated histories,
+stable full-cohort case indices during incremental preparation, immutable GPU image
+pins/read-only study mounts, and binary saddle contacts yielding closed meshes without
+changing the categorical mask.
 
 Required scientific checks remain UNEXECUTED: real longitudinal segmentation/alignment
-QC, independent rating agreement (no reference labels), matched structural score
-ablation, interval coverage, trained spatial forecast overlap/surface metrics and
-matching real predicted NIfTI/GIFTI artifacts. See [17](17-longitudinal-anatomy.md).
+QC, independent rating agreement (no reference labels), interval coverage,
+trained spatial forecast overlap/surface metrics and
+matching real predicted NIfTI/GIFTI artifacts. No synthetic check is evidence for
+these scientific gates. See [17](17-longitudinal-anatomy.md).
 
 ## ML-only serving checks (2026-10-02)
 
@@ -100,11 +174,15 @@ serving. The production Next build, TypeScript, unit tests and full Python suite
 - Confidence is shown only when defined and calculated.
 - Claims are limited to structural pattern analysis and progression-risk estimation.
 
-## Strict forecasting checks (planned, not yet executed)
+## OASIS-2 forecast checks
 
-Before any new strict forecasting training, verify the permission/containment and dataset gates in [13 Strict forecasting data](13-strict-forecasting-data.md). Public documentation and synthetic fixtures are permitted during acquisition planning; real participant-level tool output is not permitted without an approved contained workflow.
-
-The new pipeline must test phase-specific diagnosis mappings, documented baseline MCI eligibility, Alzheimer-specific outcome semantics, duplicate/rollover participant and scan detection, clinical/MRI date alignment and feature availability at the prediction cutoff. Label tests must cover events before/on/after 12/24/36 months, inadequate follow-up, diagnosis gaps spanning a horizon, reversions and unresolved diagnoses. Unknown labels must remain masked. Verify both classes and report event/nonevent/unknown counts separately by split and horizon; class presence alone does not establish adequate sample size. MRI QC, morphometry units, training-only preprocessing, monotonic supported risks and a synthetic end-to-end request also need checks. Existing OASIS tests do not validate this future pipeline.
+Forecast labels must derive only from the supplied OASIS-2 CDR history and the
+documented horizon policy. Test earliest CDR-zero baseline selection, visit-date
+alignment, held-out follow-up masking, insufficient follow-up, subject-level split
+integrity, training-only demographic preprocessing, missing covariates, MRI QC and
+physical units. Report event, nonevent and unknown counts by frozen split and horizon;
+do not infer Alzheimer-specific diagnoses from CDR or Group. Suppress horizons that
+the supplied cohort cannot support.
 
 ## Completion rule
 

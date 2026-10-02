@@ -33,8 +33,10 @@ def readiness() -> RatingEstimate:
     return RatingEstimate(warnings=warnings)
 
 
-def parse_avra_csv(path: Path, *, alignment_verified: bool = False) -> RatingEstimate:
-    """Preserve continuous means, reject invalid ranges; no clipping or integer rounding."""
+def parse_avra_csv(
+    path: Path, *, alignment_verified: bool = False, allow_unreviewed_research: bool = False
+) -> RatingEstimate:
+    """Preserve raw means; nominal bounds apply unless explicitly exporting research inputs."""
     if not alignment_verified:
         return RatingEstimate(
             status="pending_alignment_qc",
@@ -46,12 +48,27 @@ def parse_avra_csv(path: Path, *, alignment_verified: bool = False) -> RatingEst
         if len(rows) != 1:
             raise ValueError("Exactly one case expected")
         row = rows[0]
+        values = {
+            "mta_left": float(row["mta_left_mean"]),
+            "mta_right": float(row["mta_right_mean"]),
+            "posterior_atrophy": float(row["pa_mean"]),
+        }
+        outside = {
+            name: value for (name, value), upper in zip(values.items(), (4, 4, 3)) if not 0 <= value <= upper
+        }
+        if allow_unreviewed_research and outside:
+            return RatingEstimate(
+                status="unreviewed_research",
+                method="AVRA-v0.8-ensemble-raw-regression-research",
+                **values,
+                warnings=[
+                    f"Raw AVRA regression estimates outside nominal scale: {outside}. Preserved without clipping; not clinical ordinal ratings.",
+                ],
+            )
         return RatingEstimate(
             status="ok",
             method="AVRA-v0.8-ensemble-continuous",
-            mta_left=float(row["mta_left_mean"]),
-            mta_right=float(row["mta_right_mean"]),
-            posterior_atrophy=float(row["pa_mean"]),
+            **values,
             warnings=["Automatic model estimates; rating agreement is unverified on this dataset."],
         )
     except (ValueError, KeyError, OSError):
@@ -69,6 +86,7 @@ def run_rating(source: Path, output: Path, runtime_manifest: Path | None = None)
     """
     if runtime_manifest is None:
         return readiness()
+    stage = "runtime manifest verification"
     try:
         runtime = json.loads(runtime_manifest.read_text(encoding="utf-8"))
         image = runtime["image"]
@@ -76,6 +94,9 @@ def run_rating(source: Path, output: Path, runtime_manifest: Path | None = None)
             raise ValueError("AVRA runtime requires a registry digest")
         weights = Path(runtime["weights_dir"]).resolve()
         expected = runtime["weights_sha256"]
+        stage = "released checkpoint verification"
+        if {p.relative_to(weights).as_posix() for p in weights.rglob("*.pth.tar")} != set(expected):
+            raise ValueError("The executed ensemble differs from the checkpoint allowlist")
         if not expected or not all(
             any(name.startswith(scale + "/") for name in expected) for scale in ("mta", "pa", "gca-f")
         ):
@@ -125,6 +146,7 @@ def run_rating(source: Path, output: Path, runtime_manifest: Path | None = None)
             "rating",
         ]
         with (output / "execution.log").open("w", encoding="utf-8") as stream:
+            stage = "upstream FSL preprocessing and pretrained inference"
             try:
                 subprocess.run(command, check=True, stdout=stream, stderr=subprocess.STDOUT, timeout=900)
             except subprocess.TimeoutExpired:
@@ -145,6 +167,7 @@ def run_rating(source: Path, output: Path, runtime_manifest: Path | None = None)
         import numpy as np
         from ml.anatomy.masks import geometry
 
+        stage = "aligned image and transform validation"
         geometry(nib.load(aligned))
         transform = np.loadtxt(matrix)
         if transform.shape != (4, 4) or not np.isfinite(transform).all():
@@ -164,11 +187,13 @@ def run_rating(source: Path, output: Path, runtime_manifest: Path | None = None)
         }
         write_json(output / "provenance.json", provenance)
         # Upstream's own diagonal test cannot establish registration quality.
-        return parse_avra_csv(csv_path, alignment_verified=False)
+        estimate = parse_avra_csv(csv_path, alignment_verified=False)
+        estimate.provenance_sha256 = sha256(output / "provenance.json")
+        return estimate
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
         return RatingEstimate(
             status="invalid",
             warnings=[
-                "AVRA runtime, pinned checkpoints, preprocessing or alignment failed; inspect the private rating log."
+                f"AVRA candidate failed during {stage}; inspect the private rating log. No alternative scores were substituted."
             ],
         )

@@ -1,22 +1,58 @@
 # Implementation Status
 
+## Optional nWBV module integration (2026-10-02)
+
+The supplied package is extracted at `nwbv_reference_module/`, installed with
+`--no-deps`, and packaged in the backend Docker build. The existing worker attaches
+the selected observed visit's `biomarkers.nwbv_age_reference_v1` and persists its
+structured provenance in the existing biomarker table. It is descriptive research
+context with no clinical risk and no new training feature. Existing results remain
+readable; they are not rewritten. Frozen metadata and earlier-cutoff handling prevent
+later/edited visit data from entering the comparison. See D033 and the module README.
+
+Verification: 215 root Python tests, three bundled package tests and four subtests
+passed; Ruff, package integrity/installed evaluation and Alembic checks passed.
+The local backend was reloaded. The worker's safe idle-boundary reload is tracked in
+ignored `artifacts/nwbv-worker-reload-status.json`; it waits for the active MRI job
+and confirms the new `nwbv-age-reference-v1` capability before marking `reloaded`.
+
 ## Longitudinal anatomy extension 2026-10-02
 
-The uploaded atrophy/future-brain plan is partially implemented, NOT completed.
-The existing worker/API/workspace now support native anatomy jobs, 18-regional masks
-and stats, immutable provenance, explicit visual QC, reviewed scalar changes,
-automatic-score availability/history, source observations, ratios and separate reports.
-Generic GIFTI loading and physical warp/mesh checks are implemented, but no trained
-spatial model, evaluated forecast artifacts or functioning real future-brain rendering
-exists. AVRA runtime/weights/alignment release remain unverified. Details and exact
-remaining acceptance criteria are in [17](17-longitudinal-anatomy.md).
+Live update after investigating AVRA: three complete five-scan cohort histories
+are available, a fourth is processing and 52 subjects remain queued. The coordinator
+had stopped because a finite PA estimate of -0.00059036014 violated nominal ordinal
+bounds. D034 corrects the provisional research path to preserve raw regression
+outputs with an explicit warning; source hashes and clinical review bounds remain
+enforced. Research export now accepts all three histories and retains the earlier
+three prepared examples unchanged. The same coordinator/run was resumed for
+registration and eventual full-cohort training; parameter fitting has not started.
+
+Latest training run: score-conditioned only, with a scan-count-selected 56-subject /
+185-visit cohort and new 44 train / 4 selection / 4 calibration / 4 test assignment.
+Docker was recovered again; one worker and a durable coordinator are processing the
+cohort, then automatically preparing/training/evaluating an explicitly provisional
+research candidate. Pending visual QC blocks promotion, not this candidate computation.
+Live stage: `artifacts/anatomy-score-run-20261002/pipeline-status.json`.
+
+The uploaded atrophy/future-brain plan's software paths are implemented, but its
+scientific completion condition is NOT met. The worker/API/workspace support native
+18-region anatomy, review-bound measurements and automatic scores, cutoff-local
+registration, score-conditioned scalar/spatial training, held-out calibration/native evaluation,
+immutable release promotion, asynchronous forecasts, owned MRI/mask/field/GIFTI
+serving, predicted viewer controls/playback and separate reports. No real anatomy
+model has been trained/promoted; no real future-brain output is available.
+Details, API and reproducible commands are in
+[18 Anatomy forecasting lifecycle](18-anatomy-forecast-lifecycle.md).
 
 All five baseline pilot outputs are verified and `awaiting_visual_qc`. Original
 failure records are preserved; none is automatically approved. The local database
-has zero completed/reviewed longitudinal anatomy jobs. This is not new training or
-prediction accuracy evidence. Current tests: 180 Python and 50 frontend passed;
-TypeScript, production build and the updated strict Edge browser check also passed.
-Both synthetic anatomy report pages were rendered and visually reviewed. See
+has zero completed/reviewed longitudinal anatomy jobs. All frozen 56 subjects/185
+visits are imported. A real GPU anatomy pilot began but was interrupted when Docker
+and the worker stopped; the job is failed and files preserved. The hash-pinned AVRA
+v2 runtime completed scoring on one real MRI, still pending alignment QC. This is
+not prediction accuracy evidence. Current tests: 195 Python and 54 frontend passed;
+Ruff, TypeScript, production build, strict Edge browser and Alembic checks passed.
+Synthetic measured/forecast report pages were rendered and visually reviewed. See
 [07](07-testing-validation.md) for checks and scientific limitations. These checks
 do not validate AVRA ratings or real future-brain forecasting.
 
@@ -71,7 +107,10 @@ fresh-environment container execution or MRI-added-value validation is claimed.
 
 Verified locally on 2026-10-01. The documented research-prototype MVP is implemented. This is software workflow verification, not clinical or predictive-model validation.
 
-The subsequently requested strict MCI-to-Alzheimer forecasting PRD is **not implemented or trained**. The endpoint and authorized-data acquisition plan are now documented in [13 Strict forecasting data](13-strict-forecasting-data.md). ADNI access, a compliant processing environment, the actual cohort and horizon support remain unverified; no dataset download has been completed. The MVP verification below does not establish compliance with this new forecasting specification.
+This project uses only the supplied OASIS-2 MRI dataset and demographics workbook.
+The baseline endpoint is later observed CDR conversion, not an Alzheimer-specific
+diagnosis. Horizon support remains limited by observed follow-up and event counts.
+See [13 OASIS-2 data and forecast scope](13-oasis2-data-and-forecast-scope.md).
 
 ## Delivered product
 

@@ -1,13 +1,30 @@
 # NeuroPredict AI
 
+## Optional nWBV reference
+
+The backend worker adds `biomarkers.nwbv_age_reference_v1` when a selected visit has
+recorded age or nWBV metadata. Install the bundled user-provided package locally with
+`python -m pip install --no-deps .\nwbv_reference_module`; the backend Docker image
+installs it automatically. The method-matched age-bin comparison is descriptive
+research context, not an Alzheimer/MCI diagnosis, future-risk estimate or model feature.
+Missing inputs and unsupported methods/ages/reference bins have explicit statuses.
+See [module README](nwbv_reference_module/README.md) and [data contract](docs/03-data-contract.md).
+
 ## Longitudinal anatomy extension
 
+The current anatomy run trains only with MTA/Koedam inputs. All 56 subjects with
+three-to-five scans are selected by scan count, using a new 44/4/4/4 subject split.
+The local coordinator processes, registers, trains and evaluates a provisional
+candidate; serving promotion still requires reviewed/evaluated anatomy.
+
 The existing workspace now has native regional masks/measurements, explicit visual
-QC, score-availability/history cards and separate anatomy reports. All five baseline
-pilot outputs are verified but await visual QC. Future-brain forecasting is NOT
-complete: no evaluated spatial model or real predicted NIfTI/GIFTI release exists.
-Setup, delivered boundaries and remaining acceptance criteria are in
-[Longitudinal anatomy](docs/17-longitudinal-anatomy.md).
+QC, automatic scoring/alignment review, history cards and separate anatomy reports.
+Registration, score-conditioned scalar/spatial training, native evaluation, release promotion,
+asynchronous forecasts and predicted NIfTI/GIFTI rendering are implemented. AVRA ran
+on one real MRI; all five baseline pilot outputs await visual QC. No real future-brain
+model is trained or promoted, so scientific completion is still outstanding.
+Setup, execution evidence and remaining gates are in
+[Anatomy forecasting lifecycle](docs/18-anatomy-forecast-lifecycle.md).
 
 ## Current default: ML-only serving
 

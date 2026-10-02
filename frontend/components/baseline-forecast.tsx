@@ -49,9 +49,9 @@ export function BaselineForecast({
         Check prediction readiness
       </Button>
       <p>
-        Separate experiment: first observed CDR conversion after a CDR-zero
-        baseline. Not MCI-to-Alzheimer forecasting or a medical diagnosis. Later
-        visits are labels only.
+        OASIS-2 estimate: first observed CDR conversion after a CDR-zero
+        baseline; this is not an Alzheimer-specific forecast or a medical
+        diagnosis. Later visits are labels only.
       </p>
       {research ? (
         <label>

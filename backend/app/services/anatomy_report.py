@@ -99,22 +99,92 @@ def build_anatomy_report(patient: Patient, analysis: Analysis, visits: list[Visi
                     f"Source-provided {key}: {item.observed_metadata.get(key) if item.observed_metadata.get(key) is not None else 'missing'}"
                 )
             )
+    story.append(PageBreak())
     story.append(para("Regional changes", "Heading2"))
     story.append(para(result.anatomy.sign_convention))
     for change in result.anatomy.changes:
         story.append(para(f"Elapsed {change['elapsed_days']} days; QC {change['status']}."))
+        rows = [[para("Region"), para("Change mm3"), para("Change %"), para("% / year")]]
         for name, values in change["regions"].items():
-            story.append(
-                para(
-                    f"{name}: {values['absolute_mm3']:+.2f} mm3; {values['percent']:+.2f}%; {values['annualized_percent']:+.2f}%/year."
+            rows.append(
+                [
+                    para(name.removesuffix("_mm3").replace("_", " ")),
+                    para(f"{values['absolute_mm3']:+.2f}"),
+                    para(f"{values['percent']:+.2f}"),
+                    para(f"{values['annualized_percent']:+.2f}"),
+                ]
+            )
+        if change["regions"]:
+            table = Table(rows, colWidths=[241, 90, 90, 90], repeatRows=1)
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e5f0ef")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ]
                 )
             )
-    story.append(para("Predicted anatomy - unavailable", "Heading2"))
+            story.append(table)
+        else:
+            story.append(para("Changes remain unavailable until both segmentations pass visual review."))
+    forecast = result.anatomy.forecast
+    story.append(PageBreak())
+    story.append(para(f"Predicted anatomy - {forecast.status}", "Heading2"))
     story.append(
         para(
-            f"Requested {result.anatomy.forecast.interval_days} days after latest included MRI. No acquired/future MRI or mesh is substituted."
+            f"Requested {forecast.interval_days} days after cutoff {forecast.cutoff_visit_id}. Model-generated outputs are not acquired scans."
         )
     )
+    if forecast.status == "available":
+        story.append(
+            para(
+                f"Spatial model: {forecast.spatial_model_version}. Release SHA256: {forecast.release_sha256}."
+            )
+        )
+        story.append(
+            para(
+                f"Checkpoint SHA256: {forecast.model_sha256}. Scalar stats estimates and warped hard-label volumes are different estimators."
+            )
+        )
+        rows = [[para("Region"), para("Predicted mm3"), para("Evaluated interval mm3")]]
+        for region, value in forecast.volumes_mm3.items():
+            interval = forecast.prediction_intervals.get(region) if forecast.prediction_intervals else None
+            rows.append(
+                [
+                    para(region.removesuffix("_mm3").replace("_", " ")),
+                    para(f"{value:.2f}"),
+                    para(f"{interval[0]:.2f} - {interval[1]:.2f}" if interval else "unavailable"),
+                ]
+            )
+        table = Table(rows, colWidths=[241, 100, 170], repeatRows=1)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e5f0ef")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ]
+            )
+        )
+        story.append(table)
+        if forecast.interval_evidence:
+            story.append(
+                para(
+                    f"Interval evidence: {forecast.interval_evidence['method']}; target coverage {forecast.interval_evidence['level']:.0%}; held-out subjects {forecast.interval_evidence['subjects']}. Small-cohort research only."
+                )
+            )
+        else:
+            story.append(
+                para(
+                    "No uncertainty intervals passed physical/held-out coverage gates. None were substituted."
+                )
+            )
+        story.append(para("Future artifact provenance", "Heading2"))
+        for artifact in forecast.artifacts:
+            story.append(para(f"{artifact.name} ({artifact.kind}); SHA256 {artifact.sha256}"))
+    else:
+        story.append(para("No future MRI, surface or numeric extrapolation is substituted."))
     story.extend(para(w) for w in [*result.anatomy.forecast.warnings, *result.caveats])
 
     def footer(canvas, document):

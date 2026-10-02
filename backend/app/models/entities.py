@@ -73,7 +73,7 @@ class Biomarker(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     analysis_id: Mapped[str] = mapped_column(ForeignKey("analyses.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(64))
-    values_json: Mapped[list] = mapped_column(JSON)
+    values_json: Mapped[list | dict] = mapped_column(JSON)
     unit: Mapped[str] = mapped_column(String(32))
 
 

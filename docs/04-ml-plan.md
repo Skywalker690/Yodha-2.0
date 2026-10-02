@@ -2,8 +2,11 @@
 
 For the separate anatomy extension and its incomplete scientific gates, see
 [17 Longitudinal anatomy](17-longitudinal-anatomy.md). Neither historical CDR model
-forecasts future geometry. Offline mixed-effects comparisons and physical warp
-helpers are not a trained spatial release and must not be presented as one.
+forecasts future geometry. Cutoff-local registration, score-conditioned mixed-effects/3D
+training, held-out calibration, native evaluation and gated release are implemented
+in `ml/anatomy/`. No real anatomy model is trained/promoted yet. See
+[18 Anatomy forecasting lifecycle](18-anatomy-forecast-lifecycle.md) for inputs,
+physical mapping, gates and reproducible commands.
 
 ## Current FastSurfer baseline study
 
@@ -11,23 +14,27 @@ The default serving policy is now ML-only Clinical + FastSurfer; earlier rule-ba
 and retrospective models below are not serving fallbacks. Actual processing/training
 uses [the durable staged workflow](16-ml-only-serving.md) and explicit release gates.
 
-The October 2 PRD defines a separate baseline-only OASIS study, implemented in `src/`.
+The October 2 PRD defines a baseline-only OASIS-2 study, implemented in `src/`.
 The compact Tier A/B logistic models use known labels only and train-only preprocessing;
 FastSurfer is a pinned, offline anatomical processor. The old CNN/MLP/LSTM remains a
 retrospective historical experiment, not a source of horizon probabilities. See
 [architecture](15-fastsurfer-architecture.md), [endpoint](cohort_definition.md),
-[evaluation](evaluation.md) and [blockers](blockers.md). The strict objective below
-is historical/separate and must not be conflated with observed CDR conversion.
+[evaluation](evaluation.md) and [blockers](blockers.md). Predictions must not be
+described as an Alzheimer diagnosis or a future disease transition.
 
 ## MVP strategy
 
 Build a credible end-to-end research pipeline, not a publishable clinical model. Use a pretrained or lightweight 3D encoder, a small temporal LSTM, and cached demo outputs when full training is incomplete.
 
-## New primary research objective
+## OASIS-2 research objective
 
-The user has now requested strict baseline-MCI to future Alzheimer dementia forecasting at 12/24/36 months. The existing OASIS models below remain separate retrospective experiments, not initial weights or validated predictors for this new endpoint. No strict forecasting training has started.
-
-Start only after authorized data acquisition, diagnosis-code review and an auditable cohort/follow-up assessment. Use one eligible baseline per participant, baseline-available inputs only, patient-level splits, training-only imputation/scaling and masked unknown outcomes. First establish regularized clinical and clinical-plus-verified-MRI-summary baselines on matched subjects. Calibration and model selection use development data; preserve an independent final test set. A horizon with insufficient event/nonevent support remains unavailable rather than receiving fabricated probabilities or metrics. See [13 Strict forecasting data](13-strict-forecasting-data.md).
+Use only the supplied OASIS-2 MRI, demographics workbook and recorded clinical
+measurements. The supported baseline task predicts later observed CDR conversion
+from the earliest CDR-zero visit, using demographics and reviewed FastSurfer
+measurements only when available. Later visits establish outcomes and must never
+enter baseline predictors. Split by subject, fit preprocessing on training subjects,
+compare matched clinical and clinical-plus-MRI models, and suppress unsupported
+horizons. CDR conversion is not an Alzheimer-specific diagnosis.
 
 ## Processing stages
 

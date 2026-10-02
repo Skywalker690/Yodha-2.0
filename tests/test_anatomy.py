@@ -94,6 +94,37 @@ def test_rating_fails_closed_without_runtime(tmp_path):
     assert run_rating(tmp_path / "none.nii", tmp_path / "rating", config).status == "invalid"
 
 
+@pytest.mark.parametrize("raw", [-0.00059036014, 3.02])
+def test_raw_avra_regression_extrapolation_is_research_only_and_never_clipped(tmp_path, raw):
+    path = tmp_path / "rating.csv"
+    path.write_text(f"mta_left_mean,mta_right_mean,pa_mean\n1.2,2.0,{raw}\n")
+    assert parse_avra_csv(path, alignment_verified=True).status == "invalid"
+    assert parse_avra_csv(path, allow_unreviewed_research=True).status == "pending_alignment_qc"
+    rating = parse_avra_csv(path, alignment_verified=True, allow_unreviewed_research=True)
+    assert rating.status == "unreviewed_research" and rating.posterior_atrophy == raw
+    assert rating.method == "AVRA-v0.8-ensemble-raw-regression-research"
+    assert any("outside nominal scale" in warning for warning in rating.warnings)
+    one, two = measured(0), measured(365)
+    one.ratings = rating.model_copy(deep=True)
+    two.ratings = rating.model_copy(deep=True)
+    features, names = history_features([one, two], 365, True, require_review=False)
+    assert features[names.index("posterior_atrophy")] == raw
+    with pytest.raises(ValueError):
+        history_features([one, two], 365, True)
+    with pytest.raises(ValidationError):
+        RatingEstimate.model_validate({**rating.model_dump(), "status": "ok"})
+    with pytest.raises(ValidationError):
+        RatingEstimate.model_validate({**rating.model_dump(), "warnings": []})
+
+
+@pytest.mark.parametrize("raw", ["nan", "inf", "-inf", "missing"])
+def test_research_avra_parser_still_rejects_unusable_outputs(tmp_path, raw):
+    path = tmp_path / "rating.csv"
+    path.write_text(f"mta_left_mean,mta_right_mean,pa_mean\n1.2,2.0,{raw}\n")
+    rating = parse_avra_csv(path, alignment_verified=True, allow_unreviewed_research=True)
+    assert rating.status == "invalid" and rating.posterior_atrophy is None
+
+
 def image(data, affine=None):
     result = nib.Nifti1Image(data, np.eye(4) if affine is None else affine)
     result.header.set_xyzt_units("mm")
@@ -156,7 +187,8 @@ def test_mesh_affine_applied_once_closed_and_consistent(tmp_path):
     assert report["voxel_volume_mm3"] == pytest.approx(4096 * 24)
     assert report["relative_volume_error"] < 0.05
     vertices = nib.load(tmp_path / "mask.gii").darrays[0].data
-    assert vertices[:, 0].min() == pytest.approx(107)
+    # 0.5001 binary boundary, transformed once by 2 mm spacing + 100 mm origin.
+    assert vertices[:, 0].min() == pytest.approx(107.0002, abs=2e-5)
     assert report["components"] == 1
     data[0, 4, 4] = 1
     with pytest.raises(ValueError, match="boundary"):

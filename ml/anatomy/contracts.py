@@ -7,21 +7,37 @@ VERSION = "longitudinal-anatomy-v1"
 
 class RatingEstimate(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    status: Literal["unavailable", "invalid", "pending_alignment_qc", "ok"] = "unavailable"
+    status: Literal["unavailable", "invalid", "pending_alignment_qc", "unreviewed_research", "ok"] = (
+        "unavailable"
+    )
     method: str = "AVRA-v0.8-candidate"
-    mta_left: float | None = Field(default=None, ge=0, le=4, allow_inf_nan=False)
-    mta_right: float | None = Field(default=None, ge=0, le=4, allow_inf_nan=False)
-    posterior_atrophy: float | None = Field(default=None, ge=0, le=3, allow_inf_nan=False)
+    mta_left: float | None = Field(default=None, allow_inf_nan=False)
+    mta_right: float | None = Field(default=None, allow_inf_nan=False)
+    posterior_atrophy: float | None = Field(default=None, allow_inf_nan=False)
     warnings: list[str] = Field(default_factory=list)
     agreement_validated: Literal[False] = False
+    provenance_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    reviewer_id: str | None = None
+    reviewed_at: str | None = None
 
     @model_validator(mode="after")
     def available(self) -> "RatingEstimate":
         values = [self.mta_left, self.mta_right, self.posterior_atrophy]
-        if self.status == "ok" and any(v is None for v in values):
+        if self.status in {"ok", "unreviewed_research"} and any(v is None for v in values):
             raise ValueError("Successful rating requires all released outputs")
-        if self.status != "ok" and any(v is not None for v in values):
+        if self.status not in {"ok", "unreviewed_research"} and any(v is not None for v in values):
             raise ValueError("Unverified alignment/invalid ratings must not expose scores")
+        outside = any(
+            value is not None and not 0 <= value <= upper for value, upper in zip(values, (4, 4, 3))
+        )
+        if outside and not (
+            self.status == "unreviewed_research"
+            and self.method == "AVRA-v0.8-ensemble-raw-regression-research"
+            and any("outside nominal scale" in warning for warning in self.warnings)
+        ):
+            raise ValueError(
+                "Out-of-scale AVRA estimates require an explicit raw research policy and warning"
+            )
         return self
 
 
@@ -29,7 +45,7 @@ class AnatomyVisit(BaseModel):
     model_config = ConfigDict(extra="forbid")
     visit_id: str
     days_from_baseline: int = Field(ge=0)
-    qc: Literal["pending_review", "passed"]
+    qc: Literal["pending_review", "automated_checks_only", "passed"]
     source_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     segmentation_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     statistics_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -87,26 +103,52 @@ class StructuralForecast(BaseModel):
     spatial_model_version: str | None = None
     model_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     release_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
-    artifacts: list[ForecastArtifact] = Field(default_factory=list, max_length=24)
+    artifacts: list[ForecastArtifact] = Field(default_factory=list, max_length=48)
 
     @model_validator(mode="after")
     def released(self) -> "StructuralForecast":
         import math
         from src.fastsurfer.regions import REGIONS
+
         if self.status == "unavailable":
-            if any(v is not None for v in (self.volumes_mm3, self.prediction_intervals, self.interval_evidence, self.spatial_model_version, self.model_sha256, self.release_sha256)) or self.artifacts:
+            if (
+                any(
+                    v is not None
+                    for v in (
+                        self.volumes_mm3,
+                        self.prediction_intervals,
+                        self.interval_evidence,
+                        self.spatial_model_version,
+                        self.model_sha256,
+                        self.release_sha256,
+                    )
+                )
+                or self.artifacts
+            ):
                 raise ValueError("Unavailable forecasts cannot expose numeric/spatial substitutes")
             return self
-        if (not self.volumes_mm3 or set(self.volumes_mm3) != set(REGIONS) or any(not math.isfinite(v) or v <= 0 for v in self.volumes_mm3.values())
+        if (
+            not self.volumes_mm3
+            or set(self.volumes_mm3) != set(REGIONS)
+            or any(not math.isfinite(v) or v <= 0 for v in self.volumes_mm3.values())
             or not all((self.spatial_model_version, self.model_sha256, self.release_sha256))
             or len({a.name for a in self.artifacts}) != len(self.artifacts)
-            or not {"mri", "labels", "pull", "brain_mesh"}.issubset({a.name for a in self.artifacts})):
+            or not {"mri", "labels", "pull", "brain_mesh"}.issubset({a.name for a in self.artifacts})
+        ):
             raise ValueError("Available forecast requires a complete evaluated native artifact set")
         if self.prediction_intervals is not None:
-            if not self.interval_evidence or self.interval_evidence.get("evaluated") is not True or set(self.prediction_intervals) != set(REGIONS):
+            if (
+                not self.interval_evidence
+                or self.interval_evidence.get("evaluated") is not True
+                or set(self.prediction_intervals) != set(REGIONS)
+            ):
                 raise ValueError("Intervals require held-out coverage evidence for every region")
             for region, (low, high) in self.prediction_intervals.items():
-                if not math.isfinite(low) or not math.isfinite(high) or not 0 < low <= self.volumes_mm3[region] <= high:
+                if (
+                    not math.isfinite(low)
+                    or not math.isfinite(high)
+                    or not 0 < low <= self.volumes_mm3[region] <= high
+                ):
                     raise ValueError("Invalid physical prediction interval")
         elif self.interval_evidence is not None:
             raise ValueError("Evidence without intervals is inconsistent")

@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from pathlib import Path
+from threading import Event, Thread
 
 from sqlalchemy import select, text, update
 
@@ -12,8 +13,28 @@ from backend.app.services.analysis import cache_key, trained_model_version
 from backend.app.services.storage import resolve_key
 from ml.contracts import ProgressionResult, VisitInput
 from ml.inference import run_pipeline
+from ml.nwbv_contract import NWBV_REFERENCE_KEY, NwbvAgeReferenceBiomarker
 
 logger = logging.getLogger(__name__)
+
+
+def heartbeat_loop(stop: Event) -> None:
+    """Remain observable while a native inference job takes tens of minutes."""
+    from src.common import write_json
+
+    heartbeat: Path = resolve_key("worker-heartbeat.txt")
+    while not stop.is_set():
+        temporary = heartbeat.with_suffix(".tmp")
+        temporary.write_text(str(time.time()), encoding="utf-8")
+        temporary.replace(heartbeat)
+        write_json(
+            resolve_key("worker-capabilities.json"),
+            {
+                "timestamp": time.time(),
+                "capabilities": ["longitudinal-anatomy-v1", "anatomy-forecast-v1", "nwbv-age-reference-v1"],
+            },
+        )
+        stop.wait(min(get_settings().worker_poll_seconds, 5.0))
 
 
 def update_progress(analysis_id: str, progress: int, stage: str) -> None:
@@ -57,17 +78,36 @@ def execute(analysis_id: str) -> None:
             spec = snapshot[-1].get("forecast_spec")
             if spec:
                 from backend.app.services.anatomy_forecast import execute_forecast, result_hash
+
                 with SessionLocal() as db:
                     source = db.get(Analysis, spec["source_analysis_id"])
                     patient = db.get(Patient, patient_id)
-                    if (not source or not patient or source.patient_id != patient_id or source.status != "completed"
+                    if (
+                        not source
+                        or not patient
+                        or source.patient_id != patient_id
+                        or source.status != "completed"
                         or result_hash(source.result_json) != spec["source_result_sha256"]
-                        or source.visit_id != snapshot[-1]["visit_id"]):
+                        or snapshot[-1]["visit_id"] not in (source.result_json or {}).get("visit_ids", [])
+                    ):
                         raise ValueError("Pinned reviewed anatomy source changed")
-                    payload, source_inputs, source_id, subject = source.result_json, source.input_json, source.id, patient.code
+                    payload, source_inputs, source_id, subject = (
+                        source.result_json,
+                        source.input_json,
+                        source.id,
+                        patient.code,
+                    )
                 update_progress(analysis_id, 20, "Cutoff-local registration and evaluated spatial prediction")
-                result = execute_forecast(payload, source_inputs, resolve_key(f"derived/{source_id}"), resolve_key(artifact_prefix), subject,
-                                          snapshot[-1]["future_interval_days"], spec["release_sha256"])
+                result = execute_forecast(
+                    payload,
+                    source_inputs,
+                    resolve_key(f"derived/{source_id}"),
+                    resolve_key(artifact_prefix),
+                    subject,
+                    snapshot[-1]["future_interval_days"],
+                    spec["release_sha256"],
+                    snapshot[-1]["visit_id"],
+                )
             else:
                 result = run_anatomy(
                     patient_id,
@@ -77,12 +117,16 @@ def execute(analysis_id: str) -> None:
                     rating_runtime=get_settings().avra_runtime_manifest,
                 )
             result = ProgressionResult.model_validate(result.model_dump())
-            if (result.model_version != pinned_version or result.output_mode != "anatomy"
-                or result.patient_id != patient_id or result.visit_ids != [s["visit_id"] for s in snapshot]
+            if (
+                result.model_version != pinned_version
+                or result.output_mode != "anatomy"
+                or result.patient_id != patient_id
+                or result.visit_ids != [s["visit_id"] for s in snapshot]
                 or result.days_from_baseline != [s["days_from_baseline"] for s in snapshot]
                 or result.anatomy is None
                 or result.anatomy.forecast.interval_days != snapshot[-1]["future_interval_days"]
-                or any(v.source_sha256 != s["source_sha256"] for v, s in zip(result.anatomy.visits, snapshot))):
+                or any(v.source_sha256 != s["source_sha256"] for v, s in zip(result.anatomy.visits, snapshot))
+            ):
                 raise ValueError("Anatomy result does not match pinned job inputs")
         elif mode == "trained":
             failure_message = (
@@ -172,10 +216,21 @@ def execute(analysis_id: str) -> None:
                     encoding="utf-8",
                 )
                 temporary.replace(cache)
+        from backend.app.services.nwbv_reference import attach
+
+        result = attach(result, snapshot)
         with SessionLocal() as db:
             job = db.get(Analysis, analysis_id)
             for name, values in result.biomarkers.items():
-                db.add(Biomarker(analysis_id=job.id, name=name, values_json=values, unit="fraction"))
+                structured = name == NWBV_REFERENCE_KEY and isinstance(values, NwbvAgeReferenceBiomarker)
+                db.add(
+                    Biomarker(
+                        analysis_id=job.id,
+                        name=name,
+                        values_json=values.model_dump() if structured else values,
+                        unit="descriptive_reference" if structured else "fraction",
+                    )
+                )
             for index, visit_id in enumerate(result.visit_ids if mode != "anatomy" else []):
                 db.add(
                     Heatmap(
@@ -251,17 +306,20 @@ def main() -> None:
                     "Another local analysis worker is already running. Stop it before starting this one."
                 )
         recover_interrupted()
-        heartbeat: Path = resolve_key("worker-heartbeat.txt")
         logger.info("Local analysis worker ready")
-        while True:
-            heartbeat.write_text(str(time.time()), encoding="utf-8")
-            from src.common import write_json
-            write_json(resolve_key("worker-capabilities.json"), {"timestamp": time.time(), "capabilities": ["longitudinal-anatomy-v1", "anatomy-forecast-v1"]})
-            job_id = claim_next()
-            if job_id:
-                execute(job_id)
-            else:
-                time.sleep(get_settings().worker_poll_seconds)
+        stop = Event()
+        heartbeat_thread = Thread(target=heartbeat_loop, args=(stop,), daemon=True)
+        heartbeat_thread.start()
+        try:
+            while True:
+                job_id = claim_next()
+                if job_id:
+                    execute(job_id)
+                else:
+                    time.sleep(get_settings().worker_poll_seconds)
+        finally:
+            stop.set()
+            heartbeat_thread.join(timeout=5)
 
 
 if __name__ == "__main__":

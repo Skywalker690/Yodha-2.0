@@ -2,7 +2,7 @@
 
 ## Scope
 
-On 2026-10-01 the user requested application inference with the existing 40-person trained model. D022 permits explicitly experimental integration of the audited `multimodal-cdr-retrospective-v2` checkpoint; it does not authorize a clinical deployment or satisfy the strict MCI-to-Alzheimer forecasting task.
+On 2026-10-01 the user requested application inference with the existing 40-person trained model. D022 permits explicitly experimental integration of the audited `multimodal-cdr-retrospective-v2` checkpoint; it does not authorize a clinical deployment or an Alzheimer-specific forecast.
 
 The exact original 40 training subjects and their 132 visits remain fixed. Validation has eight subjects/29 visits; the reused test holdout has eight subjects/24 visits. Candidate selection is not changed to increase apparent accuracy. Subject selection, target, visit chronology and split are checked against the frozen source manifest. Positive training cases remain six, not forty. In-sample predictions are not evaluation evidence.
 

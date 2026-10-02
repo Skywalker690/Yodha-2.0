@@ -29,6 +29,26 @@ immutable run outputs; missing real anatomy currently blocks Tier B. See [blocke
 - Enough disk space for OASIS-2 archives and extracted files
 - WebGL2-capable Edge/Chrome with graphics acceleration for interactive 3D (2D remains available without it)
 
+### CUDA anatomy training on this Windows host
+
+The API/worker environment has CPU PyTorch. The isolated training interpreter is
+`artifacts/anatomy-cuda-runtime-20261002/Scripts/python.exe`, with pinned
+`torch==2.14.0+cu130` from `https://download.pytorch.org/whl/cu130`. Its
+`project-dependencies.pth` adds the original `.venv/Lib/site-packages` after its own
+packages, so it reuses application dependencies while importing its own CUDA Torch.
+It remains outside Git. Do not replace loaded Torch DLLs in running services.
+
+Resume the existing waiting coordinator with this interpreter:
+
+```powershell
+artifacts/anatomy-cuda-runtime-20261002/Scripts/python -m scripts.run_anatomy_training --cohort artifacts/anatomy-score-study-20261002 --output artifacts/anatomy-score-run-20261002 --epochs 20 --device cuda --resume
+```
+
+Run exactly one coordinator. Verify `torch.cuda.is_available()` and a real model
+forward/backward on CUDA before resuming. GPU availability is a runtime check, not
+evidence of anatomical prediction accuracy. Runtime verification provenance is saved
+beside the existing run as `cuda-runtime.json`.
+
 ## Local services
 
 - Next.js frontend
@@ -44,11 +64,17 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r backend/requirements.txt
+python -m pip install --no-deps .\nwbv_reference_module
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install "monai>=1.4,<2"
 ```
 
 ## Frontend environment
+
+The optional nWBV age-reference module is vendored at the repository root. See its
+[README](../nwbv_reference_module/README.md). The backend Dockerfile installs the
+same package with `--no-deps`. Restart the worker at an idle job boundary to load
+integration changes; do not interrupt active native MRI processing.
 
 ```powershell
 cd frontend
@@ -145,6 +171,12 @@ Browser tests require the running app, prepared cohort, synthetic fixture and Mi
 The 3D browser checks require prepared volumetric artifacts. Run `docker compose exec backend python -m scripts.smoke_3d --prepare` once after updating an existing install; it queues normal asynchronous inference only for OASIS cases missing 3D artifacts. Existing results and raw data are retained. Later runs without `--prepare` are read-only geometry/API checks. From the host, use `.\.venv\Scripts\python -m scripts.smoke_3d --prepare` instead. The package is pinned to NiiVue 0.69.0 in the frontend lockfile.
 
 ## Troubleshooting
+
+For native anatomy, AVRA provisioning, frozen-cohort processing, registration reviews,
+training/evaluation/promotion and asynchronous future-artifact serving, use
+[18 Anatomy forecasting lifecycle](18-anatomy-forecast-lifecycle.md). Configure
+`AVRA_RUNTIME_MANIFEST` and, after successful promotion, `ANATOMY_RELEASE_DIR`.
+Never run competing GPU workers. Runtime smoke success does not grant visual QC.
 
 - Frontend cannot reach API: verify backend URL and CORS.
 - API cannot connect to PostgreSQL: verify Compose services and migrations.

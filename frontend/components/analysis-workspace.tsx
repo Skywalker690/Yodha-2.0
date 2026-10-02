@@ -234,7 +234,9 @@ function LegacyAnalysisWorkspace({
       {visit && (
         <AnatomyPanel
           key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}
-          patient={patient} visit={visit} reload={reload}
+          patient={patient}
+          visit={visit}
+          reload={reload}
         />
       )}
       {addVisit && (
@@ -319,6 +321,7 @@ function LegacyAnalysisWorkspace({
           visit={visit}
           analysis={analysis}
           anatomyAnalysis={patient.completedAnatomy ?? null}
+          reload={reload}
           onSelectVisit={selectVisit}
         />
       )}
@@ -708,6 +711,7 @@ function MLWorkspace({
                 visit={visit}
                 analysis={null}
                 anatomyAnalysis={patient.completedAnatomy ?? null}
+                reload={reload}
                 onSelectVisit={setSelectedId}
               />
               {visit.previewUrl && (

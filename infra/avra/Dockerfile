@@ -7,6 +7,9 @@ RUN micromamba install -y -n base -c https://fsl.fmrib.ox.ac.uk/fsldownloads/fsl
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 RUN python -m pip install --no-cache-dir torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cpu
 RUN python -m pip install --no-cache-dir numpy==1.26.4 scipy==1.12.0 matplotlib==3.8.4 nibabel==5.2.1 h5py==3.10.0 nipype==1.8.6 scikit-image==0.22.0
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends bc dc && rm -rf /var/lib/apt/lists/*
+USER $MAMBA_USER
 COPY --chown=1000:1000 upstream /opt/avra
 ENV FSLDIR=/opt/conda FSLOUTPUTTYPE=NIFTI OMP_NUM_THREADS=2 MPLCONFIGDIR=/tmp/matplotlib
 ENV PATH=/opt/conda/bin:$PATH

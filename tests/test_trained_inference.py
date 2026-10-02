@@ -220,6 +220,16 @@ def test_training_manifest_preserves_exact_membership_and_all_visits(
     assert set(imported["patient_id"]) == set(expected["subject_id"])
     assert set(imported["visit_id"]) == set(expected["visit_id"])
     assert set(imported["split"]) == {"train"}
+    anatomy_output = tmp_path / "anatomy-app.csv"
+    create_training_manifest(workbook, tmp_path, trained_bundle_path, anatomy_output, include_holdout=True)
+    full_import = pd.read_csv(anatomy_output)
+    assert full_import["patient_id"].nunique() == 56 and len(full_import) == 185
+    assert set(full_import["visit_id"]) == set(manifest["visit_id"])
+    assert full_import.groupby("split")["patient_id"].nunique().to_dict() == {
+        "train": 40,
+        "validation": 8,
+        "test": 8,
+    }
     before = output.read_bytes()
     workbook.write_text("changed source\n", encoding="utf-8")
     with pytest.raises(ValueError, match="Workbook no longer matches"):

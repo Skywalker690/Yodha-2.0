@@ -10,6 +10,8 @@ vi.mock("recharts", () => ({
     <div>{children}</div>
   ),
   LineChart: () => <div>Observed nWBV chart</div>,
+  ComposedChart: () => <div>Regional anatomy chart</div>,
+  Area: () => null,
   Line: () => null,
   CartesianGrid: () => null,
   XAxis: () => null,

@@ -370,22 +370,60 @@ def get_analysis(analysis_id: str, db: Session = Depends(get_db), user: User = D
 @router.get("/anatomy-model/readiness")
 def anatomy_model_readiness(user: User = Depends(current_user)) -> dict:
     from backend.app.services.anatomy_forecast import readiness as anatomy_readiness
+
     return anatomy_readiness()
 
 
+@router.get("/patients/{patient_id}/anatomy-forecasts")
+def anatomy_forecast_history(
+    patient_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> list[dict]:
+    owned_patient(db, user, patient_id)
+    jobs = db.scalars(
+        select(Analysis)
+        .where(
+            Analysis.patient_id == patient_id,
+            Analysis.output_mode == "anatomy",
+            Analysis.status == "completed",
+        )
+        .order_by(Analysis.created_at.desc())
+        .limit(30)
+    ).all()
+    return [
+        analysis_payload(job)
+        for job in jobs
+        if (job.result_json or {}).get("anatomy", {}).get("forecast", {}).get("status") == "available"
+    ]
+
+
 @router.post("/analysis/{analysis_id}/forecast", status_code=202)
-def create_anatomy_forecast(analysis_id: str, body: AnatomyForecastCreate, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+def create_anatomy_forecast(
+    analysis_id: str,
+    body: AnatomyForecastCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> dict:
     from backend.app.services.anatomy_forecast import enqueue_forecast
-    job = enqueue_forecast(db, owned_analysis(db, user, analysis_id), body.interval_days)
+
+    job = enqueue_forecast(
+        db, owned_analysis(db, user, analysis_id), body.interval_days, body.cutoff_visit_id
+    )
     db.commit()
     return analysis_payload(job)
 
 
 @router.get("/analysis/{analysis_id}/future/{artifact}")
-def future_anatomy_artifact(analysis_id: str, artifact: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> FileResponse:
+def future_anatomy_artifact(
+    analysis_id: str, artifact: str, db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> FileResponse:
     from ml.anatomy.integrity import checked_file
+
     job = owned_analysis(db, user, analysis_id)
-    result = ProgressionResult.model_validate(job.result_json) if job.status == "completed" and job.output_mode == "anatomy" else None
+    result = (
+        ProgressionResult.model_validate(job.result_json)
+        if job.status == "completed" and job.output_mode == "anatomy"
+        else None
+    )
     forecast = result.anatomy.forecast if result and result.anatomy else None
     released = next((a for a in forecast.artifacts if a.name == artifact), None) if forecast else None
     if not forecast or forecast.status != "available" or not released:
@@ -393,25 +431,47 @@ def future_anatomy_artifact(analysis_id: str, artifact: str, db: Session = Depen
     root = resolve_key(f"derived/{job.id}/future")
     try:
         manifest = json.loads((root / "future-artifacts.json").read_text())
-        if (manifest["cutoff_visit_id"] != forecast.cutoff_visit_id or manifest["interval_days"] != forecast.interval_days
-            or manifest["model_sha256"] != forecast.model_sha256 or manifest["version"] != forecast.spatial_model_version
-            or manifest["release_sha256"] != forecast.release_sha256 or manifest["source_sha256"] != [v.source_sha256 for v in result.anatomy.visits]):
+        if (
+            manifest["cutoff_visit_id"] != forecast.cutoff_visit_id
+            or manifest["interval_days"] != forecast.interval_days
+            or manifest["model_sha256"] != forecast.model_sha256
+            or manifest["version"] != forecast.spatial_model_version
+            or manifest["release_sha256"] != forecast.release_sha256
+            or manifest["source_sha256"] != [v.source_sha256 for v in result.anatomy.visits]
+        ):
             raise ValueError("Future metadata changed")
         entry = manifest["artifacts"][artifact]
         expected_name = artifact + (".gii" if released.kind == "mesh" else ".nii.gz")
-        if entry["sha256"] != released.sha256 or entry["kind"] != released.kind or entry["relative_path"] != expected_name:
+        if (
+            entry["sha256"] != released.sha256
+            or entry["kind"] != released.kind
+            or entry["relative_path"] != expected_name
+        ):
             raise ValueError("Future artifact no longer matches completed result")
         path = checked_file(root, entry)
     except (OSError, ValueError, KeyError, TypeError):
         raise HTTPException(404, "Future artifact missing or changed; no substitute generated.") from None
-    return FileResponse(path, media_type="application/octet-stream", filename=expected_name, content_disposition_type="inline", headers={"Cache-Control": "private, no-store"})
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=expected_name,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.get("/analysis/{analysis_id}/visits/{visit_id}/rating-alignment")
-def rating_alignment(analysis_id: str, visit_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> FileResponse:
+def rating_alignment(
+    analysis_id: str, visit_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> FileResponse:
     from ml.anatomy.integrity import rating_files
+
     job = owned_analysis(db, user, analysis_id)
-    result = ProgressionResult.model_validate(job.result_json) if job.status == "completed" and job.output_mode == "anatomy" else None
+    result = (
+        ProgressionResult.model_validate(job.result_json)
+        if job.status == "completed" and job.output_mode == "anatomy"
+        else None
+    )
     anatomy = result.anatomy if result else None
     item = next((v for v in anatomy.visits if v.visit_id == visit_id), None) if anatomy else None
     if not item or item.ratings.status not in {"pending_alignment_qc", "ok"}:
@@ -422,20 +482,35 @@ def rating_alignment(analysis_id: str, visit_id: str, db: Session = Depends(get_
         rating_files(root, index, item)
     except (OSError, ValueError, KeyError, TypeError):
         raise HTTPException(404, "Rating alignment changed or missing.") from None
-    return FileResponse(root / f"rating_{index}/rating_mni_dof_6.nii", media_type="application/octet-stream", filename="rating-alignment.nii", content_disposition_type="inline", headers={"Cache-Control": "private, no-store"})
+    return FileResponse(
+        root / f"rating_{index}/rating_mni_dof_6.nii",
+        media_type="application/octet-stream",
+        filename="rating-alignment.nii",
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.post("/analysis/{analysis_id}/rating-qc/{visit_id}")
-def review_rating_alignment(analysis_id: str, visit_id: str, body: AnatomyReview, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+def review_rating_alignment(
+    analysis_id: str,
+    visit_id: str,
+    body: AnatomyReview,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> dict:
     from ml.anatomy.integrity import measurement_files, rating_files
     from ml.anatomy.ratings import parse_avra_csv
     from src.common import write_json
+
     job = owned_analysis(db, user, analysis_id)
     db.execute(select(Analysis).where(Analysis.id == job.id).with_for_update()).scalar_one()
     if job.status != "completed" or job.output_mode != "anatomy":
         raise HTTPException(409, "Complete automatic scoring before alignment review.")
     result = ProgressionResult.model_validate(job.result_json)
-    item = next((v for v in result.anatomy.visits if v.visit_id == visit_id), None) if result.anatomy else None
+    item = (
+        next((v for v in result.anatomy.visits if v.visit_id == visit_id), None) if result.anatomy else None
+    )
     if not item or item.qc != "passed" or item.ratings.status != "pending_alignment_qc":
         raise HTTPException(409, "Review the segmentation and pending automatic alignment first.")
     root = resolve_key(f"derived/{job.id}")
@@ -449,8 +524,12 @@ def review_rating_alignment(analysis_id: str, visit_id: str, body: AnatomyReview
             raise ValueError("Invalid automatic scores")
     except (ValueError, OSError, KeyError, TypeError, StopIteration):
         raise HTTPException(409, "Automatic rating, alignment or source integrity failed.") from None
-    provenance.update(alignment_qc="passed", reviewer_id=user.id, reviewed_at=datetime.now(timezone.utc).isoformat())
+    provenance.update(
+        alignment_qc="passed", reviewer_id=user.id, reviewed_at=datetime.now(timezone.utc).isoformat()
+    )
     write_json(root / f"rating_{index}/provenance.json", provenance)
+    scores.provenance_sha256 = sha256(root / f"rating_{index}/provenance.json")
+    scores.reviewer_id, scores.reviewed_at = user.id, provenance["reviewed_at"]
     item.ratings = scores
     job.result_json = result.model_dump()
     db.commit()
@@ -539,7 +618,11 @@ def review_anatomy(
             raise ValueError("FastSurfer source or outputs changed")
         manifest = json.loads((directory / "anatomy-artifacts.json").read_text())
         entries = manifest["visits"][visit_id]
-        if manifest.get("version") != "longitudinal-anatomy-v1" or set(entries) != {"regions", "segmentation", *REGIONS}:
+        if manifest.get("version") != "longitudinal-anatomy-v1" or set(entries) != {
+            "regions",
+            "segmentation",
+            *REGIONS,
+        }:
             raise ValueError("Incomplete anatomy artifact set")
         for name, entry in entries.items():
             relative = Path(entry["relative_path"])
@@ -637,8 +720,10 @@ def heatmaps(
 
 @router.post("/reports/{patient_id}", status_code=201)
 def create_report(
-    patient_id: str, analysis_id: str | None = None,
-    db: Session = Depends(get_db), user: User = Depends(current_user),
+    patient_id: str,
+    analysis_id: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
 ) -> dict:
     patient = owned_patient(db, user, patient_id)
     analysis = owned_analysis(db, user, analysis_id) if analysis_id else latest_completed(db, patient_id)

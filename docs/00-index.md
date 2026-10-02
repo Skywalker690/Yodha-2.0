@@ -16,11 +16,12 @@ This folder is the working specification for the full-stack NeuroPredict AI plat
 | [10 Implementation status](10-implementation-status.md) | Delivered MVP, verification evidence and explicit research limitations |
 | [11 3D visualization](11-3d-visualization.md) | Library research, interactive MRI workspace and validation |
 | [12 Multimodal training](12-multimodal-training.md) | Saved subject split, covariates, audited retraining commands and evaluation limits |
-| [13 Strict forecasting data](13-strict-forecasting-data.md) | Documented MCI-to-Alzheimer target, authorized ADNI acquisition, privacy and training-readiness gates |
+| [13 OASIS-2 data and forecast scope](13-oasis2-data-and-forecast-scope.md) | The supplied OASIS-2 MRI, demographics, observed CDR outcomes and OASIS-only evaluation limits |
 | [14 Trained inference](14-trained-inference.md) | Experimental checkpoint integration, frozen cohort, input eligibility and honest prediction limits |
 | [15 FastSurfer architecture](15-fastsurfer-architecture.md) | New baseline-only OASIS forecast study, compact anatomy layer and single prediction adapter |
 | [16 ML-only serving](16-ml-only-serving.md) | Strict combined-model serving, actual processing/training workflow, promotion gates and Docker repair |
-| [17 Longitudinal anatomy](17-longitudinal-anatomy.md) | Native masks, review-bound measurements, automatic rating candidate, and incomplete spatial forecasting |
+| [17 Longitudinal anatomy](17-longitudinal-anatomy.md) | Native masks, review-bound measurements, automatic scoring and scientific completion boundary |
+| [18 Anatomy forecasting lifecycle](18-anatomy-forecast-lifecycle.md) | Implemented registration/training/release, asynchronous forecasts, API, real runtime evidence and remaining gates |
 | [Cohort definition](cohort_definition.md) | Observed CDR conversion, horizon censoring and inspected event counts |
 | [FastSurfer dictionary](fastsurfer_feature_dictionary.md) | Exact versioned labels, physical units and visual-review gate |
 | [Forecast evaluation](evaluation.md) | Matched comparisons, unsupported metrics and monotonic risk semantics |

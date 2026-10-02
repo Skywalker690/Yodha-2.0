@@ -194,7 +194,10 @@ def test_trained_snapshot_prediction_report_and_ownership(
     result = completed["resultJson"]
     assert result["riskScores"] == [] and result["prediction"]["cohortRole"] == "train"
     assert result["prediction"]["decisionThreshold"] == 0.514227
-    assert all(len(values) == 3 for values in result["biomarkers"].values())
+    assert all(len(values) == 3 for values in result["biomarkers"].values() if isinstance(values, list))
+    reference = result["biomarkers"]["nwbvAgeReferenceV1"]
+    assert reference["ageYears"] == 74 and reference["clinicalRisk"] is None
+    assert reference["status"] == "method_mismatch" and reference["featureUseAllowed"] is False
     assert result["volumeOverlaysReady"]
     assert trained_stub["calls"][0]["subject_code"] == "SYNTHETIC_TRAIN"
     assert [visit.covariates["Age"] for visit in trained_stub["calls"][0]["visits"]] == [72, 73, 74]

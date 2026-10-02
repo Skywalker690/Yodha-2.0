@@ -11,11 +11,11 @@ SCORES = ("mta_left", "mta_right", "posterior_atrophy")
 
 
 def history_features(
-    history: list[AnatomyVisit], interval_days: int, with_scores: bool
+    history: list[AnatomyVisit], interval_days: int, with_scores: bool, *, require_review: bool = True
 ) -> tuple[np.ndarray, list[str]]:
     if not 2 <= len(history) <= 5 or interval_days <= 0:
         raise ValueError("Two-to-five earlier visits and positive future interval required")
-    if any(v.qc != "passed" for v in history):
+    if require_review and any(v.qc != "passed" for v in history):
         raise ValueError("Reviewed anatomy required")
     if any(b.days_from_baseline <= a.days_from_baseline for a, b in zip(history, history[1:])):
         raise ValueError("Strict visit ordering required")
@@ -43,7 +43,8 @@ def history_features(
     values.append(0.0 if hand == "R" else 1.0 if hand == "L" else np.nan)
     names.append("hand_R0_L1")
     if with_scores:
-        if any(v.ratings.status != "ok" for v in history):
+        allowed = {"ok"} if require_review else {"ok", "unreviewed_research"}
+        if any(v.ratings.status not in allowed for v in history):
             raise ValueError("Matched score-conditioned comparison requires verified automatic estimates")
         for name in SCORES:
             scores = np.array([getattr(v.ratings, name) for v in history], dtype=float)
@@ -52,8 +53,10 @@ def history_features(
     return np.asarray(values, dtype=float), names
 
 
-def simple_baselines(history: list[AnatomyVisit], interval_days: int) -> dict[str, dict[str, float]]:
-    history_features(history, interval_days, False)
+def simple_baselines(
+    history: list[AnatomyVisit], interval_days: int, *, allow_unreviewed_research: bool = False
+) -> dict[str, dict[str, float]]:
+    history_features(history, interval_days, False, require_review=not allow_unreviewed_research)
     years = np.array([v.days_from_baseline - history[-1].days_from_baseline for v in history]) / 365.25
     no_change = dict(history[-1].volumes_mm3)
     trend = {
@@ -72,6 +75,7 @@ class StructuralExample:
     subject_id: str
     history: list[AnatomyVisit]
     target: AnatomyVisit
+    allow_unreviewed_research: bool = False
 
     @property
     def interval_days(self) -> int:
@@ -79,7 +83,7 @@ class StructuralExample:
         if (
             gap <= 0
             or self.target.visit_id in {v.visit_id for v in self.history}
-            or self.target.qc != "passed"
+            or (not self.allow_unreviewed_research and self.target.qc != "passed")
         ):
             raise ValueError("Target must be hidden, reviewed and strictly later than all inputs")
         return gap
@@ -108,7 +112,12 @@ class RegularizedMixedEffects:
         rows, targets = [], []
         for example in examples:
             interval = example.interval_days
-            row, names = history_features(example.history, interval, self.with_scores)
+            row, names = history_features(
+                example.history,
+                interval,
+                self.with_scores,
+                require_review=not example.allow_unreviewed_research,
+            )
             if sorted(example.target.volumes_mm3) != self.regions:
                 raise ValueError("Target regional dictionary changed")
             rows.append(row)
@@ -139,8 +148,17 @@ class RegularizedMixedEffects:
         self.fixed_width = x.shape[1]
         return self
 
-    def predict(self, subject_id: str, history: list[AnatomyVisit], interval_days: int) -> dict[str, float]:
-        row, names = history_features(history, interval_days, self.with_scores)
+    def predict(
+        self,
+        subject_id: str,
+        history: list[AnatomyVisit],
+        interval_days: int,
+        *,
+        allow_unreviewed_research: bool = False,
+    ) -> dict[str, float]:
+        row, names = history_features(
+            history, interval_days, self.with_scores, require_review=not allow_unreviewed_research
+        )
         if names != self.feature_names or sorted(history[-1].volumes_mm3) != self.regions:
             raise ValueError("Prediction feature schema changed")
         clean = np.where(np.isfinite(row), row, self.median)
@@ -152,7 +170,9 @@ class RegularizedMixedEffects:
             residuals = []
             for index in range(2, len(history)):
                 gap = history[index].days_from_baseline - history[index - 1].days_from_baseline
-                prior, _ = history_features(history[:index], gap, self.with_scores)
+                prior, _ = history_features(
+                    history[:index], gap, self.with_scores, require_review=not allow_unreviewed_research
+                )
                 clean_prior = np.where(np.isfinite(prior), prior, self.median)
                 prior_rate = (
                     np.r_[1, (clean_prior - self.median) / self.scale, ~np.isfinite(prior)]
@@ -175,11 +195,18 @@ class RegularizedMixedEffects:
         return result
 
     def to_dict(self) -> dict:
-        return {"fixed_penalty": self.fixed_penalty, "random_penalty": self.random_penalty,
-                "with_scores": self.with_scores, "subjects": self.subjects,
-                "regions": self.regions, "feature_names": self.feature_names,
-                "median": self.median.tolist(), "scale": self.scale.tolist(),
-                "coefficients": self.coefficients.tolist(), "fixed_width": self.fixed_width}
+        return {
+            "fixed_penalty": self.fixed_penalty,
+            "random_penalty": self.random_penalty,
+            "with_scores": self.with_scores,
+            "subjects": self.subjects,
+            "regions": self.regions,
+            "feature_names": self.feature_names,
+            "median": self.median.tolist(),
+            "scale": self.scale.tolist(),
+            "coefficients": self.coefficients.tolist(),
+            "fixed_width": self.fixed_width,
+        }
 
     @classmethod
     def from_dict(cls, data: dict) -> "RegularizedMixedEffects":
@@ -189,10 +216,16 @@ class RegularizedMixedEffects:
         for name in ("median", "scale", "coefficients"):
             setattr(model, name, np.asarray(data[name], dtype=float))
         width = len(model.feature_names)
-        if (model.median.shape != (width,) or model.scale.shape != (width,) or model.fixed_width != 1 + 2 * width
+        if (
+            model.median.shape != (width,)
+            or model.scale.shape != (width,)
+            or model.fixed_width != 1 + 2 * width
             or model.coefficients.shape != (model.fixed_width + len(model.subjects), len(model.regions))
-            or not all(np.isfinite(getattr(model, name)).all() for name in ("median", "scale", "coefficients"))
-            or np.any(model.scale <= 0)):
+            or not all(
+                np.isfinite(getattr(model, name)).all() for name in ("median", "scale", "coefficients")
+            )
+            or np.any(model.scale <= 0)
+        ):
             raise ValueError("Invalid structural checkpoint schema")
         return model
 

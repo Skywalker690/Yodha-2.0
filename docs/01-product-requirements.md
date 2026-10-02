@@ -2,7 +2,17 @@
 
 ## Product
 
+The user-provided nWBV reference is an optional descriptive biomarker alongside
+analysis outputs. Compare recorded, method-matched OASIS nWBV with the bundled
+age-bin research reference. It is a support value, not an Alzheimer/MCI diagnosis,
+future-risk estimate, spatial forecast or model training feature. See D033.
+
 ## Longitudinal anatomy extension requested 2026-10-02
+
+Latest user direction: train only the MTA/Koedam-conditioned anatomy model, using
+subjects with the most available scans rather than the historic 40-subject training
+membership. The new anatomy study has its own frozen scan-count-based split;
+historical classifier/baseline splits are preserved. See decision D029.
 
 Extend the existing workspace/worker with native-resolution anatomical masks,
 automatic MTA-left/right and posterior-atrophy estimates, regional changes and a
@@ -22,11 +32,12 @@ start actual offline processing/training through durable gates. The clinical-pro
 non-goal and research disclaimer remain: this switch cannot manufacture missing
 future events or establish accuracy. See [16 ML-only serving](16-ml-only-serving.md).
 
-The FastSurfer Rewired v2 PRD adds the primary **baseline-only OASIS observed CDR
+The FastSurfer Rewired v2 PRD adds the primary **baseline-only OASIS-2 observed CDR
 conversion** study: one earliest CDR-zero baseline per subject, later observations
-for labels only, clinical reference and compact reviewed anatomical features,
-12/24/36-month estimates only where supported. This is not strict MCI-to-Alzheimer
-forecasting. That earlier objective remains unfulfilled and separately documented.
+for labels only, demographics and clinical reference features, and reviewed compact
+anatomical features. Twelve-, 24-, and 36-month estimates are available only where
+the supplied cohort supports them. This predicts observed CDR conversion; it does
+not identify or diagnose Alzheimer disease.
 Preserve the existing Next.js/FastAPI/PostgreSQL product and historical models; add
 the requested Streamlit study workspace through one shared predictor adapter.
 No validated all-horizon default is claimed before runtime, QC, event support and
@@ -74,14 +85,6 @@ Within one minute, a reviewer can sign in, select or create a patient, see three
 
 Use “progression-risk estimate” and “research visualization.” Avoid “diagnosis,” “clinically proven,” “medical recommendation,” and unsupported certainty.
 
-## Strict forecasting extension (requested 2026-10-01)
-
-The user selected the strict MCI-to-Alzheimer forecasting direction from the supplied October 2026 complete PRD. The new research task uses a documented MCI baseline and future study-defined Alzheimer dementia diagnoses at 12, 24 and 36 months. Do not infer MCI from CDR alone, MRI appearance or the OASIS-2 Group field. Do not equate any dementia diagnosis with Alzheimer dementia without documented source semantics.
-
-Acquire an authorized longitudinal dataset and audit eligibility, event counts, follow-up and MRI linkage before training. Unknown/censored horizons remain unknown. Fit baseline models before the advanced MRI/fusion branch; suppress unsupported horizons. Baseline inputs must not contain future visits or features computed using them. Follow-up visits establish outcomes, not baseline predictors.
-
-This changes the research objective, not the deployed application immediately. Existing OASIS cases, split manifests, checkpoints and analyses remain intact and explicitly historical/demo or retrospective. They do not satisfy the strict forecasting requirement. Preserve the local Next.js/FastAPI/PostgreSQL architecture; the supplied PRD's alternative stack is a suggestion, not a requirement to replace functioning services. See [13 Strict forecasting data](13-strict-forecasting-data.md) for the acquisition gates and current limitations.
-
 ## Trained retrospective integration (requested 2026-10-01)
 
-The user subsequently requested use of the existing 40-subject checkpoint in the application. Provide explicit experimental trained inference, one sequence-level observed-CDR-increase score, frozen cohort and checkpoint provenance, strict source-input checks and prominent poor-performance/in-sample caveats. Do not invent a neural trajectory or claim improved accuracy. See [14 Trained inference](14-trained-inference.md). Strict future forecasting remains a separate unmet requirement.
+The user subsequently requested use of the existing 40-subject checkpoint in the application. Provide explicit experimental trained inference, one sequence-level observed-CDR-increase score, frozen cohort and checkpoint provenance, strict source-input checks and prominent poor-performance/in-sample caveats. Do not invent a neural trajectory or claim improved accuracy. See [14 Trained inference](14-trained-inference.md).

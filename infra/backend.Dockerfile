@@ -4,6 +4,8 @@ ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt && pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install 'monai>=1.4,<2'
 COPY backend backend
+COPY nwbv_reference_module nwbv_reference_module
+RUN python -m pip install --no-deps ./nwbv_reference_module
 COPY ml ml
 COPY src src
 COPY scripts scripts
