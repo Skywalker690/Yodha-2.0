@@ -1,5 +1,48 @@
 # Implementation Status
 
+## Longitudinal anatomy extension 2026-10-02
+
+The uploaded atrophy/future-brain plan is partially implemented, NOT completed.
+The existing worker/API/workspace now support native anatomy jobs, 18-regional masks
+and stats, immutable provenance, explicit visual QC, reviewed scalar changes,
+automatic-score availability/history, source observations, ratios and separate reports.
+Generic GIFTI loading and physical warp/mesh checks are implemented, but no trained
+spatial model, evaluated forecast artifacts or functioning real future-brain rendering
+exists. AVRA runtime/weights/alignment release remain unverified. Details and exact
+remaining acceptance criteria are in [17](17-longitudinal-anatomy.md).
+
+All five baseline pilot outputs are verified and `awaiting_visual_qc`. Original
+failure records are preserved; none is automatically approved. The local database
+has zero completed/reviewed longitudinal anatomy jobs. This is not new training or
+prediction accuracy evidence. Current tests: 180 Python and 50 frontend passed;
+TypeScript, production build and the updated strict Edge browser check also passed.
+Both synthetic anatomy report pages were rendered and visually reviewed. See
+[07](07-testing-validation.md) for checks and scientific limitations. These checks
+do not validate AVRA ratings or real future-brain forecasting.
+
+## ML-only serving extension 2026-10-02
+
+Default API/UI/Streamlit now require a promoted Clinical + FastSurfer release. Legacy
+analysis starts and clinical-only serving selections are rejected; uploads store MRI
+without rule-based jobs, and old current-score panels are hidden while archives remain.
+Release checks bind models/evaluation/source hashes, reviewed scan features, all horizon
+heads and predeclared support/development gates. The durable offline runner pauses for
+runtime, processing, visual QC or outcome support rather than generating a fallback.
+
+Docker startup was repaired with user approval by preserving/replacing only the two-socket
+runtime directory. Linux engine readiness passed; pinned image download and the actual
+five-scan pilot were resumed. Segmentation/training completion must be read from local
+run status; no combined model or full-horizon accuracy is claimed yet.
+
+All five scans' real outputs are verified and pending visual QC after recovering
+Windows statistics-symlink read failures. The adapter uses the real versioned stats
+file, not the Linux alias. Original failed provenance is preserved. No scan is
+auto-approved and no outcome model training/serving promotion is claimed from this.
+
+Current verification: 160 Python tests, 46 frontend tests, TypeScript and production
+build and the new strict-serving Edge browser check passed. Commands are in [16](16-ml-only-serving.md);
+previous legacy e2e results below are historical, not tests of the changed serving policy.
+
 ## Baseline FastSurfer study extension 2026-10-02
 
 The new PRD is implemented as a baseline-only study layer in `src/`, with source audit,
@@ -10,7 +53,7 @@ shared prediction adapter, local Streamlit dashboard, owned API and separate Nex
 Existing MRI, database/account records, original manifests and historical checkpoints
 are preserved. The source Word PRD and vendor repository are not modified.
 
-**Not complete:** the real five-scan FastSurfer pilot timed out waiting for Docker's
+**Initial implementation snapshot (superseded by the extension above):** the real five-scan FastSurfer pilot timed out waiting for Docker's
 Linux engine; anatomy is unavailable for all 85 rows. Real Tier B training/comparison,
 surface measurements and optional CNN training are not completed. Zero 12-month events,
 one training event at 24 months and zero known test events at 36 months prevent a

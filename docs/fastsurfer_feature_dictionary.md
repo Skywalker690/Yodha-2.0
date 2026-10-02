@@ -20,7 +20,7 @@ not a claim that real patient processing has completed.
 
 | Feature | Exact SegId / StructName | Side | Source | Unit |
 |---|---|---|---|---|
-| hippocampus_left_mm3 | 17 / Left-Hippocampus | Left | stats/aseg+DKT.stats | mm³ |
+| hippocampus_left_mm3 | 17 / Left-Hippocampus | Left | stats/aseg+DKT.VINN.stats | mm³ |
 | hippocampus_right_mm3 | 53 / Right-Hippocampus | Right | same | mm³ |
 | hippocampus_total_mm3 | Sum of verified left/right | Both | same | mm³ |
 | ventricle_left_mm3 | 4 / Left-Lateral-Ventricle | Left | same | mm³ |

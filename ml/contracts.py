@@ -2,6 +2,7 @@ from math import isfinite
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from ml.anatomy.contracts import AnatomyResult
 
 MODEL_VERSION = "feature-delta-v1"
 
@@ -47,13 +48,14 @@ class ProgressionResult(BaseModel):
     biomarkers: dict[str, list[float]]
     selected_visit: str
     heatmap_url: str | None = None
-    output_mode: Literal["demo", "precomputed", "inference", "trained"]
+    output_mode: Literal["demo", "precomputed", "inference", "trained", "anatomy"]
     confidence: float | None = Field(default=None, ge=0, le=1)
     caveats: list[str]
     model_version: str = "feature-delta-v1"
     days_from_baseline: list[int]
     volume_overlays_ready: bool = False
     prediction: TrainedPrediction | None = None
+    anatomy: AnatomyResult | None = None
 
     @model_validator(mode="after")
     def validate_series(self) -> "ProgressionResult":
@@ -62,7 +64,23 @@ class ProgressionResult(BaseModel):
             raise ValueError("Visit identifiers must be unique and selected visit must exist")
         if len(self.days_from_baseline) != n:
             raise ValueError("Series lengths must match")
-        if self.prediction is not None:
+        if self.output_mode == "anatomy":
+            if (
+                self.anatomy is None
+                or self.prediction is not None
+                or self.risk_scores
+                or self.biomarkers
+                or self.confidence is not None
+                or self.volume_overlays_ready
+            ):
+                raise ValueError("Anatomy does not fabricate legacy risk/proxy/confidence outputs")
+            if [v.visit_id for v in self.anatomy.visits] != self.visit_ids or [
+                v.days_from_baseline for v in self.anatomy.visits
+            ] != self.days_from_baseline:
+                raise ValueError("Anatomy history must match immutable inputs")
+        elif self.anatomy is not None:
+            raise ValueError("Anatomy belongs to its separate versioned analysis")
+        elif self.prediction is not None:
             if self.output_mode != "trained" or self.risk_scores or n < 3 or self.confidence is not None:
                 raise ValueError(
                     "Trained results require three visits, one prediction and no fabricated trajectory/confidence"

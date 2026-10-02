@@ -120,6 +120,22 @@ def test_docker_command_readonly_isolated_and_pinned(tmp_path):
         docker_command(cfg, "SCAN_1", tmp_path / "t1.nii.gz", tmp_path)
 
 
+@pytest.mark.parametrize("user", ["0:0", "999:999", "root", "1000;echo:1000"])
+def test_fastsurfer_rejects_root_placeholder_and_invalid_users(tmp_path, user):
+    cfg = {
+        "image": "deepmi/fastsurfer:cuda-v2.5.4",
+        "version": "2.5.4",
+        "device": "cuda",
+        "viewagg_device": "cpu",
+        "threads": 4,
+        "surface": False,
+        "output_dir": str(tmp_path),
+        "container_user": user,
+    }
+    with pytest.raises(ValueError, match="non-root"):
+        docker_command(cfg, "SCAN_1", tmp_path / "native/t1.nii.gz", tmp_path)
+
+
 def test_physical_conversion_preserves_source(mri, tmp_path):
     source = mri.read_bytes()
     assert inspect_mri(mri)["spacing_mm"] == [1, 1, 1]
@@ -183,6 +199,8 @@ def synthetic_study(tmp_path):
 def test_full_clinical_and_matched_training_evaluation(synthetic_study):
     cfg = synthetic_study
     assert train(cfg, "clinical")["available_horizons"] == ["12", "24", "36"]
+    clinical_bundle = json.loads((Path(cfg["artifact_dir"]) / "clinical.json").read_text())
+    assert clinical_bundle["clinical_units"]["etiv"] == "cm3"
     train(cfg, "clinical", matched=True)
     train(cfg, "clinical_fastsurfer")
     a = evaluate(cfg, "clinical", matched=True)
@@ -247,7 +265,7 @@ def test_request_nonfinite_and_result_monotonic():
             model_version=VERSION,
             preprocessing_version="test",
             probabilities={"12": 0.8, "24": 0.2, "36": None},
-            raw_probabilities={"12": .8, "24": .2, "36": None},
+            raw_probabilities={"12": 0.8, "24": 0.2, "36": None},
             calibration={"12": "uncalibrated", "24": "uncalibrated", "36": "unavailable"},
         )
 
@@ -303,3 +321,101 @@ def test_adapter_import_does_not_load_training_or_gpu_packages():
         "import src.risk.predict,sys; assert 'torch' not in sys.modules; assert 'sklearn' not in sys.modules"
     )
     subprocess.run([sys.executable, "-c", command], check=True, capture_output=True, timeout=20)
+
+
+def test_release_requires_real_model_pair_and_promoted_manifest(synthetic_study):
+    from src.risk.release import assess, promote, readiness, serving_predict
+
+    cfg = synthetic_study
+    directory, processed = Path(cfg["artifact_dir"]), Path(cfg["processed_dir"])
+    assert not readiness(directory, processed)["ready"]
+    train(cfg, "clinical", matched=True)
+    train(cfg, "clinical_fastsurfer")
+    evaluate(cfg, "clinical", matched=True)
+    evaluate(cfg, "clinical_fastsurfer")
+    # Constant extra anatomy produces exactly the clinical reference for this synthetic release fixture.
+    assert assess(directory, processed) == []
+    assert not readiness(directory, processed)["ready"]  # Never auto-promote fitted files.
+    promote(directory, processed)
+    assert readiness(directory, processed)["ready"]
+    with pytest.raises(ValueError, match="already promoted"):
+        promote(directory, processed)
+    row = pd.read_csv(processed / "baseline.csv").iloc[0]
+    features = pd.read_csv(processed / "fastsurfer_features.csv").iloc[0]
+    request = {
+        "patient_id": row["patient_id"],
+        "baseline": {f: float(row[f]) for f in CLINICAL},
+        "qc": "passed",
+        "scan_id": row["scan_id"],
+        "fastsurfer_version": "2.5.4",
+        "feature_set_version": FEATURE_SET,
+        "fastsurfer_features": {f: float(features[f]) for f in VOLUME_LABELS},
+    }
+    assert serving_predict(request, directory, processed).used_mri
+    path = directory / "clinical_fastsurfer.json"
+    path.write_text(path.read_text() + "\n")
+    assert not readiness(directory, processed)["ready"]
+    assert serving_predict(request, directory, processed).status == "unavailable"
+
+
+def test_release_rejects_sparse_horizons_and_changed_sources(synthetic_study):
+    from src.risk.release import assess, promote
+
+    cfg = synthetic_study
+    processed, directory = Path(cfg["processed_dir"]), Path(cfg["artifact_dir"])
+    labels = pd.read_csv(processed / "labels.csv")
+    labels["y12"] = 0
+    labels.to_csv(processed / "labels.csv", index=False)
+    train(cfg, "clinical", matched=True)
+    train(cfg, "clinical_fastsurfer")
+    evaluate(cfg, "clinical", matched=True)
+    evaluate(cfg, "clinical_fastsurfer")
+    assert any("12-month" in reason for reason in assess(directory, processed))
+    with pytest.raises(ValueError, match="Release blocked"):
+        promote(directory, processed)
+    path = processed / "baseline.csv"
+    path.write_text(path.read_text() + "\n")
+    assert "changed" in " ".join(assess(directory, processed))
+
+
+def test_processing_workflow_records_runtime_block_without_training(synthetic_study, monkeypatch, tmp_path):
+    import subprocess
+    from scripts import run_ml_pipeline as pipeline
+
+    cfg = synthetic_study
+    processed = Path(cfg["processed_dir"])
+    pd.read_csv(processed / "baseline.csv")[["patient_id", "scan_id"]].to_csv(
+        processed / "manifest.csv", index=False
+    )
+    monkeypatch.setattr(pipeline, "ROOT", tmp_path)
+
+    def fail(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, ["docker", "info"])
+
+    monkeypatch.setattr(pipeline.subprocess, "run", fail)
+    monkeypatch.setattr(pipeline, "train", lambda *args: pytest.fail("Training must not run without anatomy"))
+    fs = {
+        "processed_dir": str(processed),
+        "output_dir": str(tmp_path / "segmentation"),
+        "image": "deepmi/fastsurfer:cuda-v2.5.4",
+        "version": "2.5.4",
+        "device": "cuda",
+        "viewagg_device": "cpu",
+        "threads": 4,
+        "surface": False,
+    }
+    directory = tmp_path / "artifacts" / "candidate"
+    state = pipeline.workflow(cfg, fs, directory, 5)
+    assert state["stage"] == "blocked_runtime"
+    assert json.loads((directory / "pipeline_status.json").read_text())["stage"] == "blocked_runtime"
+    assert not (directory / "models").exists()
+    with pytest.raises(ValueError, match="exists"):
+        pipeline.workflow(cfg, fs, directory, 5)
+
+
+def test_pipeline_excludes_duplicate_study_writers(synthetic_study, tmp_path):
+    from scripts.run_ml_pipeline import study_lock, workflow
+
+    with study_lock(Path(synthetic_study["processed_dir"])):
+        with pytest.raises(ValueError, match="Another ML pipeline"):
+            workflow(synthetic_study, {}, tmp_path / "unused", 5)

@@ -1,4 +1,58 @@
-export type Mode = "demo" | "precomputed" | "inference" | "trained";
+export type Mode = "demo" | "precomputed" | "inference" | "trained" | "anatomy";
+export type AnatomyVisit = {
+  visitId: string;
+  daysFromBaseline: number;
+  qc: "pending_review" | "passed";
+  method: string;
+  fastsurferVersion: string;
+  dictionaryVersion: string;
+  sourceSha256: string;
+  segmentationSha256: string;
+  statisticsSha256: string;
+  containerDigest: string;
+  reviewerId?: string | null;
+  reviewedAt?: string | null;
+  volumesMm3: Record<string, number>;
+  maskVolumesMm3: Record<string, number>;
+  hippocampalAsymmetryPercent: number;
+  etivMm3: number | null;
+  headSizeRatios: Record<string, number>;
+  ratings: {
+    status: string;
+    method: string;
+    mtaLeft: number | null;
+    mtaRight: number | null;
+    posteriorAtrophy: number | null;
+    warnings: string[];
+  };
+};
+export type AnatomyResult = {
+  version: string;
+  visits: AnatomyVisit[];
+  changes: {
+    earlierVisitId: string;
+    laterVisitId: string;
+    elapsedDays: number;
+    status: string;
+    regions: Record<
+      string,
+      {
+        absoluteMm3: number;
+        percent: number;
+        annualizedMm3: number;
+        annualizedPercent: number;
+      }
+    >;
+  }[];
+  signConvention: string;
+  forecast: {
+    status: "unavailable";
+    cutoffVisitId: string;
+    intervalDays: number;
+    warnings: string[];
+    artifacts: never[];
+  };
+};
 export type TrainedPrediction = {
   target: "observed_cdr_increase";
   score: number;
@@ -28,6 +82,7 @@ export type Result = {
   selectedVisit: string;
   volumeOverlaysReady?: boolean;
   prediction?: TrainedPrediction;
+  anatomy?: AnatomyResult | null;
 };
 export type Analysis = {
   id: string;
@@ -61,6 +116,7 @@ export type Visit = {
   };
 };
 export type Patient = {
+  servingPolicy?: "ml_only" | "research";
   id: string;
   code: string;
   age: number | null;
@@ -72,6 +128,8 @@ export type Patient = {
   visits: Visit[];
   latestAnalysis: Analysis | null;
   latestCompleted: Analysis | null;
+  latestAnatomy?: Analysis | null;
+  completedAnatomy?: Analysis | null;
 };
 export type Report = {
   id: string;
@@ -83,6 +141,12 @@ export type Report = {
   downloadUrl: string;
 };
 export type Health = {
+  servingPolicy?: "ml_only" | "research";
+  forecastReadiness?: {
+    ready: boolean;
+    reasons: string[];
+    clinical_validation: boolean;
+  };
   status: string;
   database: string;
   worker: string;

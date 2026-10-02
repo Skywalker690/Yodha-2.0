@@ -72,11 +72,13 @@ export function VolumeExplorer({
   patient,
   visit,
   analysis,
+  anatomyAnalysis = null,
   onSelectVisit,
 }: {
   patient: Patient;
   visit: Visit;
   analysis: Analysis | null;
+  anatomyAnalysis?: Analysis | null;
   onSelectVisit: (id: string) => void;
 }) {
   const panel = useRef<HTMLElement>(null);
@@ -87,11 +89,20 @@ export function VolumeExplorer({
   const linkedRef = useRef(linked);
   linkedRef.current = linked;
   const [difference, setDifference] = useState(false);
+  const [regions, setRegions] = useState(true);
+  const [futureCompare, setFutureCompare] = useState(false);
+  const [futureMonths, setFutureMonths] = useState(12);
   const [closed, setClosed] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
   const baseline = patient.visits.find((v) => v.hasMri);
   const selectedIndex = patient.visits.findIndex((v) => v.id === visit.id);
   const result = analysis?.resultJson;
+  const anatomy = anatomyAnalysis?.resultJson?.anatomy;
+  const anatomyVisit = anatomy?.visits.find((v) => v.visitId === visit.id);
+  const labelUrl =
+    regions && anatomyVisit && anatomyAnalysis
+      ? `/api/analysis/${anatomyAnalysis.id}/visits/${visit.id}/anatomy/regions`
+      : undefined;
   const available =
     !!result?.volumeOverlaysReady && result.visitIds.includes(visit.id);
   const overlayUrl =
@@ -237,7 +248,7 @@ export function VolumeExplorer({
           <div className="volume-body">
             <div className="volume-main">
               <div
-                className={`volume-viewers ${compare && baseline && baseline.id !== visit.id ? "volume-compare" : ""}`}
+                className={`volume-viewers ${futureCompare || (compare && baseline && baseline.id !== visit.id) ? "volume-compare" : ""}`}
               >
                 {compare && baseline && baseline.id !== visit.id && (
                   <VolumeCanvas
@@ -259,10 +270,35 @@ export function VolumeExplorer({
                   patientCode={patient.code}
                   url={visit.volumeUrl || `/api/visits/${visit.id}/volume`}
                   overlayUrl={overlayUrl}
+                  labelUrl={labelUrl}
                   settings={settings}
                   onReady={onReady}
                   onLocation={onLocation}
                 />
+                {futureCompare && (
+                  <div className="volume-card" role="status">
+                    <div className="volume-card-heading">
+                      <strong>
+                        Predicted anatomy · {futureMonths} months after latest
+                        input
+                      </strong>
+                      <span className="badge">Not an acquired MRI</span>
+                    </div>
+                    <div className="empty">
+                      <h3>Future anatomy unavailable</h3>
+                      <p>
+                        No trained and evaluated time-conditioned spatial
+                        predictor exists. No acquired scan, crossfade or
+                        uniformly shrunken mesh is substituted.
+                      </p>
+                      <p>
+                        Requested interval:{" "}
+                        {Math.round((futureMonths * 365.25) / 12)} days. All
+                        future artifacts remain unavailable.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="volume-navigation">
                 <Button
@@ -435,12 +471,60 @@ export function VolumeExplorer({
               <div className="volume-control-divider">
                 <h3>Longitudinal comparison</h3>
               </div>
+              {anatomyAnalysis && (
+                <>
+                  <label className="volume-check">
+                    <input
+                      type="checkbox"
+                      checked={regions}
+                      disabled={!anatomyVisit}
+                      onChange={(e) => setRegions(e.target.checked)}
+                    />
+                    Anatomical region overlays
+                  </label>
+                  <small className="volume-note">
+                    Hippocampus yellow · ventricles purple · temporal/parietal
+                    cyan. QC: {anatomyVisit?.qc ?? "unavailable"};
+                    nearest-neighbour label rendering.
+                  </small>
+                </>
+              )}
+              <label className="volume-check">
+                <input
+                  type="checkbox"
+                  checked={futureCompare}
+                  onChange={(e) => {
+                    setFutureCompare(e.target.checked);
+                    if (e.target.checked) setCompare(false);
+                  }}
+                />
+                Compare current vs predicted
+              </label>
+              {futureCompare && (
+                <label>
+                  Future time after latest scan
+                  <select
+                    aria-label="Future time after latest scan"
+                    value={futureMonths}
+                    onChange={(e) => setFutureMonths(Number(e.target.value))}
+                  >
+                    {[0, 6, 12, 24, 36].map((m) => (
+                      <option key={m} value={m}>
+                        {m} months
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className="volume-check">
                 <input
                   type="checkbox"
                   checked={compare}
                   disabled={!baseline || baseline.id === visit.id}
-                  onChange={(e) => setCompare(e.target.checked)}
+                  onChange={(e) => {
+                    setCompare(e.target.checked);
+                    if (e.target.checked) setFutureCompare(false);
+                  }}
                 />
                 Compare with baseline
               </label>
@@ -503,8 +587,14 @@ export function VolumeExplorer({
             </aside>
           </div>
           <div className="volume-disclaimer">
-            <strong>Research visualization, not segmented anatomy.</strong> MRI
-            includes non-brain head tissue. Linked views are not registered.
+            <strong>
+              Observed MRI research visualization
+              {labelUrl
+                ? " with measured anatomical labels; inspect QC"
+            : ", not segmented anatomy (no segmentation layer selected)"}
+              .
+            </strong>{" "}
+            MRI includes non-brain head tissue. Linked views are not registered.
             Difference colors show shape-normalized intensity changes, not
             disease probability, atrophy or Grad-CAM.
             {analysis?.outputMode === "trained" &&

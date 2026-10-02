@@ -1,5 +1,10 @@
 # Baseline forecasting architecture with FastSurfer
 
+The subsequent [ML-only serving policy](16-ml-only-serving.md) supersedes selectable
+serving modes below. The manual Tier A/B commands remain research/processing utilities;
+models need explicit promotion before serving. Docker engine has been repaired and
+the real pilot resumed; consult local pipeline status for actual progress.
+
 The user-supplied FastSurfer Rewired v2 PRD is implemented as a separate baseline-only
 study layer within the existing repository. It does not destroy the full-stack product,
 database, source MRIs or historical 40/8/8 models. Current real-data completion limits

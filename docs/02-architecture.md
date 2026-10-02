@@ -1,6 +1,15 @@
 # Full-Stack Architecture
 
+The separate native anatomy job extends existing persistence and worker/viewer
+boundaries without new services. Its implemented interfaces and incomplete
+forecasting/runtime gates are specified in [17 Longitudinal anatomy](17-longitudinal-anatomy.md).
+
 ## Current architecture baseline forecast plus preserved longitudinal product
+
+Default serving now routes only to the promoted combined model under
+[16 ML-only serving](16-ml-only-serving.md). Legacy prediction code/data below remains
+archival/research-only. An explicit offline pipeline handles container processing,
+human QC, training, evaluation and gated promotion; no GPU work runs in HTTP.
 
 The current user-supplied FastSurfer v2 PRD is specified in
 [15 Baseline forecast architecture](15-fastsurfer-architecture.md). The architecture

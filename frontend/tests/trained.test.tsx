@@ -93,6 +93,7 @@ const analysis: Analysis = {
   createdAt: "2026-10-01T00:00:00Z",
 };
 const patient: Patient = {
+  servingPolicy: "research",
   id: result.patientId,
   code: "SYNTHETIC_CASE",
   age: null,
@@ -105,6 +106,25 @@ const patient: Patient = {
   latestAnalysis: analysis,
   latestCompleted: analysis,
 };
+
+it("ML-only workspace hides all historical modes and scores", () => {
+  vi.mocked(useResource).mockReturnValue({
+    data: null,
+    loading: false,
+    error: "",
+    reload: vi.fn(),
+  });
+  render(
+    <AnalysisWorkspace
+      patient={{ ...patient, servingPolicy: "ml_only" }}
+      reload={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Clinical + FastSurfer ML forecast")).toBeTruthy();
+  expect(screen.queryByLabelText("Analysis mode")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Analyze MRI" })).toBeNull();
+  expect(screen.queryByText("62.0%")).toBeNull();
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();

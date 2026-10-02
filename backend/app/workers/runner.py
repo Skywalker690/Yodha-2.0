@@ -32,6 +32,11 @@ def execute(analysis_id: str) -> None:
             job = db.get(Analysis, analysis_id)
             if not job or job.status not in {"queued", "processing"}:
                 return
+            if get_settings().ml_only and job.output_mode != "anatomy":
+                job.status, job.stage = "failed", "Legacy analysis disabled"
+                job.error = "ML-only serving requires Clinical + FastSurfer. No legacy model was executed."
+                db.commit()
+                return
             job.status, job.progress, job.stage = "processing", 5, "Loading chronological visits"
             db.commit()
             snapshot, patient_id, mode = job.input_json, job.patient_id, job.output_mode
@@ -44,7 +49,42 @@ def execute(analysis_id: str) -> None:
                     raise ValueError("Patient is unavailable")
                 subject_code = patient.code
         artifact_prefix = f"derived/{analysis_id}"
-        if mode == "trained":
+        if mode == "anatomy":
+            from ml.anatomy.pipeline import run_anatomy
+
+            failure_message = "Anatomy processing failed. Verify Docker availability, pinned image, native MRI geometry and private execution logs. No synthetic anatomy or scores were substituted."
+            inputs = [{**s, "mri_path": str(resolve_key(s["mri_key"]))} for s in snapshot]
+            spec = snapshot[-1].get("forecast_spec")
+            if spec:
+                from backend.app.services.anatomy_forecast import execute_forecast, result_hash
+                with SessionLocal() as db:
+                    source = db.get(Analysis, spec["source_analysis_id"])
+                    patient = db.get(Patient, patient_id)
+                    if (not source or not patient or source.patient_id != patient_id or source.status != "completed"
+                        or result_hash(source.result_json) != spec["source_result_sha256"]
+                        or source.visit_id != snapshot[-1]["visit_id"]):
+                        raise ValueError("Pinned reviewed anatomy source changed")
+                    payload, source_inputs, source_id, subject = source.result_json, source.input_json, source.id, patient.code
+                update_progress(analysis_id, 20, "Cutoff-local registration and evaluated spatial prediction")
+                result = execute_forecast(payload, source_inputs, resolve_key(f"derived/{source_id}"), resolve_key(artifact_prefix), subject,
+                                          snapshot[-1]["future_interval_days"], spec["release_sha256"])
+            else:
+                result = run_anatomy(
+                    patient_id,
+                    inputs,
+                    resolve_key(artifact_prefix),
+                    lambda p, s: update_progress(analysis_id, p, s),
+                    rating_runtime=get_settings().avra_runtime_manifest,
+                )
+            result = ProgressionResult.model_validate(result.model_dump())
+            if (result.model_version != pinned_version or result.output_mode != "anatomy"
+                or result.patient_id != patient_id or result.visit_ids != [s["visit_id"] for s in snapshot]
+                or result.days_from_baseline != [s["days_from_baseline"] for s in snapshot]
+                or result.anatomy is None
+                or result.anatomy.forecast.interval_days != snapshot[-1]["future_interval_days"]
+                or any(v.source_sha256 != s["source_sha256"] for v, s in zip(result.anatomy.visits, snapshot))):
+                raise ValueError("Anatomy result does not match pinned job inputs")
+        elif mode == "trained":
             failure_message = (
                 "The trained checkpoint is unavailable, invalid, or changed since enqueue. "
                 "Restore the pinned checkpoint and retry. No baseline fallback is used."
@@ -136,7 +176,7 @@ def execute(analysis_id: str) -> None:
             job = db.get(Analysis, analysis_id)
             for name, values in result.biomarkers.items():
                 db.add(Biomarker(analysis_id=job.id, name=name, values_json=values, unit="fraction"))
-            for index, visit_id in enumerate(result.visit_ids):
+            for index, visit_id in enumerate(result.visit_ids if mode != "anatomy" else []):
                 db.add(
                     Heatmap(
                         analysis_id=job.id,
@@ -144,9 +184,16 @@ def execute(analysis_id: str) -> None:
                         object_key=f"{artifact_prefix}/{index}-overlay.png",
                     )
                 )
-            result.heatmap_url = f"/api/analysis/{job.id}/visits/{result.selected_visit}/overlay"
+            if mode != "anatomy":
+                result.heatmap_url = f"/api/analysis/{job.id}/visits/{result.selected_visit}/overlay"
             job.result_json = result.model_dump()
-            job.score = result.prediction.score if result.prediction else result.risk_scores[-1]
+            job.score = (
+                None
+                if mode == "anatomy"
+                else result.prediction.score
+                if result.prediction
+                else result.risk_scores[-1]
+            )
             job.model_version = result.model_version
             job.confidence = result.confidence
             job.status, job.progress, job.stage = "completed", 100, "Analysis complete"
@@ -208,6 +255,8 @@ def main() -> None:
         logger.info("Local analysis worker ready")
         while True:
             heartbeat.write_text(str(time.time()), encoding="utf-8")
+            from src.common import write_json
+            write_json(resolve_key("worker-capabilities.json"), {"timestamp": time.time(), "capabilities": ["longitudinal-anatomy-v1", "anatomy-forecast-v1"]})
             job_id = claim_next()
             if job_id:
                 execute(job_id)

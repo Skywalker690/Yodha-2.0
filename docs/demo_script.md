@@ -1,5 +1,10 @@
 # Baseline forecast demonstration
 
+Default is now strict ML-only serving: open a patient or Streamlit to show Clinical +
+FastSurfer readiness, original MRI and explicit blocked/null predictions. The clinical
+reference demonstration below is retained only for an explicitly opted-in local
+research environment (`ML_ONLY=false`), never as a combined-model fallback.
+
 Start the local study dashboard on loopback port 8501 with the command in
 [architecture guide](15-fastsurfer-architecture.md). Alternatively open an imported
 OASIS patient in the existing authenticated application and use its separate baseline

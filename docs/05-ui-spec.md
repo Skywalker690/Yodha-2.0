@@ -1,6 +1,18 @@
 # Next.js UI Specification
 
+The approved longitudinal anatomy direction is integrated into both existing workspace
+variants; see [17](17-longitudinal-anatomy.md). It adds measured labels, review controls,
+source observations, continuous-score availability/history, head-size ratios and a
+separate report action. Current/future selection keeps unavailable future anatomy
+explicit; there is no fabricated image or transition animation. The generic canvas
+accepts owned GIFTI buffers, but the real model-to-artifact-to-viewer path is incomplete.
+
 ## Separate baseline forecast panel
+
+Default ML-only workspace replaces mode selectors with a single Clinical + FastSurfer
+panel and original MRI viewing/upload. Unready/QC-failed/partial releases show blocked
+prediction and null cards, not legacy scores. Settings separates service health from
+model readiness. The retained UI modes below apply only to explicit research opt-out.
 
 Imported OASIS patient workspaces also display a separate baseline forecast panel.
 Its clinical, clinical-matched and clinical+FastSurfer choices call the same adapter

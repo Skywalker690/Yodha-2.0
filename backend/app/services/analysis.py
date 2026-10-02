@@ -10,6 +10,8 @@ from backend.app.core.config import get_settings
 from backend.app.models import Analysis, Patient, Visit
 from backend.app.services.storage import resolve_key
 from ml.contracts import MODEL_VERSION, VisitInput
+from ml.anatomy.contracts import VERSION as ANATOMY_VERSION
+from src.common import sha256
 
 NUMERIC_COVARIATES = ("Age", "EDUC", "SES", "MMSE", "eTIV", "nWBV", "ASF", "MR Delay", "Visit")
 COVARIATES = (*NUMERIC_COVARIATES, "M/F", "Hand")
@@ -99,7 +101,13 @@ def cache_key(snapshot: list[dict]) -> str:
     return f"cache/{digest}.json"
 
 
-def enqueue(db: Session, patient: Patient, selected: Visit, mode: str) -> Analysis:
+def enqueue(
+    db: Session, patient: Patient, selected: Visit, mode: str, future_interval_days: int = 365
+) -> Analysis:
+    if get_settings().ml_only and mode != "anatomy":
+        raise HTTPException(
+            409, "Legacy analysis modes are disabled. Use Clinical + FastSurfer forecast; no fallback."
+        )
     # Serialize starts per patient, including concurrent API requests.
     db.execute(select(Patient).where(Patient.id == patient.id).with_for_update()).scalar_one()
     active = db.scalar(
@@ -120,6 +128,20 @@ def enqueue(db: Session, patient: Patient, selected: Visit, mode: str) -> Analys
         {"visit_id": v.id, "days_from_baseline": v.days_from_baseline, "mri_key": v.mri_key} for v in visits
     ]
     model_version = MODEL_VERSION
+    if mode == "anatomy":
+        if not 1 <= len(visits) <= 5:
+            raise HTTPException(
+                422, "Anatomy supports one measured visit or two-to-five chronological history visits."
+            )
+        model_version = ANATOMY_VERSION
+        for item, visit in zip(snapshot, visits):
+            item.update(
+                source_sha256=sha256(resolve_key(visit.mri_key)),
+                metadata={key: visit.metadata_json.get(key) for key in (*COVARIATES, "CDR")},
+                etiv_unit="cm3" if patient.source == "oasis-2" else None,
+                source_units_verified=patient.source == "oasis-2",
+                future_interval_days=future_interval_days,
+            )
     if mode == "trained":
         snapshot = trained_snapshot(list(visits))
         model_version = trained_model_version()
@@ -139,10 +161,23 @@ def enqueue(db: Session, patient: Patient, selected: Visit, mode: str) -> Analys
     return analysis
 
 
+def latest_anatomy(db: Session, patient_id: str, completed: bool = False) -> Analysis | None:
+    query = select(Analysis).where(Analysis.patient_id == patient_id, Analysis.output_mode == "anatomy")
+    if completed:
+        query = query.where(Analysis.status == "completed")
+    return db.scalar(query.order_by(Analysis.created_at.desc()).limit(1))
+
+
 def latest_completed(db: Session, patient_id: str) -> Analysis | None:
+    if get_settings().ml_only:
+        return None
     return db.scalar(
         select(Analysis)
-        .where(Analysis.patient_id == patient_id, Analysis.status == "completed")
+        .where(
+            Analysis.patient_id == patient_id,
+            Analysis.status == "completed",
+            Analysis.output_mode != "anatomy",
+        )
         .order_by(Analysis.created_at.desc())
         .limit(1)
     )

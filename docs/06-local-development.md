@@ -1,6 +1,16 @@
 # Local Full-Stack Development
 
+For native longitudinal anatomy installation, optional AVRA runtime, review/artifact
+routes and current blockers, see [17](17-longitudinal-anatomy.md). Install the optional
+`requirements-anatomy.txt` and restart the single existing worker to load changes.
+Do not run concurrent GPU workers or treat visual QC as an automatic check.
+
 ## Baseline forecast study added 2026-10-02
+
+Default `ML_ONLY=true` disables old prediction modes. Keep the existing host PostgreSQL
+and frontend/API commands; use [16 ML-only serving](16-ml-only-serving.md) to resume
+the actual offline pipeline. Do not rerun old smoke commands expecting demo/inference
+to succeed in strict serving. Restart the one worker after updated guard code.
 
 Install `requirements-base.txt` in the local Python environment for the separate
 Streamlit/logistic study. The existing web app stays on port 3000, backend on 8000,

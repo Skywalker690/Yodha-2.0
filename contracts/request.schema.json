@@ -24,6 +24,7 @@
           }
         ]
       },
+      "description": "Baseline source predictors; OASIS-2 eTIV in cm3/mL, nWBV/ASF unitless. No future visits.",
       "title": "Baseline",
       "type": "object"
     },

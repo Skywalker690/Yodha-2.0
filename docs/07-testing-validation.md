@@ -1,5 +1,46 @@
 # Testing and Validation
 
+## Longitudinal anatomy checks (2026-10-02)
+
+Run `python -m pytest tests/test_anatomy.py tests/test_anatomy_api.py -q` and the full
+Python suite. Synthetic checks cover verified eTIV conversion, irregular visit timing,
+source geometry/coverage and categorical labels, continuous score ranges, unavailable
+alignment, review provenance, owned artifacts/tampering, explicit report selection,
+train-only structural preprocessing and subject-held-out guards, zero-time physical
+warping, folding/coverage failures and closed physical GIFTI mesh volume agreement.
+These are engineering checks, NOT real-data anatomical accuracy.
+
+Run frontend TypeScript, `npm test`, production build and
+`playwright test tests/e2e/ml-only.spec.ts`. The strict browser check scopes outcome
+cards separately from anatomy cards, verifies the added workspace panel, selected
+future interval and explicit unavailable/non-acquired label; it does not load a real
+predicted artifact. Anatomy UI tests cover review confirmation, ratios, unavailable
+ratings, explicit report selection and bounded authenticated mesh loading.
+The synthetic anatomy PDF was rendered with Poppler and every page inspected.
+
+Required scientific checks remain UNEXECUTED: real longitudinal segmentation/alignment
+QC, independent rating agreement (no reference labels), matched structural score
+ablation, interval coverage, trained spatial forecast overlap/surface metrics and
+matching real predicted NIfTI/GIFTI artifacts. See [17](17-longitudinal-anatomy.md).
+
+## ML-only serving checks (2026-10-02)
+
+The default local app now rejects all legacy prediction starts and clinical-only
+serving requests. Existing legacy unit regressions explicitly set `ML_ONLY=false`
+in their isolated test environment; dedicated strict tests override that policy.
+Run `pytest tests/test_ml_only_serving.py tests/test_forecast_v2.py tests/test_forecast_runner.py -q`.
+The release tests fit synthetic models only and check missing promotion, file/source
+tampering, full-horizon support, matched anatomy and no fallback. Pipeline tests
+confirm missing Docker prevents training and persists a blocker. Synthetic integration
+does not measure real anatomy accuracy.
+
+Run the real browser policy check from `frontend` using
+`.\node_modules\.bin\playwright.cmd test tests/e2e/ml-only.spec.ts`.
+It verifies 409 rejection of old modes, hidden historical current results, three
+unavailable cards and Settings readiness. Retained legacy e2e workflows require an
+explicit separate research-mode service; do not expect them to pass against strict
+serving. The production Next build, TypeScript, unit tests and full Python suite still apply.
+
 ## Automated tests
 
 ### ML and data

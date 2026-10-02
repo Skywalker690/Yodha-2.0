@@ -17,7 +17,10 @@ All subject-level tables and trained parameters live in ignored local directorie
 
 Calendar baseline_date is null because the supplied workbook provides relative days,
 not calendar dates. Sex encoding is F=0/M=1; education is years; SES is recorded ordinal
-class; MMSE is 0–30; CDR-zero is constant in this cohort. eTIV is source-estimated mm³,
+class; MMSE is 0–30; CDR-zero is constant in this cohort. OASIS-2 eTIV is retained in
+source cm³ (equivalent to mL), not mm³; FastSurfer anatomical features are mm³.
+The [original OASIS-2 publication's data dictionary](https://pmc.ncbi.nlm.nih.gov/articles/PMC2895005/)
+documents the source units. No factor-of-1000 conversion is silently applied.
 nWBV and ASF are unitless. Missing recorded SES/MMSE remain missing until train-only
 imputation. Never synthesize anatomy or treat unknown horizon labels as negatives.
 

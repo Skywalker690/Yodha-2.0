@@ -70,6 +70,52 @@ export function releaseViewer(viewer: Niivue): void {
   gl?.getExtension("WEBGL_lose_context")?.loseContext();
 }
 
+export async function fetchMesh(
+  url: string,
+  signal: AbortSignal,
+): Promise<ArrayBuffer> {
+  if (!url.startsWith("/api/") || url.includes("..") || /[%\\]/.test(url))
+    throw new Error("Invalid local mesh URL.");
+  const response = await fetch(url, {
+    signal,
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (!response.ok)
+    throw new Error(
+      "The owned mesh is unavailable. No substitute was generated.",
+    );
+  const limit = 30 * 1024 * 1024;
+  if (Number(response.headers.get("content-length")) > limit)
+    throw new Error("Mesh exceeds the browser loading limit.");
+  if (!response.body) throw new Error("Empty mesh response.");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        throw new Error("Oversized mesh.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!size) throw new Error("Empty mesh response.");
+  const output = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return output.buffer;
+}
+
 export function applyVolumeAppearance(
   viewer: Niivue,
   range: [number, number],
@@ -80,6 +126,7 @@ export function applyVolumeAppearance(
     opacity: number;
     overlayOpacity: number;
     differenceThreshold: number;
+    anatomyIndex?: number;
   },
 ): void {
   const volume = viewer.volumes[0];
@@ -92,13 +139,16 @@ export function applyVolumeAppearance(
   volume.cal_max = low + ((high - low) * settings.upper) / 100;
   volume.opacity = settings.opacity;
   const difference = viewer.volumes[1];
-  if (difference) {
+  if (difference && settings.anatomyIndex !== 1) {
     if (difference.colormap !== "warm") difference.setColormap("warm");
     difference.colormapType = 0; // MIN_TO_MAX; sub-threshold voxels use the transparent LUT origin.
     difference.cal_min = settings.differenceThreshold;
     difference.cal_max = 0.3;
     difference.colorbarVisible = false;
     difference.opacity = settings.overlayOpacity;
+  }
+  if (settings.anatomyIndex != null && viewer.volumes[settings.anatomyIndex]) {
+    viewer.volumes[settings.anatomyIndex].opacity = settings.overlayOpacity;
   }
   viewer.updateGLVolume();
 }
@@ -107,6 +157,7 @@ export async function saveResearchSnapshot(
   viewer: Niivue,
   filename: string,
   caption: string,
+  geometryCaption = "Not registered anatomy",
 ): Promise<void> {
   viewer.drawScene();
   const source = viewer.canvas;
@@ -125,7 +176,7 @@ export async function saveResearchSnapshot(
   context.fillText(caption, 16, source.height + 25, output.width - 32);
   context.fillStyle = "#62d9cf";
   context.fillText(
-    "Research visualization | Not a medical diagnosis | Not registered anatomy",
+    `Research visualization | Not a medical diagnosis | ${geometryCaption}`,
     16,
     source.height + 50,
     output.width - 32,

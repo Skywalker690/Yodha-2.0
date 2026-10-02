@@ -27,7 +27,8 @@ class VisitCreate(Schema):
 
 
 class AnalysisCreate(Schema):
-    output_mode: Literal["demo", "precomputed", "inference", "trained"] = "inference"
+    output_mode: Literal["demo", "precomputed", "inference", "trained", "anatomy"] = "inference"
+    future_interval_days: int = Field(default=365, ge=0, le=3650)
 
 
 class AnalysisOut(Schema):
@@ -45,3 +46,11 @@ class AnalysisOut(Schema):
     error: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class AnatomyReview(Schema):
+    visual_review_confirmed: Literal[True]
+
+
+class AnatomyForecastCreate(Schema):
+    interval_days: int = Field(ge=0, le=3650)

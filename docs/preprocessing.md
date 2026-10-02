@@ -1,7 +1,9 @@
 # Baseline forecast preprocessing
 
 Clinical: use the source baseline only, explicit numeric sex encoding, missing SES/MMSE
-preserved. Per horizon, median imputation and StandardScaler are fitted solely on
+preserved. OASIS-2 eTIV is kept in source cm³/mL; FastSurfer features use mm³. The two
+are standardized separately, not numerically conflated or silently rescaled. Per horizon,
+median imputation and StandardScaler are fitted solely on
 known-label training rows. Regularized logistic regression C=0.1 is fixed before
 evaluation. All-missing training predictors fail rather than receiving invented values.
 Serialized JSON includes medians, means, scales, coefficients, intercept, training IDs,

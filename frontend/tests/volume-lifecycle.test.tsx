@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   pending: Promise.resolve() as Promise<void>,
 }));
 vi.mock("@niivue/niivue", () => ({
+  NVMesh: { readMesh: vi.fn() },
   Niivue: class {
     canvas: HTMLCanvasElement | null = null;
     volumes = [];

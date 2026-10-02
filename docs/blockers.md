@@ -1,13 +1,29 @@
 # FastSurfer forecast completion blockers
 
+Current anatomy-extension blockers (2026-10-02): all five baseline outputs are
+verified but require human visual QC. The application has zero completed/reviewed
+longitudinal anatomy jobs. AVRA weights/FSL runtime and alignment-release checks
+are unverified. The required time-conditioned spatial predictor, its training/
+held-out evaluation and owned future-artifact serving are NOT implemented end to end.
+The old CDR classifier is not a substitute. See [17](17-longitudinal-anatomy.md).
+
 Checked 2026-10-02. This document distinguishes implemented code from verified real-data
 completion. The supplied PRD cannot currently be declared fully implemented and validated.
 
-1. **Docker runtime:** Docker Desktop was started, but the Linux engine did not respond
-   within the bounded runner readiness check. The five-scan pilot exited with
-   `TimeoutExpired`; no segmentation succeeded. A downloaded source folder is not a
-   working runtime. No image/weights download or registry digest was verified.
-2. **Anatomy:** all 85 feature-table rows are unavailable, not synthetic replacements.
+1. **Docker runtime repaired:** the initial pilot failed readiness. A subsequently
+   diagnosed stale `dockerInference` socket prevented startup. With explicit user
+   approval, only the socket runtime directory was renamed as a recoverable backup;
+   Docker Linux readiness now passes. The five-scan pilot was resumed and the pinned
+   image pull finished with verified registry digest. The first container launch
+   rejected the default UID 999; explicit non-root UID/GID fixed that error. The fresh
+   pilot loaded all three VINN checkpoints on CUDA. Processing progress is not
+   successful/reviewed segmentation.
+   See [repair/workflow](16-ml-only-serving.md) and local pipeline status.
+2. **Anatomy:** two real scans produced segmentation and versioned statistics;
+   Windows failed on their Linux aliases. Explicit output verification recovered those
+   records with source/native/output hashes and real ROI labels, preserving the failed
+   records and not inventing unknown exit codes. Two feature rows are now pending
+   visual review; none is approved for training. A third scan is processing.
    A real 5–10 scan pilot, visual QC and subsequent eligible full processing must finish
    before Tier B real training/evaluation. Synthetic tests verify software paths only.
 3. **Outcome support:** zero events at 12 months; only three at 24 months. The frozen
@@ -26,7 +42,11 @@ Independent work completed: source audit, baseline cohort/label/split, actual cl
 matched Tier A/B training/evaluation code, shared predictor, Streamlit and authenticated
 Next.js panel, contracts/documentation and synthetic regression checks.
 
-Resume: restore Docker Linux engine, pull the release-pinned image, run five baselines,
+Resume: finish the pinned image pull and real five-baseline pilot,
 inspect segmentation outputs, approve only reviewed scans, rebuild features, then train
 matched models into a fresh artifact directory. Additional outcome follow-up or a
 separately approved study design is required for stronger forecasting validation.
+
+ML-only serving is now the default: no legacy or clinical-only prediction fallback.
+Until a complete release passes anatomy/QC, support, matched evaluation and promotion
+gates, prediction cards remain unavailable even though the web services are online.

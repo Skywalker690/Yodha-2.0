@@ -19,6 +19,7 @@ import { Empty, ErrorState, ModeBadge } from "./common";
 import { TrajectoryChart } from "./trajectory-chart";
 import { VolumeExplorer } from "./volume-explorer";
 import { BaselineForecast } from "./baseline-forecast";
+import { AnatomyPanel } from "./anatomy-panel";
 
 function VisitForm({
   patient,
@@ -82,7 +83,15 @@ function VisitForm({
   );
 }
 
-function UploadForm({ visit, onDone }: { visit: Visit; onDone: () => void }) {
+function UploadForm({
+  visit,
+  onDone,
+  mlOnly = false,
+}: {
+  visit: Visit;
+  onDone: () => void;
+  mlOnly?: boolean;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -113,7 +122,10 @@ function UploadForm({ visit, onDone }: { visit: Visit; onDone: () => void }) {
       <h3>Add the MRI for {visit.label}</h3>
       <p>
         NIfTI volume (.nii or .nii.gz), up to 100 MiB.
-        <br />A local analysis job starts after validation.
+        <br />
+        {mlOnly
+          ? "Stored after validation; reviewed FastSurfer processing and trained model release are required before prediction."
+          : "A local analysis job starts after validation."}
       </p>
       <label className="file-picker">
         <span className="sr-only">MRI file</span>
@@ -135,7 +147,7 @@ function UploadForm({ visit, onDone }: { visit: Visit; onDone: () => void }) {
   );
 }
 
-export function AnalysisWorkspace({
+function LegacyAnalysisWorkspace({
   patient,
   reload,
 }: {
@@ -216,7 +228,15 @@ export function AnalysisWorkspace({
         </Button>
       </div>
       {patient.notes && <p className="patient-notes">{patient.notes}</p>}
-      {patient.source === "oasis-2" && <BaselineForecast key={patient.id} patientId={patient.id} />}
+      {patient.source === "oasis-2" && (
+        <BaselineForecast key={patient.id} patientId={patient.id} research />
+      )}
+      {visit && (
+        <AnatomyPanel
+          key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}
+          patient={patient} visit={visit} reload={reload}
+        />
+      )}
       {addVisit && (
         <section className="panel form-panel">
           <h3>Add a chronological visit</h3>
@@ -298,6 +318,7 @@ export function AnalysisWorkspace({
           patient={patient}
           visit={visit}
           analysis={analysis}
+          anatomyAnalysis={patient.completedAnatomy ?? null}
           onSelectVisit={selectVisit}
         />
       )}
@@ -616,5 +637,108 @@ export function AnalysisWorkspace({
         </section>
       )}
     </>
+  );
+}
+
+function MLWorkspace({
+  patient,
+  reload,
+}: {
+  patient: Patient;
+  reload: () => void;
+}) {
+  const [selectedId, setSelectedId] = useState("");
+  const [addVisit, setAddVisit] = useState(false);
+  const visit =
+    patient.visits.find((v) => v.id === selectedId) || patient.visits[0];
+  return (
+    <>
+      <section className="panel" style={{ padding: "1.5rem" }}>
+        <h2>{patient.code}</h2>
+        <p>
+          ML-only research serving. Historical predictions remain archived, not
+          reused as current forecasts. This is not clinical-production approval.
+        </p>
+        <Button variant="outline" onClick={() => setAddVisit(!addVisit)}>
+          Add visit
+        </Button>
+        {addVisit && (
+          <VisitForm
+            patient={patient}
+            onDone={() => {
+              setAddVisit(false);
+              reload();
+            }}
+          />
+        )}
+      </section>
+      <BaselineForecast key={patient.id} patientId={patient.id} />
+      {visit && (
+        <AnatomyPanel
+          key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}
+          patient={patient}
+          visit={visit}
+          reload={reload}
+        />
+      )}
+      {visit ? (
+        <section className="panel" style={{ padding: "1.5rem" }}>
+          <label>
+            MRI visit
+            <select
+              value={visit.id}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              {patient.visits.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>
+            Follow-up MRI viewing does not change the baseline prediction or add
+            future inputs.
+          </p>
+          {visit.hasMri ? (
+            <>
+              <VolumeExplorer
+                key={patient.id}
+                patient={patient}
+                visit={visit}
+                analysis={null}
+                anatomyAnalysis={patient.completedAnatomy ?? null}
+                onSelectVisit={setSelectedId}
+              />
+              {visit.previewUrl && (
+                <img
+                  src={visit.previewUrl}
+                  alt={`Original MRI preview for ${visit.label}`}
+                  style={{ maxWidth: "100%" }}
+                />
+              )}
+            </>
+          ) : (
+            <UploadForm visit={visit} onDone={reload} mlOnly />
+          )}
+        </section>
+      ) : (
+        <Empty title="No MRI visits">
+          Add a visit to store an MRI. Prediction requires verified baseline
+          metadata, reviewed anatomy and a promoted model.
+        </Empty>
+      )}
+    </>
+  );
+}
+
+export function AnalysisWorkspace(props: {
+  patient: Patient;
+  reload: () => void;
+}) {
+  return props.patient.servingPolicy === "research" ? (
+    <LegacyAnalysisWorkspace {...props} />
+  ) : (
+    <MLWorkspace {...props} />
   );
 }

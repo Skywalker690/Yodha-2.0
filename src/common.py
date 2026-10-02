@@ -13,6 +13,17 @@ HORIZONS = (12, 24, 36)
 TARGET = "observed_cdr_conversion"
 VERSION = "oasis-baseline-fastsurfer-v2"
 CLINICAL = ("age_years", "sex", "education", "ses", "mmse", "cdr", "etiv", "nwbv", "asf")
+CLINICAL_UNITS = {
+    "age_years": "years",
+    "sex": "F=0,M=1",
+    "education": "years",
+    "ses": "ordinal",
+    "mmse": "score_0_30",
+    "cdr": "score",
+    "etiv": "cm3",
+    "nwbv": "unitless",
+    "asf": "unitless",
+}
 
 
 def config(path: str | Path) -> dict:

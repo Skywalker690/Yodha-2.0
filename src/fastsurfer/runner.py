@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import re
 import subprocess
 import time
@@ -11,6 +13,7 @@ import time
 from src.common import config, resolve, sha256, write_json
 from src.data.preprocess_mri import convert_native, inspect_mri
 from src.fastsurfer.manifest import scans, subject_dir
+from src.fastsurfer.feature_map import STATS_RELATIVE
 
 
 def docker_command(cfg: dict, scan_id: str, native, output) -> list[str]:
@@ -21,7 +24,11 @@ def docker_command(cfg: dict, scan_id: str, native, output) -> list[str]:
         raise ValueError("Configured version must match the pinned image")
     if cfg["device"] not in ("cpu", "cuda") or cfg["viewagg_device"] not in ("cpu", "cuda"):
         raise ValueError("Explicit CPU or CUDA devices required")
-    cmd = ["docker", "run", "--rm", "--network", "none"]
+    user = cfg.get("container_user", f"{os.getuid()}:{os.getgid()}" if hasattr(os, "getuid") else "1000:1000")
+    if not re.fullmatch(r"[1-9][0-9]*:[1-9][0-9]*", user) or user.split(":")[0] == "999":
+        raise ValueError("Explicit non-root UID:GID required; FastSurfer's placeholder UID 999 is forbidden")
+    name = "neuropredict-fs-" + hashlib.sha256(f"{output}/{scan_id}".encode()).hexdigest()[:16]
+    cmd = ["docker", "run", "--rm", "--name", name, "--network", "none", "--user", user]
     if cfg["device"] == "cuda":
         cmd += ["--gpus", "all"]
     cmd += [
@@ -95,17 +102,36 @@ def run_scan(cfg: dict, row: dict, image_digest: str) -> dict:
             subprocess.run(
                 cmd, check=True, stdout=log, stderr=subprocess.STDOUT, timeout=int(cfg["timeout_seconds"])
             )
-        required = [destination / "stats/aseg+DKT.stats", destination / "mri/aparc.DKTatlas+aseg.deep.mgz"]
+        record["container_exit_code"] = 0
+        required = [destination / STATS_RELATIVE, destination / "mri/aparc.DKTatlas+aseg.deep.mgz"]
         if not all(p.is_file() for p in required):
             raise ValueError("FastSurfer did not produce required statistics and segmentation")
         record.update(
-            status="completed", output_sha256={str(p.relative_to(destination)): sha256(p) for p in required}
+            status="completed",
+            output_sha256={p.relative_to(destination).as_posix(): sha256(p) for p in required},
         )
+    except subprocess.TimeoutExpired:
+        # A timed-out Docker client alone does not stop its container. Stop only this
+        # runner's deterministic named container, never other jobs or any volumes.
+        name = cmd[cmd.index("--name") + 1]
+        try:
+            subprocess.run(
+                ["docker", "stop", "--time", "10", name], check=True, capture_output=True, timeout=20
+            )
+            record["container_cleanup"] = "stopped"
+        except (OSError, subprocess.SubprocessError):
+            record["container_cleanup"] = "failed"
+        record.update(status="failed", error="TimeoutExpired")
     except (subprocess.SubprocessError, OSError, ValueError) as error:
         record.update(status="failed", error=type(error).__name__)
     record["elapsed_seconds"] = round(time.monotonic() - started, 3)
     write_json(record_path, record)
-    return {"status": record["status"], "elapsed_seconds": record["elapsed_seconds"]}
+    outcome = {"status": record["status"], "elapsed_seconds": record["elapsed_seconds"]}
+    if record["status"] == "failed":
+        outcome["error"] = record["error"]
+        if "container_cleanup" in record:
+            outcome["container_cleanup"] = record["container_cleanup"]
+    return outcome
 
 
 def run(cfg: dict, pilot: int) -> dict:
@@ -125,10 +151,35 @@ def run(cfg: dict, pilot: int) -> dict:
     outcomes = []
     for row in scans(cfg).sort_values("patient_id").head(pilot).to_dict("records"):
         try:
-            outcomes.append(run_scan(cfg, row, digests[0]))
-        except (ValueError, OSError) as error:
+            saved = subject_dir(cfg, row["scan_id"]) / "processing.json"
+            record = json.loads(saved.read_text()) if saved.exists() else {}
+            if record.get("status") == "completed":
+                source = resolve(row["source_mri_path"])
+                expected_outputs = {STATS_RELATIVE, "mri/aparc.DKTatlas+aseg.deep.mgz"}
+                if (
+                    record["digest"] != digests[0]
+                    or record["version"] != cfg["version"]
+                    or record["patient_id"] != row["patient_id"]
+                    or record["scan_id"] != row["scan_id"]
+                    or record["source_sha256"] != sha256(source)
+                    or (
+                        source.suffix == ".hdr"
+                        and record["source_pair_sha256"] != sha256(source.with_suffix(".img"))
+                    )
+                    or set(record["output_sha256"]) != expected_outputs
+                    or any(
+                        sha256(saved.parent / key) != value for key, value in record["output_sha256"].items()
+                    )
+                ):
+                    raise ValueError("Existing completed output changed; use a new output directory")
+                outcomes.append({"status": "completed", "reused_verified": True})
+            else:
+                outcomes.append(run_scan(cfg, row, digests[0]))
+        except (ValueError, OSError, KeyError, TypeError) as error:
             outcomes.append({"status": "failed", "error": type(error).__name__})
         print(f"Processed {len(outcomes)}/{pilot}: {outcomes[-1]['status']}", flush=True)
+        if outcomes[-1].get("error") == "TimeoutExpired":
+            break  # Inspect timeout/cleanup before launching further GPU work.
     audit = {
         "requested": pilot,
         "completed": sum(r["status"] == "completed" for r in outcomes),

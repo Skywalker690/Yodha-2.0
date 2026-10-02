@@ -3,6 +3,7 @@ import re
 import time
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile
@@ -15,13 +16,27 @@ from backend.app.core.config import get_settings
 from backend.app.core.security import create_token, current_user, hash_password, verify_password
 from backend.app.db.session import get_db
 from backend.app.models import Analysis, Biomarker, Heatmap, Patient, User, Visit
-from backend.app.schemas.contracts import AnalysisCreate, AnalysisOut, Login, PatientCreate, VisitCreate
-from backend.app.services.analysis import enqueue, latest_completed, trained_model_version
+from backend.app.schemas.contracts import (
+    AnatomyReview,
+    AnatomyForecastCreate,
+    AnalysisCreate,
+    AnalysisOut,
+    Login,
+    PatientCreate,
+    VisitCreate,
+)
+from backend.app.services.analysis import enqueue, latest_completed, latest_anatomy, trained_model_version
 from backend.app.services.reports import build_report
 from backend.app.services.forecast import patient_forecast
+from src.risk.release import readiness
 from backend.app.services.storage import new_key, resolve_key
 from ml.contracts import MODEL_VERSION
 from ml.preprocessing import render_preview
+from src.common import sha256
+from src.fastsurfer.regions import REGIONS
+from ml.anatomy.measurements import changes as anatomy_changes
+from ml.contracts import ProgressionResult
+from datetime import timezone
 
 router = APIRouter()
 attempts: dict[str, list[float]] = defaultdict(list)
@@ -44,9 +59,17 @@ def owned_visit(db: Session, user: User, visit_id: str) -> Visit:
 
 
 @router.get("/patients/{patient_id}/forecast")
-def forecast(patient_id: str, model_kind: Literal["clinical", "clinical_matched", "clinical_fastsurfer"] = "clinical",
-             db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+def forecast(
+    patient_id: str,
+    model_kind: Literal["clinical", "clinical_matched", "clinical_fastsurfer"] = "clinical_fastsurfer",
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> dict:
     patient = owned_patient(db, user, patient_id)
+    if get_settings().ml_only and model_kind != "clinical_fastsurfer":
+        raise HTTPException(
+            409, "ML-only serving allows only Clinical + FastSurfer. No clinical-only fallback."
+        )
     return camel(patient_forecast(patient.code, patient.source, model_kind))
 
 
@@ -79,13 +102,17 @@ def patient_payload(db: Session, patient: Patient) -> dict:
     ).all()
     latest = db.scalar(
         select(Analysis)
-        .where(Analysis.patient_id == patient.id)
+        .where(Analysis.patient_id == patient.id, Analysis.output_mode != "anatomy")
         .order_by(Analysis.created_at.desc())
         .limit(1)
     )
     completed = latest_completed(db, patient.id)
+    if get_settings().ml_only:
+        latest = None
+        completed = None  # anatomy has its own payload; never insert it into legacy charts
     return {
         "id": patient.id,
+        "servingPolicy": "ml_only" if get_settings().ml_only else "research",
         "code": patient.code,
         "age": patient.age,
         "sex": patient.sex,
@@ -95,6 +122,10 @@ def patient_payload(db: Session, patient: Patient) -> dict:
         "visitCount": len(visits),
         "latestAnalysis": analysis_payload(latest) if latest else None,
         "latestCompleted": analysis_payload(completed) if completed else None,
+        "latestAnatomy": analysis_payload(anatomy) if (anatomy := latest_anatomy(db, patient.id)) else None,
+        "completedAnatomy": analysis_payload(anatomy)
+        if (anatomy := latest_anatomy(db, patient.id, completed=True))
+        else None,
         "visits": [
             {
                 "id": v.id,
@@ -123,11 +154,15 @@ def health(db: Session = Depends(get_db)) -> dict:
         "status": "online",
         "database": "connected",
         "worker": "online" if worker else "offline",
-        "modelVersion": MODEL_VERSION,
+        "modelVersion": "clinical-fastsurfer-serving-v1" if get_settings().ml_only else MODEL_VERSION,
         "baselineModelVersion": MODEL_VERSION,
         "trainedModelVersion": trained_version,
         "trainedModelReady": trained_version is not None,
         "storage": "local filesystem",
+        "servingPolicy": "ml_only" if get_settings().ml_only else "research",
+        "forecastReadiness": readiness(
+            get_settings().forecast_artifact_dir, get_settings().forecast_processed_dir
+        ),
     }
 
 
@@ -248,6 +283,13 @@ def upload(
         visit.mri_key, visit.preview_key, visit.metadata_json = key, preview, metadata
         db.flush()
         patient = owned_patient(db, user, visit.patient_id)
+        if get_settings().ml_only:
+            db.commit()
+            return {
+                "status": "stored",
+                "visitId": visit.id,
+                "message": "MRI stored. Clinical metadata, offline FastSurfer processing, visual QC and a promoted model are required; no rule-based job was queued.",
+            }
         # Only complete chronological inputs can form an analysis. Upload always queues a single
         # visit when earlier files are pending; a later explicit analysis includes the sequence.
         prior = db.scalars(
@@ -313,7 +355,9 @@ def start_analysis(
     visit_id: str, body: AnalysisCreate, db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> dict:
     visit = owned_visit(db, user, visit_id)
-    job = enqueue(db, owned_patient(db, user, visit.patient_id), visit, body.output_mode)
+    job = enqueue(
+        db, owned_patient(db, user, visit.patient_id), visit, body.output_mode, body.future_interval_days
+    )
     db.commit()
     return analysis_payload(job)
 
@@ -321,6 +365,201 @@ def start_analysis(
 @router.get("/analysis/{analysis_id}")
 def get_analysis(analysis_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
     return analysis_payload(owned_analysis(db, user, analysis_id))
+
+
+@router.get("/anatomy-model/readiness")
+def anatomy_model_readiness(user: User = Depends(current_user)) -> dict:
+    from backend.app.services.anatomy_forecast import readiness as anatomy_readiness
+    return anatomy_readiness()
+
+
+@router.post("/analysis/{analysis_id}/forecast", status_code=202)
+def create_anatomy_forecast(analysis_id: str, body: AnatomyForecastCreate, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    from backend.app.services.anatomy_forecast import enqueue_forecast
+    job = enqueue_forecast(db, owned_analysis(db, user, analysis_id), body.interval_days)
+    db.commit()
+    return analysis_payload(job)
+
+
+@router.get("/analysis/{analysis_id}/future/{artifact}")
+def future_anatomy_artifact(analysis_id: str, artifact: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> FileResponse:
+    from ml.anatomy.integrity import checked_file
+    job = owned_analysis(db, user, analysis_id)
+    result = ProgressionResult.model_validate(job.result_json) if job.status == "completed" and job.output_mode == "anatomy" else None
+    forecast = result.anatomy.forecast if result and result.anatomy else None
+    released = next((a for a in forecast.artifacts if a.name == artifact), None) if forecast else None
+    if not forecast or forecast.status != "available" or not released:
+        raise HTTPException(404, "Matching evaluated future artifact unavailable.")
+    root = resolve_key(f"derived/{job.id}/future")
+    try:
+        manifest = json.loads((root / "future-artifacts.json").read_text())
+        if (manifest["cutoff_visit_id"] != forecast.cutoff_visit_id or manifest["interval_days"] != forecast.interval_days
+            or manifest["model_sha256"] != forecast.model_sha256 or manifest["version"] != forecast.spatial_model_version
+            or manifest["release_sha256"] != forecast.release_sha256 or manifest["source_sha256"] != [v.source_sha256 for v in result.anatomy.visits]):
+            raise ValueError("Future metadata changed")
+        entry = manifest["artifacts"][artifact]
+        expected_name = artifact + (".gii" if released.kind == "mesh" else ".nii.gz")
+        if entry["sha256"] != released.sha256 or entry["kind"] != released.kind or entry["relative_path"] != expected_name:
+            raise ValueError("Future artifact no longer matches completed result")
+        path = checked_file(root, entry)
+    except (OSError, ValueError, KeyError, TypeError):
+        raise HTTPException(404, "Future artifact missing or changed; no substitute generated.") from None
+    return FileResponse(path, media_type="application/octet-stream", filename=expected_name, content_disposition_type="inline", headers={"Cache-Control": "private, no-store"})
+
+
+@router.get("/analysis/{analysis_id}/visits/{visit_id}/rating-alignment")
+def rating_alignment(analysis_id: str, visit_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> FileResponse:
+    from ml.anatomy.integrity import rating_files
+    job = owned_analysis(db, user, analysis_id)
+    result = ProgressionResult.model_validate(job.result_json) if job.status == "completed" and job.output_mode == "anatomy" else None
+    anatomy = result.anatomy if result else None
+    item = next((v for v in anatomy.visits if v.visit_id == visit_id), None) if anatomy else None
+    if not item or item.ratings.status not in {"pending_alignment_qc", "ok"}:
+        raise HTTPException(404, "Automatic-rating alignment unavailable.")
+    try:
+        index = result.visit_ids.index(visit_id)
+        root = resolve_key(f"derived/{job.id}")
+        rating_files(root, index, item)
+    except (OSError, ValueError, KeyError, TypeError):
+        raise HTTPException(404, "Rating alignment changed or missing.") from None
+    return FileResponse(root / f"rating_{index}/rating_mni_dof_6.nii", media_type="application/octet-stream", filename="rating-alignment.nii", content_disposition_type="inline", headers={"Cache-Control": "private, no-store"})
+
+
+@router.post("/analysis/{analysis_id}/rating-qc/{visit_id}")
+def review_rating_alignment(analysis_id: str, visit_id: str, body: AnatomyReview, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    from ml.anatomy.integrity import measurement_files, rating_files
+    from ml.anatomy.ratings import parse_avra_csv
+    from src.common import write_json
+    job = owned_analysis(db, user, analysis_id)
+    db.execute(select(Analysis).where(Analysis.id == job.id).with_for_update()).scalar_one()
+    if job.status != "completed" or job.output_mode != "anatomy":
+        raise HTTPException(409, "Complete automatic scoring before alignment review.")
+    result = ProgressionResult.model_validate(job.result_json)
+    item = next((v for v in result.anatomy.visits if v.visit_id == visit_id), None) if result.anatomy else None
+    if not item or item.qc != "passed" or item.ratings.status != "pending_alignment_qc":
+        raise HTTPException(409, "Review the segmentation and pending automatic alignment first.")
+    root = resolve_key(f"derived/{job.id}")
+    try:
+        index = result.visit_ids.index(visit_id)
+        snapshot = next(s for s in job.input_json if s["visit_id"] == visit_id)
+        measurement_files(root, job.patient_id, index, item, resolve_key(snapshot["mri_key"]))
+        provenance = rating_files(root, index, item)
+        scores = parse_avra_csv(root / f"rating_{index}/rating.csv", alignment_verified=True)
+        if scores.status != "ok":
+            raise ValueError("Invalid automatic scores")
+    except (ValueError, OSError, KeyError, TypeError, StopIteration):
+        raise HTTPException(409, "Automatic rating, alignment or source integrity failed.") from None
+    provenance.update(alignment_qc="passed", reviewer_id=user.id, reviewed_at=datetime.now(timezone.utc).isoformat())
+    write_json(root / f"rating_{index}/provenance.json", provenance)
+    item.ratings = scores
+    job.result_json = result.model_dump()
+    db.commit()
+    return analysis_payload(job)
+
+
+@router.get("/analysis/{analysis_id}/visits/{visit_id}/anatomy/{artifact}")
+def anatomy_artifact(
+    analysis_id: str,
+    visit_id: str,
+    artifact: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> FileResponse:
+    job = owned_analysis(db, user, analysis_id)
+    if (
+        job.status != "completed"
+        or job.output_mode != "anatomy"
+        or artifact not in {"regions", "segmentation", *REGIONS}
+        or visit_id not in (job.result_json or {}).get("visit_ids", [])
+    ):
+        raise HTTPException(404, "Anatomical artifact unavailable.")
+    directory = resolve_key(f"derived/{job.id}")
+    try:
+        manifest = json.loads((directory / "anatomy-artifacts.json").read_text())
+        entry = manifest["visits"][visit_id][artifact]
+        path = (directory / entry["relative_path"]).resolve()
+        if not path.is_relative_to(directory) or not path.is_file() or sha256(path) != entry["sha256"]:
+            raise ValueError("Changed artifact")
+    except (OSError, ValueError, KeyError, TypeError):
+        raise HTTPException(
+            404, "Anatomical artifact missing or changed. No substitute was generated."
+        ) from None
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename="measured-regions.nii.gz",
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, no-store"},
+    )
+
+
+@router.post("/analysis/{analysis_id}/anatomy-qc/{visit_id}")
+def review_anatomy(
+    analysis_id: str,
+    visit_id: str,
+    body: AnatomyReview,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> dict:
+    job = owned_analysis(db, user, analysis_id)
+    db.execute(select(Analysis).where(Analysis.id == job.id).with_for_update()).scalar_one()
+    if job.output_mode != "anatomy" or job.status != "completed":
+        raise HTTPException(409, "Complete native segmentation before visual review.")
+    result = ProgressionResult.model_validate(job.result_json)
+    anatomy = result.anatomy
+    item = next((v for v in anatomy.visits if v.visit_id == visit_id), None) if anatomy else None
+    if not item:
+        raise HTTPException(404, "Visit not included in this anatomy result.")
+    if item.qc != "pending_review":
+        raise HTTPException(409, "Only a pending segmentation can receive a visual review.")
+    try:
+        source = next(s for s in job.input_json if s["visit_id"] == visit_id)
+        if sha256(resolve_key(source["mri_key"])) != item.source_sha256:
+            raise ValueError("Source changed")
+        directory = resolve_key(f"derived/{job.id}")
+        index = result.visit_ids.index(visit_id)
+        seg = directory / f"fastsurfer/scan_{index}/mri/aparc.DKTatlas+aseg.deep.mgz"
+        stats_relative = "stats/aseg+DKT.VINN.stats"
+        scan_directory = directory / f"fastsurfer/scan_{index}"
+        stats = scan_directory / stats_relative
+        processing = json.loads((scan_directory / "processing.json").read_text())
+        if (
+            sha256(seg) != item.segmentation_sha256
+            or sha256(stats) != item.statistics_sha256
+            or processing.get("status") != "completed"
+            or processing.get("version") != item.fastsurfer_version
+            or processing.get("digest") != item.container_digest
+            or processing.get("scan_id") != f"scan_{index}"
+            or processing.get("patient_id") != job.patient_id
+            or processing.get("source_sha256") != item.source_sha256
+            or processing.get("output_sha256", {}).get(stats_relative) != item.statistics_sha256
+            or processing.get("output_sha256", {}).get("mri/aparc.DKTatlas+aseg.deep.mgz")
+            != item.segmentation_sha256
+        ):
+            raise ValueError("FastSurfer source or outputs changed")
+        manifest = json.loads((directory / "anatomy-artifacts.json").read_text())
+        entries = manifest["visits"][visit_id]
+        if manifest.get("version") != "longitudinal-anatomy-v1" or set(entries) != {"regions", "segmentation", *REGIONS}:
+            raise ValueError("Incomplete anatomy artifact set")
+        for name, entry in entries.items():
+            relative = Path(entry["relative_path"])
+            if (
+                relative.is_absolute()
+                or ".." in relative.parts
+                or not re.fullmatch(r"[a-f0-9]{64}", entry["sha256"])
+                or relative != Path(f"visit_{index}") / f"{name}.nii.gz"
+            ):
+                raise ValueError("Invalid anatomy artifact manifest")
+            artifact_path = (directory / entry["relative_path"]).resolve()
+            if not artifact_path.is_relative_to(directory) or sha256(artifact_path) != entry["sha256"]:
+                raise ValueError("Review artifacts changed")
+    except (ValueError, OSError, KeyError, TypeError, StopIteration):
+        raise HTTPException(409, "Source or anatomy artifacts changed; review cannot be recorded.") from None
+    item.qc, item.reviewer_id, item.reviewed_at = "passed", user.id, datetime.now(timezone.utc).isoformat()
+    anatomy.changes = anatomy_changes(anatomy.visits)
+    job.result_json = result.model_dump()
+    db.commit()
+    return analysis_payload(job)
 
 
 @router.get("/analysis/{analysis_id}/visits/{visit_id}/overlay")
@@ -397,9 +636,14 @@ def heatmaps(
 
 
 @router.post("/reports/{patient_id}", status_code=201)
-def create_report(patient_id: str, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+def create_report(
+    patient_id: str, analysis_id: str | None = None,
+    db: Session = Depends(get_db), user: User = Depends(current_user),
+) -> dict:
     patient = owned_patient(db, user, patient_id)
-    analysis = latest_completed(db, patient_id)
+    analysis = owned_analysis(db, user, analysis_id) if analysis_id else latest_completed(db, patient_id)
+    if analysis and (analysis.patient_id != patient_id or analysis.status != "completed"):
+        raise HTTPException(409, "Select a completed analysis for this patient.")
     if not analysis:
         raise HTTPException(409, "Complete an analysis before generating a report.")
     visits = db.scalars(

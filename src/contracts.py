@@ -11,7 +11,9 @@ class PredictionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False, strict=True)
     contract_version: Literal["2"] = "2"
     patient_id: str = Field(min_length=1, max_length=100)
-    baseline: dict[str, float | None]
+    baseline: dict[str, float | None] = Field(
+        description="Baseline source predictors; OASIS-2 eTIV in cm3/mL, nWBV/ASF unitless. No future visits."
+    )
     fastsurfer_features: dict[str, float | None] | None = None
     fastsurfer_version: str | None = None
     feature_set_version: str | None = None

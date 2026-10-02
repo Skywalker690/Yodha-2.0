@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useResource } from "@/lib/use-resource";
 import { ErrorState, Loading } from "./common";
+import { Button } from "./ui/button";
 
 type Forecast = {
   prediction: {
@@ -19,29 +20,59 @@ type Forecast = {
   anatomy: Record<string, number> | null;
 };
 
-export function BaselineForecast({ patientId }: { patientId: string }) {
-  const [kind, setKind] = useState("clinical");
+export function BaselineForecast({
+  patientId,
+  research = false,
+}: {
+  patientId: string;
+  research?: boolean;
+}) {
+  const [kind, setKind] = useState(
+    research ? "clinical" : "clinical_fastsurfer",
+  );
   const { data, loading, error, reload } = useResource<Forecast>(
     `/patients/${patientId}/forecast?model_kind=${kind}`,
   );
+  const blocked =
+    !research &&
+    (!data?.prediction.usedMri ||
+      data.prediction.status !== "ok" ||
+      data.qc !== "passed");
   return (
     <section className="panel" style={{ padding: "1.5rem", marginTop: "1rem" }}>
-      <h2>Baseline-only outcome forecast</h2>
+      <h2>
+        {research
+          ? "Baseline-only outcome forecast"
+          : "Clinical + FastSurfer ML forecast"}
+      </h2>
+      <Button variant="outline" onClick={reload} disabled={loading}>
+        Check prediction readiness
+      </Button>
       <p>
         Separate experiment: first observed CDR conversion after a CDR-zero
         baseline. Not MCI-to-Alzheimer forecasting or a medical diagnosis. Later
         visits are labels only.
       </p>
-      <label>
-        Forecast model
-        <select value={kind} onChange={(event) => setKind(event.target.value)}>
-          <option value="clinical">Clinical reference</option>
-          <option value="clinical_matched">
-            Clinical on matched MRI cohort
-          </option>
-          <option value="clinical_fastsurfer">Clinical + FastSurfer</option>
-        </select>
-      </label>
+      {research ? (
+        <label>
+          Forecast model
+          <select
+            value={kind}
+            onChange={(event) => setKind(event.target.value)}
+          >
+            <option value="clinical">Clinical reference</option>
+            <option value="clinical_matched">
+              Clinical on matched MRI cohort
+            </option>
+            <option value="clinical_fastsurfer">Clinical + FastSurfer</option>
+          </select>
+        </label>
+      ) : (
+        <p>
+          ML-only serving · reviewed MRI anatomy + trained clinical model · no
+          demo, rules or fallback.
+        </p>
+      )}
       {loading ? (
         <Loading />
       ) : error ? (
@@ -49,6 +80,12 @@ export function BaselineForecast({ patientId }: { patientId: string }) {
       ) : (
         data?.prediction && (
           <>
+            {blocked && (
+              <p role="status">
+                Prediction blocked until reviewed anatomy and a complete
+                promoted model are available.
+              </p>
+            )}
             <p>
               Mode: {data.prediction.mode} · Model:{" "}
               {data.prediction.modelVersion} · Anatomy used:{" "}
@@ -60,7 +97,7 @@ export function BaselineForecast({ patientId }: { patientId: string }) {
                 <div key={horizon}>
                   <dt>{horizon}-month experimental risk</dt>
                   <dd>
-                    {data.prediction.probabilities[horizon] == null
+                    {blocked || data.prediction.probabilities[horizon] == null
                       ? "Unavailable"
                       : `${(data.prediction.probabilities[horizon]! * 100).toFixed(1)}%`}
                   </dd>
@@ -89,12 +126,16 @@ export function BaselineForecast({ patientId }: { patientId: string }) {
                 </dl>
               </details>
             )}
-            <details>
-              <summary>Feature associations, not causal explanations</summary>
-              <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                {JSON.stringify(data.prediction.explanation, null, 2)}
-              </pre>
-            </details>
+            {!blocked && (
+              <details>
+                <summary>Feature associations, not causal explanations</summary>
+                <pre
+                  style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                >
+                  {JSON.stringify(data.prediction.explanation, null, 2)}
+                </pre>
+              </details>
+            )}
           </>
         )
       )}

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "longitudinal-anatomy": {
+      "targetKind": "new-ui",
+      "projectId": "e9bfda2f-bec1-4ba2-867c-8ac2f38f3b87",
+      "activeDraftId": "70c1a9a3-6b4c-40a9-97d5-eca28eb63375",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "frontend/components/ui/button.tsx",
+        "frontend/components/common.tsx",
+        "frontend/components/volume-explorer.tsx",
+        "frontend/components/volume-canvas.tsx",
+        "frontend/app/globals.css:1:160",
+        "frontend/components/shell.tsx"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "be95e5c9283fe854b787a8438a77368fbda2a74b947a7b6ba2aedd5df87de8c9",
+        "frontend/components/ui/button.tsx": "4a3ef422df04536ca87757d61f9ebbaa67f24a99d88570f53117d81c61fe8936",
+        "frontend/components/common.tsx": "94cec6efb3b67f71dca3c61305d0db24f4eea17c1efc49f17b908b2c215487ee",
+        "frontend/components/volume-explorer.tsx": "73b46a4c9a74ef378d6a389ecc9cc70e4d304876ebd8dd53dd0c8e5a5f4da55f",
+        "frontend/components/volume-canvas.tsx": "7a3267e7510259e4bf143a2511c249a6b01f8984116273865f6a44a3a2a6b7f2",
+        "frontend/app/globals.css": "36315710e99d012e08f7b77294f71c65c72383dbf531babb0fee9bddb1a02064",
+        "frontend/components/shell.tsx": "3f6338de0d3220dca011a42780723d329f87185972bba484369cbd23a300a96e"
+      },
+      "components": [
+        {
+          "name": "WorkspaceSidebar",
+          "id": "d3fce2ca-0e68-43b8-8477-04fb229cd28a",
+          "sourcePath": "frontend/components/shell.tsx"
+        }
+      ],
+      "drafts": {
+        "70c1a9a3-6b4c-40a9-97d5-eca28eb63375": {
+          "title": "NeuroPredict Longitudinal UI",
+          "visualDirection": "existing navy/cyan; synthetic placeholders and blocked future",
+          "currentVersion": 2
+        }
+      },
+      "updatedAt": "2026-10-02T04:18:03.551Z"
+    }
+  }
+}

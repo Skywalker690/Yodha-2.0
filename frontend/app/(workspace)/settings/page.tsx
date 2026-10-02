@@ -58,32 +58,66 @@ export default function Settings() {
           </section>
           <section className="panel settings-card">
             <FlaskConical size={26} />
-            <h2>Research model</h2>
-            <dl>
-              <dt>Experimental trained checkpoint</dt>
-              <dd>{data?.trainedModelVersion || "Unavailable"}</dd>
-              <dt>Trained bundle availability</dt>
-              <dd>
-                {data?.trainedModelReady
-                  ? "Available for experimental inference"
-                  : "Unavailable"}
-              </dd>
-              <dt>Method</dt>
-              <dd>3D CNN + demographic MLP + LSTM</dd>
-              <dt>Target</dt>
-              <dd>Retrospective observed CDR increase</dd>
-              <dt>Legacy baseline version</dt>
-              <dd>{data?.baselineModelVersion || data?.modelVersion}</dd>
-              <dt>Image visualization</dt>
-              <dd>Intensity differences, not trained-model attribution</dd>
-              <dt>Confidence estimator</dt>
-              <dd>Not available</dd>
-            </dl>
-            <p>
-              The trained checkpoint has poor measured generalization. Its
-              uncalibrated sequence score is not a future Alzheimer’s
-              probability. Legacy baseline scores remain image-change indices.
-            </p>
+            <h2>
+              {data?.servingPolicy === "ml_only"
+                ? "ML-only serving"
+                : "Research model"}
+            </h2>
+            {data?.servingPolicy === "ml_only" ? (
+              <>
+                <dl>
+                  <dt>Active method</dt>
+                  <dd>Clinical + FastSurfer · trained logistic heads</dd>
+                  <dt>Release readiness</dt>
+                  <dd>
+                    {data.forecastReadiness?.ready
+                      ? "Promoted research release"
+                      : "Prediction blocked"}
+                  </dd>
+                  <dt>Fallback</dt>
+                  <dd>
+                    Disabled · no demo, feature-delta or historical neural
+                    scores
+                  </dd>
+                  <dt>Clinical validation</dt>
+                  <dd>Not established</dd>
+                </dl>
+                {data.forecastReadiness?.reasons.map((reason) => (
+                  <p className="warning-text" key={reason}>
+                    {reason}
+                  </p>
+                ))}
+              </>
+            ) : (
+              <>
+                <dl>
+                  <dt>Experimental trained checkpoint</dt>
+                  <dd>{data?.trainedModelVersion || "Unavailable"}</dd>
+                  <dt>Trained bundle availability</dt>
+                  <dd>
+                    {data?.trainedModelReady
+                      ? "Available for experimental inference"
+                      : "Unavailable"}
+                  </dd>
+                  <dt>Method</dt>
+                  <dd>3D CNN + demographic MLP + LSTM</dd>
+                  <dt>Target</dt>
+                  <dd>Retrospective observed CDR increase</dd>
+                  <dt>Legacy baseline version</dt>
+                  <dd>{data?.baselineModelVersion || data?.modelVersion}</dd>
+                  <dt>Image visualization</dt>
+                  <dd>Intensity differences, not trained-model attribution</dd>
+                  <dt>Confidence estimator</dt>
+                  <dd>Not available</dd>
+                </dl>
+                <p>
+                  The trained checkpoint has poor measured generalization. Its
+                  uncalibrated sequence score is not a future Alzheimer’s
+                  probability. Legacy baseline scores remain image-change
+                  indices.
+                </p>
+              </>
+            )}
           </section>
           <section className="panel settings-card">
             <HardDrive size={26} />
@@ -92,18 +126,26 @@ export default function Settings() {
               MRI volumes and derived artifacts stay in local storage.
               Demographic observations retain their OASIS source.
             </p>
-            <dl>
-              <dt>Demo</dt>
-              <dd>Illustrative scores</dd>
-              <dt>Precomputed</dt>
-              <dd>Cached baseline computation</dd>
-              <dt>Inference</dt>
-              <dd>Legacy feature-delta baseline</dd>
-              <dt>Trained</dt>
-              <dd>
-                Experimental saved neural checkpoint and recorded covariates
-              </dd>
-            </dl>
+            {data?.servingPolicy === "ml_only" ? (
+              <p>
+                Historical analyses and reports are preserved as archives. New
+                predictions require a promoted combined model and reviewed
+                baseline MRI anatomy.
+              </p>
+            ) : (
+              <dl>
+                <dt>Demo</dt>
+                <dd>Illustrative scores</dd>
+                <dt>Precomputed</dt>
+                <dd>Cached baseline computation</dd>
+                <dt>Inference</dt>
+                <dd>Legacy feature-delta baseline</dd>
+                <dt>Trained</dt>
+                <dd>
+                  Experimental saved neural checkpoint and recorded covariates
+                </dd>
+              </dl>
+            )}
           </section>
         </div>
       )}

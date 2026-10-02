@@ -2,7 +2,25 @@
 
 ## Product
 
+## Longitudinal anatomy extension requested 2026-10-02
+
+Extend the existing workspace/worker with native-resolution anatomical masks,
+automatic MTA-left/right and posterior-atrophy estimates, regional changes and a
+separate structural forecast. Preserve the baseline-only study and historical
+classifier; two-to-five-visit anatomy histories do not change classifier eligibility.
+Future 3D anatomy requires a trained/evaluated time-conditioned deformation model,
+not uniform shrinkage, rule-derived scores or crossfades. Unsupported outputs remain
+unavailable. The implementation and uncompleted scientific gates are tracked in
+[17 Longitudinal anatomy](17-longitudinal-anatomy.md).
+
 ## Current baseline forecasting direction requested 2026-10-02
+
+The subsequent user request switches the default application to **ML-only serving**:
+Clinical + FastSurfer only, no illustrative/rule-based or historical neural fallback.
+Keep those artifacts archived, require a promoted release and reviewed anatomy, and
+start actual offline processing/training through durable gates. The clinical-production
+non-goal and research disclaimer remain: this switch cannot manufacture missing
+future events or establish accuracy. See [16 ML-only serving](16-ml-only-serving.md).
 
 The FastSurfer Rewired v2 PRD adds the primary **baseline-only OASIS observed CDR
 conversion** study: one earliest CDR-zero baseline per subject, later observations

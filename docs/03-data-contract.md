@@ -1,6 +1,19 @@
 # Data Contract
 
+Longitudinal anatomy has its own optional versioned `anatomy` result and patient
+`latestAnatomy`/`completedAnatomy` payloads. It never populates legacy risk/proxy fields.
+Native stats/masks, hashes, dictionary, source units, review provenance, continuous
+automatic-rating availability and unsupported future horizons are defined in
+[17 Longitudinal anatomy](17-longitudinal-anatomy.md). Existing JSON persistence
+is sufficient; no migration or second ingestion system is added.
+
 ## New baseline-only forecast contract
+
+ML-only patient payloads add `servingPolicy=ml_only`, with historical latest-analysis
+fields null. MRI uploads return 202 with `status=stored`, `visitId` and an explicit
+processing requirement, not a queued rule-based Analysis. `/health` adds serving
+policy and release readiness; legacy POST analysis modes return 409. Forecast defaults
+to Clinical + FastSurfer. See [16](16-ml-only-serving.md) for release hashes/gates.
 
 The current FastSurfer study uses separate `baseline.csv`, `manifest.csv`, `labels.csv`,
 `split.csv` and `fastsurfer_features.csv` under ignored `data/forecast_v2`.

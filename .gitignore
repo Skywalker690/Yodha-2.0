@@ -21,3 +21,4 @@ frontend/playwright-report/
 frontend/test-results/
 frontend/tsconfig.tsbuildinfo
 .DS_Store
+.superdesign/tmp/

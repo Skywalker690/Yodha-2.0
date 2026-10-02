@@ -8,11 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 from src.common import command, config, resolve, sha256
-from src.fastsurfer.feature_map import FEATURE_SET, VOLUME_LABELS
+from src.fastsurfer.feature_map import FEATURE_SET, STATS_RELATIVE, VOLUME_LABELS
 from src.fastsurfer.manifest import scans, subject_dir
 
 
-def parse_stats(path: Path) -> dict[str, float]:
+def parse_stats(path: Path, labels: dict | None = None) -> dict[str, float]:
     headers = None
     units = {}
     columns = {}
@@ -41,7 +41,7 @@ def parse_stats(path: Path) -> dict[str, float]:
     if volume_column is None or units.get(volume_column) not in ("mm^3", "mm3"):
         raise ValueError("Physical volume units are unverified")
     features = {}
-    for feature, (label, name) in VOLUME_LABELS.items():
+    for feature, (label, name) in (VOLUME_LABELS if labels is None else labels).items():
         row = records.get(label)
         if row is None or row["StructName"] != name:
             raise ValueError("Required exact anatomical label is missing or mismatched")
@@ -49,7 +49,10 @@ def parse_stats(path: Path) -> dict[str, float]:
         if not math.isfinite(value) or value <= 0:
             raise ValueError("Invalid anatomical measurement")
         features[feature] = value
-    features["hippocampus_total_mm3"] = features["hippocampus_left_mm3"] + features["hippocampus_right_mm3"]
+    if labels is None:
+        features["hippocampus_total_mm3"] = (
+            features["hippocampus_left_mm3"] + features["hippocampus_right_mm3"]
+        )
     return features
 
 
@@ -64,9 +67,10 @@ def build_features(cfg: dict) -> dict:
             "fastsurfer_version": cfg["version"],
             "feature_set_version": FEATURE_SET,
         }
+        provenance = {}
         try:
             provenance = json.loads((directory / "processing.json").read_text())
-            stats_path = directory / "stats/aseg+DKT.stats"
+            stats_path = directory / STATS_RELATIVE
             if provenance["status"] != "completed" or provenance["version"] != cfg["version"]:
                 raise ValueError("Processing incomplete or version mismatch")
             if provenance["patient_id"] != scan["patient_id"] or provenance["scan_id"] != scan["scan_id"]:
@@ -97,7 +101,11 @@ def build_features(cfg: dict) -> dict:
                 stats_sha256=sha256(stats_path),
             )
         except (OSError, ValueError, KeyError):
-            row["qc"] = "unavailable" if not directory.exists() else "failed"
+            row["qc"] = (
+                "unavailable"
+                if not directory.exists() or provenance.get("status") == "processing"
+                else "failed"
+            )
         rows.append(row)
     frame = pd.DataFrame(rows)
     for feature in (*VOLUME_LABELS, "hippocampus_total_mm3"):

@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     storage_root: Path = ROOT / "storage"
     dataset_root: Path = ROOT / "dataset"
     trained_model_path: Path = ROOT / "data/training_multimodal/runs/20261001T134908Z/multimodal_model.pt"
+    ml_only: bool = True
+    forecast_artifact_dir: Path = ROOT / "artifacts/forecast_v2"
+    forecast_processed_dir: Path = ROOT / "data/forecast_v2"
+    avra_runtime_manifest: Path | None = None
+    anatomy_release_dir: Path = ROOT / "artifacts/anatomy-release"
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     secure_cookies: bool = False
     max_upload_bytes: int = 100 * 1024 * 1024

@@ -6,6 +6,7 @@ from sklearn.metrics import balanced_accuracy_score
 
 from src.common import (
     CLINICAL,
+    CLINICAL_UNITS,
     HORIZONS,
     TARGET,
     VERSION,
@@ -59,6 +60,8 @@ def train(cfg: dict, model_kind: str, matched: bool = False) -> dict:
         "target": TARGET,
         "model_kind": model_kind,
         "fields": fields,
+        "clinical_units": CLINICAL_UNITS,
+        "anatomy_units": "mm3" if matched else None,
         "preprocessing_version": "median-standard-logistic-v1",
         "seed": int(cfg["seed"]),
         "monotonic_method": "cumulative_max_known_horizons_v1",

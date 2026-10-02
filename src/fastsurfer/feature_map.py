@@ -1,6 +1,8 @@
 """Compact, explicit DKT feature map. No whole-brain/ICV substitutions."""
 
 FEATURE_SET = "dkt-compact-seg-v1"
+# Read the real v2.5.4 file; the aseg+DKT.stats Linux alias is not portable to Windows.
+STATS_RELATIVE = "stats/aseg+DKT.VINN.stats"
 # FreeSurfer labels checked against the supplied FastSurfer LUT.
 VOLUME_LABELS = {
     "hippocampus_left_mm3": (17, "Left-Hippocampus"),

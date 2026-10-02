@@ -4,6 +4,7 @@ from pathlib import Path
 
 # Configure before importing the application; production data is never used for unit tests.
 os.environ["DATABASE_URL"] = "sqlite://"
+os.environ["ML_ONLY"] = "false"  # Retained legacy regression suite; strict serving has separate tests.
 os.environ["JWT_SECRET"] = "test-only-" + "x" * 48
 os.environ["SEED_PASSWORD"] = "test-only-password-1234"
 os.environ["STORAGE_ROOT"] = tempfile.mkdtemp(prefix="neuropredict-tests-")

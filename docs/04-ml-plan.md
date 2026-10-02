@@ -1,6 +1,15 @@
 # ML and Explainability Plan
 
+For the separate anatomy extension and its incomplete scientific gates, see
+[17 Longitudinal anatomy](17-longitudinal-anatomy.md). Neither historical CDR model
+forecasts future geometry. Offline mixed-effects comparisons and physical warp
+helpers are not a trained spatial release and must not be presented as one.
+
 ## Current FastSurfer baseline study
+
+The default serving policy is now ML-only Clinical + FastSurfer; earlier rule-based
+and retrospective models below are not serving fallbacks. Actual processing/training
+uses [the durable staged workflow](16-ml-only-serving.md) and explicit release gates.
 
 The October 2 PRD defines a separate baseline-only OASIS study, implemented in `src/`.
 The compact Tier A/B logistic models use known labels only and train-only preprocessing;

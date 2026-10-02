@@ -14,6 +14,9 @@ from backend.app.services.storage import resolve_key
 
 
 def build_report(patient: Patient, analysis: Analysis, visits: list[Visit], overlay: Path | None) -> dict:
+    if analysis.output_mode == "anatomy":
+        from backend.app.services.anatomy_report import build_anatomy_report
+        return build_anatomy_report(patient, analysis, visits)
     report_id = uuid4().hex
     path = resolve_key(f"reports/{report_id}.pdf")
     path.parent.mkdir(parents=True, exist_ok=True)

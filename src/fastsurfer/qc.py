@@ -5,6 +5,7 @@ import json
 
 from src.common import config, sha256, write_json
 from src.fastsurfer.manifest import subject_dir
+from src.fastsurfer.feature_map import STATS_RELATIVE
 from src.fastsurfer.parse_stats import build_features, parse_stats
 
 
@@ -15,7 +16,7 @@ def approve(cfg: dict, scan_id: str, reviewer: str) -> None:
     record = json.loads((directory / "processing.json").read_text())
     if record.get("status") != "completed":
         raise ValueError("Cannot approve incomplete processing")
-    stats = directory / "stats/aseg+DKT.stats"
+    stats = directory / STATS_RELATIVE
     parse_stats(stats)
     write_json(
         directory / "qc.json",

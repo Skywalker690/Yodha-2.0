@@ -2,6 +2,7 @@ processed_dir: data/forecast_v2
 output_dir: storage/fastsurfer_v2
 image: deepmi/fastsurfer:cuda-v2.5.4
 version: 2.5.4
+container_user: "1000:1000"
 device: cuda
 viewagg_device: cpu
 threads: 4

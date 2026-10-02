@@ -28,10 +28,21 @@ beforeEach(() => {
   });
 });
 it("shows missing horizons as unavailable and separates the forecast target", () => {
-  render(<BaselineForecast patientId="synthetic-p" />);
+  render(<BaselineForecast patientId="synthetic-p" research />);
   expect(screen.getAllByText("Unavailable")).toHaveLength(2);
   expect(screen.getByText("20.0%")).toBeTruthy();
   expect(screen.getByText(/first observed CDR conversion/)).toBeTruthy();
   expect(screen.getByText(/no independently validated/)).toBeTruthy();
   expect(screen.getByText("Synthetic support warning")).toBeTruthy();
+});
+
+it("defaults to combined ML and never displays a clinical-only fallback score", () => {
+  render(<BaselineForecast patientId="synthetic-p" />);
+  expect(useResource).toHaveBeenCalledWith(
+    "/patients/synthetic-p/forecast?model_kind=clinical_fastsurfer",
+  );
+  expect(screen.queryByRole("combobox")).toBeNull();
+  expect(screen.getAllByText("Unavailable")).toHaveLength(3);
+  expect(screen.queryByText("20.0%")).toBeNull();
+  expect(screen.getByRole("status")).toHaveTextContent("Prediction blocked");
 });

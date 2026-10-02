@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.common import CLINICAL, ROOT, read_table
+from src.common import CLINICAL, read_table
 from src.fastsurfer.feature_map import ANATOMY, FEATURE_SET
 from src.risk.predict import predict, unavailable
+from src.risk.release import serving_predict
+from backend.app.core.config import get_settings
 
 
 def patient_forecast(patient_code: str, source: str, model_kind: str) -> dict:
@@ -18,7 +20,8 @@ def patient_forecast(patient_code: str, source: str, model_kind: str) -> dict:
             "anatomy": None,
             "qc": "unavailable",
         }
-    directory = ROOT / "data/forecast_v2"
+    settings = get_settings()
+    directory = settings.forecast_processed_dir
     try:
         baseline = read_table(directory / "baseline.csv")
         selected = baseline[baseline["patient_id"] == patient_code]
@@ -54,7 +57,11 @@ def patient_forecast(patient_code: str, source: str, model_kind: str) -> dict:
                         fastsurfer_version=str(measurements["fastsurfer_version"]),
                         feature_set_version=FEATURE_SET,
                     )
-        result = predict(request, model_kind)
+        result = (
+            serving_predict(request, settings.forecast_artifact_dir, directory)
+            if settings.ml_only
+            else predict(request, model_kind, artifact_dir=settings.forecast_artifact_dir)
+        )
         return {
             "prediction": result.model_dump(mode="json"),
             "baseline": request["baseline"],

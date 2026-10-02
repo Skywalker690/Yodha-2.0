@@ -1,13 +1,31 @@
 # NeuroPredict AI
 
+## Longitudinal anatomy extension
+
+The existing workspace now has native regional masks/measurements, explicit visual
+QC, score-availability/history cards and separate anatomy reports. All five baseline
+pilot outputs are verified but await visual QC. Future-brain forecasting is NOT
+complete: no evaluated spatial model or real predicted NIfTI/GIFTI release exists.
+Setup, delivered boundaries and remaining acceptance criteria are in
+[Longitudinal anatomy](docs/17-longitudinal-anatomy.md).
+
+## Current default: ML-only serving
+
+The app now serves only a promoted Clinical + FastSurfer release, with no demo,
+feature-delta, cached-baseline or historical neural fallback. Existing MRI/data/models
+are preserved. Prediction is blocked until real anatomy, human QC and model/evaluation
+release gates pass. Docker's socket runtime was repaired with user approval and the
+five-scan processing pilot resumed. See [run/resume instructions](docs/16-ml-only-serving.md).
+This is stricter research serving, not clinical production readiness.
+
 ## Baseline forecasting with FastSurfer
 
 The new FastSurfer Rewired v2 study is implemented in `src/`, with baseline-only
 clinical/compact anatomy models, censored 12/24/36-month labels, one prediction adapter,
 a local Streamlit dashboard and a separate forecast panel in the existing app.
 Read [current architecture](docs/15-fastsurfer-architecture.md) and [completion blockers](docs/blockers.md)
-before running. Real FastSurfer processing/Tier B training are not completed: Docker
-readiness failed, and the source's outcome counts cannot support all three horizons.
+before running. Real FastSurfer processing/Tier B training are not completed. Docker
+readiness now passes after repair, but the source's outcomes cannot support all horizons.
 Only an experimental 36-month clinical head has been fitted; it has no known positive
 test outcomes and is not an independently validated Alzheimer forecast.
 

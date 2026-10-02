@@ -14,6 +14,8 @@ from src.app.charts import trajectory
 from src.common import CLINICAL, config, read_table, resolve
 from src.fastsurfer.feature_map import ANATOMY, FEATURE_SET
 from src.risk.predict import predict
+from src.risk.release import readiness, serving_predict
+import os
 
 st.set_page_config(page_title="NeuroPredict baseline forecast", layout="wide")
 st.title("NeuroPredict baseline forecast")
@@ -21,6 +23,8 @@ st.warning(
     "Research Prototype — Not a medical diagnosis. Outcome: first observed CDR > 0 after a CDR-zero baseline."
 )
 cfg = config("configs/experiment.yaml")
+ml_only = os.environ.get("ML_ONLY", "true").lower() not in ("false", "0")
+artifact_dir = resolve(os.environ.get("FORECAST_ARTIFACT_DIR", cfg["artifact_dir"]))
 directory = resolve(cfg["processed_dir"])
 if not (directory / "baseline.csv").exists():
     st.info("Prepare the baseline cohort with the documented offline commands first.")
@@ -33,7 +37,7 @@ row = baseline[baseline["patient_id"] == patient].iloc[0]
 st.subheader("Baseline clinical measurements")
 st.dataframe(row[list(CLINICAL)].rename("Value"), use_container_width=True)
 st.caption(
-    "Sex encoding: 0 female, 1 male. eTIV mm³, nWBV unitless, ASF unitless. Later visits are not predictors."
+    "Sex encoding: 0 female, 1 male. Source OASIS-2 eTIV cm³ (mL), anatomical features mm³; nWBV/ASF unitless. Later visits are not predictors."
 )
 manifest = read_table(directory / "manifest.csv")
 scan = manifest[manifest["patient_id"] == patient].iloc[0]
@@ -62,9 +66,20 @@ if (directory / "fastsurfer_features.csv").exists():
             st.info("Anatomical measurements unavailable. No substitute values are generated.")
 else:
     st.info("FastSurfer processing has not completed; anatomy is unavailable.")
-kind = st.selectbox("Model tier", ["clinical", "clinical_matched", "clinical_fastsurfer"])
+if ml_only:
+    kind = "clinical_fastsurfer"
+    st.info("ML-only serving: Clinical + FastSurfer. No clinical-only, demo or rule-based fallback.")
+    state = readiness(artifact_dir, directory)
+    for reason in state["reasons"]:
+        st.warning(reason)
+else:
+    kind = st.selectbox("Model tier", ["clinical", "clinical_matched", "clinical_fastsurfer"])
 if st.button("Predict baseline outcome"):
-    result = predict(request, kind, artifact_dir=resolve(cfg["artifact_dir"]))
+    result = (
+        serving_predict(request, artifact_dir, directory)
+        if ml_only
+        else predict(request, kind, artifact_dir=artifact_dir)
+    )
     st.write(
         "Status:",
         result.status,
@@ -90,7 +105,7 @@ if st.button("Predict baseline outcome"):
         st.json(result.explanation)
 st.subheader("Held-out evidence")
 for name in ("clinical", "clinical_matched", "clinical_fastsurfer"):
-    evaluation = resolve(cfg["artifact_dir"]) / f"{name}_evaluation.json"
+    evaluation = artifact_dir / f"{name}_evaluation.json"
     if evaluation.exists():
         with st.expander(f"{name} metrics and sample counts"):
             st.json(json.loads(evaluation.read_text()))

@@ -1,5 +1,99 @@
 # Decision Log
 
+## D027: Cutoff-local spatial learning and evaluated anatomy release
+
+Status: Accepted for implementation (2026-10-02, explicit completion request)
+
+Train a bounded time-conditioned 3D displacement predictor from reviewed longitudinal
+anatomy, not from the retrospective CDR checkpoint. Register each earlier observation
+to its own latest-input cutoff; register the hidden future only to construct targets.
+Never construct a template using hidden/future visits. Fields are physical RAS-mm pull
+maps (future coordinates to current coordinates). MRI interpolation is continuous;
+labels use nearest neighbour. Exact zero time, coverage and positive Jacobian checks
+are mandatory. The learning grid is separate from native FastSurfer processing.
+
+Freeze the existing 40/8/8 subject assignment. Fit preprocessing on training examples
+only, select penalties/checkpoints on development subjects and evaluate once on held-out
+subjects. Compare matched score/no-score structural and spatial candidates, no change,
+and individual trend. Prediction intervals require held-out coverage evidence. Model
+and artifact integrity, supported intervals, visual segmentation/alignment review and
+explicit research release gates must pass before serving. Synthetic runs may exercise
+the complete software path but can never create a serving release or accuracy claim.
+
+## D026: Integrity-bound review and explicit anatomy report selection
+
+Status: Accepted (2026-10-02)
+
+Segmentation review binds source MRI, native segmentation, versioned statistics,
+container digest, subject/scan identity and the complete owned artifact set. Geometry
+checks/recovered files do not grant visual approval. Keep conformed mask voxel counts
+separate from partial-volume statistics and source-grid display masks. Reports require
+explicit anatomy analysis selection; the legacy report default is preserved. Display
+only measurement/score changes through the doctor's selected cutoff.
+
+AVRA execution remains an isolated, hash-pinned optional runtime rather than an
+unverified installation of old checkpoint dependencies into the app's Python
+environment. Pending alignment hides numerical estimates. Mesh helpers verify closed
+two-manifold surfaces, physical scaling and a 5% engineering volume tolerance; none
+of these tests establishes future-anatomy accuracy or clinical validation.
+
+## D025: Separate longitudinal anatomy analysis and structural forecast
+
+Status: Accepted (2026-10-02, explicit pasted user request)
+
+Reuse existing imported/uploaded MRIs, chronological MR Delay, PostgreSQL jobs,
+JSON result persistence, owned artifacts and NiiVue. Add an explicit anatomy job
+without reopening legacy predictions in ML-only serving. Baseline manifests, splits,
+labels and old models remain immutable. Full-resolution FastSurfer processing is
+separate per longitudinal analysis; automated geometry checks never imply visual QC.
+The extended DKT dictionary is separate from the compact baseline feature set.
+Measured stats and discrete-mask voxel volumes are different estimators; preserve
+both, and eTIV cm3 converts to mm3 by multiplication by 1000 before head-size ratios.
+
+AVRA v0.8 is the first rating candidate: verify upstream preprocessing/weights and
+license; no qualitative score is synthesized from volume thresholds. Its released
+PA model uses ReturnStackedPA (axial/coronal/sagittal slices) and one global
+posterior output. Missing FSL/runtime, failed alignment or invalid scores remain
+explicit unavailable states. Future-score transitions and 3D geometry stay blocked
+until their own held-out evaluation/release evidence exists. Structural baselines
+are research comparisons, never a fallback pretending to be a trained spatial model.
+
+## D024: ML-only serving, not a clinical-production claim
+
+Status: Accepted (2026-10-02, explicit user request)
+
+Default serving policy is `ML_ONLY=true`: a single Clinical + FastSurfer forecast,
+requiring reviewed real anatomy, trained saved parameters, matched clinical-reference
+evaluation and an explicitly promoted, hash-verified artifact release. Do not expose
+Demo, feature-delta, precomputed baseline or the poorly generalizing retrospective
+checkpoint as new predictions. Preserve historical records and archived reports.
+Uploads still validate/store MRI but do not silently enqueue a rule-based analysis.
+
+Processing/training remains explicit offline work, with durable stage status and a
+human visual-QC pause. Do not train on unknown labels, relax class-support gates,
+resplit after evaluation or substitute clinical-only inference when anatomy fails.
+Serving requires all three horizon heads and both classes in development/test
+evaluation; the present OASIS data cannot pass. `ML_ONLY=false` is an explicit local
+research/test opt-out, not a deployed fallback. This improves serving discipline;
+it does not remove research disclaimers or establish clinical production readiness.
+
+Predeclared development gates: ROC-AUC >= 0.7, balanced accuracy >= 0.6 and Brier
+no worse than the matched clinical reference. Never choose these thresholds by
+inspecting final test results. Require finite metrics and at least 5 training and
+2 development/test examples per class; these are execution guards, not power analysis.
+
+User explicitly approved a targeted recoverable Docker repair. Individual socket
+operations failed without changes; with Docker stopped, preserve the two-socket `run`
+directory as `run.before-repair-20261002` and create an empty replacement. Linux
+engine readiness then passed. No factory reset or container/database-volume changes.
+
+The real container required explicit non-root UID/GID (its placeholder UID 999 is
+rejected). Configure `1000:1000` for this Windows host, pin the downloaded registry
+digest, and keep any surface license requirement unchanged. A source-unit audit also
+corrected an earlier documentation/UI label: OASIS-2 eTIV is source cm³/mL, while
+FastSurfer anatomical features are mm³. Keep numeric source values unchanged; do not
+silently rescale saved inputs or invalidate old checkpoints under the same identity.
+
 ## D023 Baseline OASIS forecast with pinned FastSurfer
 
 Accepted 2026-10-02 following the user-supplied FastSurfer Rewired v2 PRD.

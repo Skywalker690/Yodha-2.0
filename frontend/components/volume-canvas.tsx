@@ -8,6 +8,7 @@ import {
   CAMERA_PRESETS,
   clipPlane,
   fetchVolume,
+  fetchMesh,
   releaseViewer,
   saveResearchSnapshot,
   applyVolumeAppearance,
@@ -37,6 +38,13 @@ type Props = {
   id: string;
   url: string;
   overlayUrl?: string;
+  labelUrl?: string;
+  meshes?: {
+    url: string;
+    color: [number, number, number, number];
+    opacity: number;
+  }[];
+  kind?: "observed" | "predicted";
   label: string;
   patientCode: string;
   settings: VolumeSettings;
@@ -48,6 +56,9 @@ export function VolumeCanvas({
   id,
   url,
   overlayUrl,
+  labelUrl,
+  meshes,
+  kind = "observed",
   label,
   patientCode,
   settings,
@@ -64,6 +75,7 @@ export function VolumeCanvas({
   const [readout, setReadout] = useState("");
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const range = useRef<[number, number]>([0, 1]);
+  const meshSpec = JSON.stringify(meshes || []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -89,7 +101,7 @@ export function VolumeCanvas({
     setError("");
     async function initialize() {
       try {
-        const { Niivue, SHOW_RENDER, MULTIPLANAR_TYPE, SLICE_TYPE } =
+        const { Niivue, NVMesh, SHOW_RENDER, MULTIPLANAR_TYPE, SLICE_TYPE } =
           await import("@niivue/niivue");
         if (!alive || !canvas.current) return;
         const gl = canvas.current.getContext("webgl2", { antialias: true });
@@ -152,6 +164,60 @@ export function VolumeCanvas({
           await instance.loadFromArrayBuffer(overlay.buffer, overlay.name);
           if (wasDisposed()) return;
         }
+        if (labelUrl) {
+          const labels = await fetchVolume(labelUrl, controller.signal);
+          if (wasDisposed()) return;
+          await instance.loadFromArrayBuffer(labels.buffer, labels.name);
+          if (wasDisposed()) return;
+          const numbers = [
+            0, 4, 17, 43, 53, 1006, 1008, 1009, 1015, 1025, 1029, 1030, 2006,
+            2008, 2009, 2015, 2025, 2029, 2030,
+          ];
+          const colors = numbers.map((n) =>
+            n === 0
+              ? [0, 0, 0, 0]
+              : n === 17 || n === 53
+                ? [220, 216, 20, 255]
+                : n === 4 || n === 43
+                  ? [120, 18, 134, 255]
+                  : [102, 223, 210, 255],
+          );
+          instance.volumes[instance.volumes.length - 1].setColormapLabel({
+            I: numbers,
+            R: colors.map((c) => c[0]),
+            G: colors.map((c) => c[1]),
+            B: colors.map((c) => c[2]),
+            A: colors.map((c) => c[3]),
+          });
+          instance.setInterpolation(true); // categorical overlays must not blend labels
+        }
+        const selectedMeshes: NonNullable<Props["meshes"]> =
+          JSON.parse(meshSpec);
+        if (selectedMeshes.length > 20)
+          throw new Error("Too many region meshes.");
+        for (const [index, item] of selectedMeshes.entries()) {
+          if (
+            item.color.length !== 4 ||
+            item.color.some((v) => !Number.isInteger(v) || v < 0 || v > 255) ||
+            !Number.isFinite(item.opacity) ||
+            item.opacity < 0 ||
+            item.opacity > 1
+          )
+            throw new Error("Invalid mesh appearance.");
+          const buffer = await fetchMesh(item.url, controller.signal);
+          if (wasDisposed()) return;
+          const loadedMesh = await NVMesh.readMesh(
+            buffer,
+            `anatomy-${index}.gii`,
+            instance.gl,
+            item.opacity,
+            new Uint8Array(item.color),
+          );
+          if (wasDisposed()) return;
+          if (!loadedMesh)
+            throw new Error("The GIFTI mesh could not be parsed.");
+          instance.addMesh(loadedMesh);
+        }
         viewer.current = instance;
         setLoaded(true);
         callbacks.current.onReady(id, instance);
@@ -173,7 +239,7 @@ export function VolumeCanvas({
       viewer.current = null;
       if (instance) releaseViewer(instance);
     };
-  }, [id, url, overlayUrl, retry]);
+  }, [id, url, overlayUrl, labelUrl, meshSpec, retry]);
 
   useEffect(() => {
     const nv = viewer.current;
@@ -207,7 +273,10 @@ export function VolumeCanvas({
   useEffect(() => {
     const nv = viewer.current;
     if (!loaded || !nv?.volumes[0]) return;
-    applyVolumeAppearance(nv, range.current, settings);
+    applyVolumeAppearance(nv, range.current, {
+      ...settings,
+      anatomyIndex: labelUrl ? (overlayUrl ? 2 : 1) : undefined,
+    });
   }, [
     loaded,
     settings.lower,
@@ -216,6 +285,8 @@ export function VolumeCanvas({
     settings.opacity,
     settings.overlayOpacity,
     settings.differenceThreshold,
+    labelUrl,
+    overlayUrl,
   ]);
 
   useEffect(() => {
@@ -256,7 +327,13 @@ export function VolumeCanvas({
       <div className="volume-card-heading">
         <strong>{label}</strong>
         <span className="badge">
-          {overlayUrl ? "MRI + difference proxy" : "Source MRI"}
+          {kind === "predicted"
+            ? "Predicted anatomy · not acquired MRI"
+            : labelUrl
+              ? "Observed MRI + measured regions"
+              : overlayUrl
+                ? "MRI + difference proxy"
+                : "Observed source MRI"}
         </span>
       </div>
       <div className="volume-canvas-wrap">
@@ -297,7 +374,10 @@ export function VolumeCanvas({
               await saveResearchSnapshot(
                 viewer.current,
                 `NeuroPredict-${patientCode}-${id}-RESEARCH.png`,
-                `${patientCode} | ${label} | ${overlayUrl ? "Intensity-difference proxy" : "Source MRI"}`,
+                `${patientCode} | ${label} | ${kind === "predicted" ? "Predicted anatomy - not acquired MRI" : labelUrl ? "Observed MRI / measured regions - verify QC" : overlayUrl ? "Intensity-difference proxy" : "Observed source MRI"}`,
+                kind === "predicted"
+                  ? "Predicted anatomy - not acquired MRI"
+                  : "Not registered anatomy",
               );
             } catch (e) {
               setError((e as Error).message);
