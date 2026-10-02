@@ -20,8 +20,8 @@ assessment** loads the first unscored task. Closing with X or Escape discards ed
 since the last save, but keeps the saved draft. Parent patient polling does not
 reset local edits. Review all results and the assessment date/time before clicking
 **Complete assessment**. The backend calculates the total; there is no editable
-total field. Unadministered tasks remain null and block completion, unlike a valid
-administered zero-point result.
+total field. Point controls offer numeric scores only. Unanswered tasks remain null
+and block completion, unlike a valid administered zero-point result.
 
 The controls are shared by ML-only and retained research workspaces. Imported OASIS
 cases show their preserved recorded MMSE instead of offering assessment writes.

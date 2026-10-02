@@ -62,6 +62,9 @@ it("completes task recording without sending a total and keeps demo labeling vis
   fireEvent.click(screen.getByRole("button", { name: "Start assessment" }));
   await screen.findByRole("heading", { name: "MMSE-style demo" });
   expect(screen.getByText(/not a standardized MMSE/)).toBeVisible();
+  expect(
+    screen.queryByRole("radio", { name: "Not administered" }),
+  ).not.toBeInTheDocument();
   for (let index = 0; index < tasks.length; index++) {
     const maximum = tasks[index].max_points;
     fireEvent.click(

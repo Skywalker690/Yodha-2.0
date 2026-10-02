@@ -289,20 +289,6 @@ export function MMSEAssessment({
                             </label>
                           ),
                         )}
-                        <label>
-                          <input
-                            type="radio"
-                            name={task.id}
-                            checked={points[task.id] == null}
-                            onChange={() =>
-                              setPoints((current) => ({
-                                ...current,
-                                [task.id]: null,
-                              }))
-                            }
-                          />
-                          Not administered
-                        </label>
                       </fieldset>
                     </>
                   ) : (
@@ -311,7 +297,7 @@ export function MMSEAssessment({
                       <p>
                         {complete
                           ? `Calculated preview: ${preview}/30. The backend verifies the final total.`
-                          : "Some tasks are unadministered. Save a draft or return to complete them."}
+                          : "Some tasks are unanswered. Save a draft or return to complete them."}
                       </p>
                       <div className="cognitive-review-list">
                         {tasks.map((item, index) => (
@@ -323,7 +309,7 @@ export function MMSEAssessment({
                             <span>{item.title}</span>
                             <span>
                               {points[item.id] == null
-                                ? "Not administered"
+                                ? "Unanswered"
                                 : `${points[item.id]}/${item.max_points}`}
                             </span>
                           </button>

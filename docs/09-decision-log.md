@@ -1,5 +1,13 @@
 # Decision Log
 
+## D047: Simplify assessment point options
+
+Status: Accepted and implemented (2026-10-03, explicit user request)
+
+Remove the "Not administered" radio option from the assessment UI. Show only numeric
+point choices and label unset review results "Unanswered". Unset tasks still persist
+as null and block completion; scoring, API contracts and existing records are unchanged.
+
 ## D046: Implement original English cognitive demo with separate scoring
 
 Status: Accepted and implemented (2026-10-03, explicit user clarification)
