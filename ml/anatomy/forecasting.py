@@ -171,6 +171,18 @@ def generate(
         meshes[region] = mesh(
             nifti((data == identifier).astype(np.uint8), labels.affine), output / f"{region}.gii"
         )
+    display_magnification = None
+    display_metadata = None
+    if experimental_preview:
+        from ml.anatomy.hippocampus_display import hippocampus_display
+
+        display_mri, display_labels, display_field, display_metadata = hippocampus_display(
+            images[-1], labels, history[-1].volumes_mm3, volumes,
+        )
+        display_magnification = 1
+        nib.save(display_mri, output / "mri_display.nii.gz")
+        nib.save(display_labels, output / "labels_display.nii.gz")
+        nib.save(display_field, output / "pull_display.nii.gz")
     artifacts = {
         p.stem.removesuffix(".nii"): {
             "relative_path": p.name,
@@ -178,9 +190,9 @@ def generate(
             "kind": "mesh"
             if p.suffix == ".gii"
             else "mri"
-            if p.name == "mri.nii.gz"
+            if p.name in {"mri.nii.gz", "mri_display.nii.gz"}
             else "field"
-            if p.name == "pull.nii.gz"
+            if p.name in {"pull.nii.gz", "pull_display.nii.gz"}
             else "labels",
         }
         for p in output.iterdir()
@@ -189,6 +201,10 @@ def generate(
     manifest = {
         "version": checkpoint["version"],
         "experimental": experimental_preview,
+        "display_magnification": display_magnification,
+        "display_mode": "hippocampus_scalar" if display_metadata else None,
+        "display_metadata": display_metadata,
+        "display_policy": "scalar-guided hippocampus illustration; acquired head unchanged; not a spatial model prediction or diagnosis",
         "feature_contract": checkpoint.get("feature_contract"),
         "nwbv_reference_sha256": checkpoint.get("nwbv_reference_sha256"),
         "nwbv_reference_profile_id": checkpoint.get("nwbv_reference", {}).get("profile_id"),
@@ -365,6 +381,9 @@ def predict(
         model_sha256=manifest["model_sha256"],
         release_sha256=release_hash,
         experimental=allow_unreviewed_research,
+        display_magnification=manifest.get("display_magnification"),
+        display_mode=manifest.get("display_mode"),
+        display_regions=(manifest.get("display_metadata") or {}).get("regions"),
         training_subject_count=report.get("counts", {}).get("train") if allow_unreviewed_research else None,
         feature_contract=manifest.get("feature_contract"),
         reference_sha256=manifest.get("nwbv_reference_sha256"),

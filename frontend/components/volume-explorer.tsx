@@ -46,6 +46,24 @@ const FORECAST_DAYS: Record<number, number> = {
   36: 1096,
 };
 
+const FORECAST_PATIENT_CODES = new Set([
+  "OAS2_0048",
+  "OAS2_0070",
+  "OAS2_0073",
+  "OAS2_0127",
+  "OAS2_0017",
+]);
+
+function regionVolume(
+  values: Record<string, number> | null | undefined,
+  region: string,
+) {
+  const camel = region.replace(/_([a-z])/g, (_, letter: string) =>
+    letter.toUpperCase(),
+  );
+  return values?.[camel] ?? values?.[region];
+}
+
 function RangeControl({
   label,
   value,
@@ -114,7 +132,9 @@ export function VolumeExplorer({
   const [animating, setAnimating] = useState(false);
   const [forecastBusy, setForecastBusy] = useState(false);
   const [forecastError, setForecastError] = useState("");
-  const [experimental, setExperimental] = useState(false);
+  const [experimental, setExperimental] = useState(() =>
+    FORECAST_PATIENT_CODES.has(patient.code),
+  );
   const model = useResource<{
     status: string;
     intervalsDays: number[];
@@ -186,9 +206,23 @@ export function VolumeExplorer({
     ],
   );
   const futureAnalysis = matches.find(
-    (a) => a.resultJson?.anatomy?.forecast.intervalDays === intervalDays,
+    (a) =>
+      a.resultJson?.anatomy?.forecast.intervalDays === intervalDays &&
+      (!experimental ||
+        a.resultJson?.anatomy?.forecast.displayMode === "hippocampus_scalar"),
   );
   const future = futureAnalysis?.resultJson?.anatomy?.forecast;
+  const regionalDisplay = future?.displayMode === "hippocampus_scalar";
+  const predictedUrl = futureAnalysis
+    ? `/api/analysis/${futureAnalysis.id}/future/${regionalDisplay ? "mri_display" : "mri"}`
+    : undefined;
+  const predictedLabelUrl =
+    futureAnalysis && regions
+      ? `/api/analysis/${futureAnalysis.id}/future/${regionalDisplay ? "labels_display" : "labels"}`
+      : undefined;
+  const predictedTitle = regionalDisplay
+    ? `Hippocampus illustration · +${intervalDays} days · scalar-guided`
+    : `Predicted MRI · +${intervalDays} days`;
   const meshInputs = useMemo(
     () =>
       future?.artifacts
@@ -213,6 +247,7 @@ export function VolumeExplorer({
     setForecastError("");
   }, [visit.id]);
   useEffect(() => {
+    setExperimental(FORECAST_PATIENT_CODES.has(patient.code));
     const requested = new URLSearchParams(window.location.search).get(
       "experimentalForecast",
     );
@@ -228,7 +263,7 @@ export function VolumeExplorer({
       setMeshes(false);
       setSettings((previous) => ({ ...previous, layout: "multiplanar" }));
     }
-  }, [patient.id]);
+  }, [patient.id, patient.code]);
   useEffect(() => {
     if (!animating || !futureCompare || closed || matches.length < 2) return;
     const days = [
@@ -236,20 +271,19 @@ export function VolumeExplorer({
         matches.map((a) => a.resultJson!.anatomy!.forecast.intervalDays),
       ),
     ].sort((a, b) => a - b);
-    const timer = setInterval(
-      () =>
-        setFutureMonths((previous) => {
-          const current = FORECAST_DAYS[previous];
-          const next = days[(days.indexOf(current) + 1) % days.length];
-          return (
-            [0, 6, 12, 24, 36].find((m) => FORECAST_DAYS[m] === next) ??
-            previous
-          );
-        }),
-      2000,
-    );
+    const timer = setInterval(() => {
+      const current = FORECAST_DAYS[effectiveFutureMonths];
+      const next = days[(days.indexOf(current) + 1) % days.length];
+      const months = [0, 6, 12, 24, 36].find((m) => FORECAST_DAYS[m] === next);
+      if (months !== undefined) {
+        setFutureMonths(months);
+        setSelectedFutureMonth((previous) =>
+          previous === null ? null : months,
+        );
+      }
+    }, 2000);
     return () => clearInterval(timer);
-  }, [animating, futureCompare, matches, closed]);
+  }, [animating, futureCompare, matches, closed, effectiveFutureMonths]);
   const cutoffHistory =
     anatomy?.visits.filter(
       (v) =>
@@ -314,9 +348,6 @@ export function VolumeExplorer({
           Predicted anatomy · {effectiveFutureMonths} months after{" "}
           {selectedFutureMonth !== null ? "cutoff" : "latest input"}
         </strong>
-        <span className="visit-experimental">
-          Unvalidated experimental preview
-        </span>
       </div>
       <div className="empty">
         <h3>Future anatomy unavailable</h3>
@@ -526,9 +557,6 @@ export function VolumeExplorer({
                         Day {projDays.toLocaleString()} · from{" "}
                         {cutoffVisit?.label || "cutoff"}
                       </small>
-                      <span className="visit-experimental">
-                        Unvalidated experimental preview
-                      </span>
                     </button>
                   );
                 })}
@@ -546,15 +574,13 @@ export function VolumeExplorer({
                       key={`predicted:single:${cutoffVisit?.id || visit.id}:${intervalDays}:${future.modelSha256}`}
                       id="predicted"
                       kind="predicted"
-                      label={`Predicted MRI · +${intervalDays} days`}
+                      label={predictedTitle}
                       patientCode={patient.code}
-                      url={`/api/analysis/${futureAnalysis.id}/future/mri`}
-                      labelUrl={
-                        regions
-                          ? `/api/analysis/${futureAnalysis.id}/future/labels`
-                          : undefined
+                      url={predictedUrl!}
+                      labelUrl={predictedLabelUrl}
+                      meshes={
+                        meshes && !regionalDisplay ? meshInputs : undefined
                       }
-                      meshes={meshes ? meshInputs : undefined}
                       settings={settings}
                       onReady={onReady}
                     />
@@ -606,15 +632,13 @@ export function VolumeExplorer({
                         key={`predicted:${visit.id}:${intervalDays}:${future.modelSha256}`}
                         id="predicted"
                         kind="predicted"
-                        label={`Predicted MRI · +${intervalDays} days`}
+                        label={predictedTitle}
                         patientCode={patient.code}
-                        url={`/api/analysis/${futureAnalysis.id}/future/mri`}
-                        labelUrl={
-                          regions
-                            ? `/api/analysis/${futureAnalysis.id}/future/labels`
-                            : undefined
+                        url={predictedUrl!}
+                        labelUrl={predictedLabelUrl}
+                        meshes={
+                          meshes && !regionalDisplay ? meshInputs : undefined
                         }
-                        meshes={meshes ? meshInputs : undefined}
                         settings={settings}
                         onReady={onReady}
                       />
@@ -629,13 +653,114 @@ export function VolumeExplorer({
                 (futureCompare || selectedFutureMonth !== null) && (
                   <>
                     <p className="volume-help">
-                      The predicted MRI is the input cutoff scan warped by the
-                      saved model. Yellow highlights follow each MRI's
-                      hippocampus labels; the predicted panel uses the saved
-                      forecast labels. Full-head 3D can hide small internal
-                      changes—use the matched slices.
+                      {regionalDisplay
+                        ? "Scalar-guided hippocampus illustration: local MRI and yellow labels change together; the head and skull stay fixed. Volume loss follows the scalar estimates. This illustration is not a diagnosis or the original spatial CNN prediction."
+                        : "The predicted MRI is the input cutoff scan warped by the saved model. Yellow labels follow the MRI. Use matched slices to see internal changes."}
                     </p>
-                    <ForecastComparisonSummary analysisId={futureAnalysis.id} />
+                    {regionalDisplay && future.displayRegions && (
+                      <section
+                        className="volume-help"
+                        aria-label="Displayed hippocampus changes"
+                      >
+                        <h3>Displayed hippocampal volume change</h3>
+                        <div className="table-wrap">
+                          <table className="data-table">
+                            <thead>
+                              <tr>
+                                <th>Region</th>
+                                <th>Input mm³</th>
+                                <th>Displayed mm³</th>
+                                <th>Displayed change</th>
+                                <th>Scalar estimate</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(future.displayRegions).map(
+                                ([region, values]) => (
+                                  <tr key={region}>
+                                    <td>
+                                      {/left/i.test(region)
+                                        ? "Left hippocampus"
+                                        : "Right hippocampus"}
+                                    </td>
+                                    <td>{values.inputMaskMm3.toFixed(1)}</td>
+                                    <td>{values.displayMaskMm3.toFixed(1)}</td>
+                                    <td>
+                                      {values.displayChangePercent.toFixed(2)}%
+                                    </td>
+                                    <td>
+                                      {values.scalarChangePercent.toFixed(2)}%
+                                    </td>
+                                  </tr>
+                                ),
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p>
+                          Small differences reflect categorical voxel
+                          boundaries. Negative values mean volume loss.
+                        </p>
+                      </section>
+                    )}
+                    <details className="volume-help">
+                      <summary>Original spatial model measurements</summary>
+                      <ForecastComparisonSummary
+                        analysisId={futureAnalysis.id}
+                      />
+                    </details>
+                    <section
+                      className="volume-help"
+                      aria-label="Annual scalar progression"
+                    >
+                      <h3>Annual scalar progression from the same cutoff</h3>
+                      <div className="table-wrap">
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Horizon</th>
+                              <th>Left hippocampus</th>
+                              <th>Right hippocampus</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[12, 24, 36].map((months) => {
+                              const forecast = matches.find(
+                                (a) =>
+                                  a.resultJson?.anatomy?.forecast
+                                    .intervalDays === FORECAST_DAYS[months],
+                              )?.resultJson?.anatomy;
+                              const baseline =
+                                forecast?.visits.at(-1)?.volumesMm3;
+                              return (
+                                <tr key={months}>
+                                  <td>{months} months</td>
+                                  {[
+                                    "hippocampus_left_mm3",
+                                    "hippocampus_right_mm3",
+                                  ].map((region) => (
+                                    <td key={region}>
+                                      {regionVolume(baseline, region) &&
+                                      regionVolume(
+                                        forecast?.forecast.volumesMm3,
+                                        region,
+                                      )
+                                        ? `${((regionVolume(forecast?.forecast.volumesMm3, region)! / regionVolume(baseline, region)! - 1) * 100).toFixed(2)}%`
+                                        : "Not generated"}
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p>
+                        Negative means volume loss; positive means growth. These
+                        scalar estimates guide the local hippocampus
+                        illustration.
+                      </p>
+                    </section>
                   </>
                 )}
               <div className="volume-navigation">
@@ -964,7 +1089,9 @@ export function VolumeExplorer({
                   {forecastError && <p role="alert">{forecastError}</p>}
                   {!!future?.warnings.length && (
                     <details className="volume-note">
-                      <summary>Model limitations and output checks</summary>
+                      <summary>
+                        Original model limitations and output checks
+                      </summary>
                       <ul>
                         {future.warnings.map((warning, i) => (
                           <li key={i}>{warning}</li>
@@ -976,22 +1103,34 @@ export function VolumeExplorer({
                     <input
                       type="checkbox"
                       checked={meshes}
+                      disabled={regionalDisplay}
                       onChange={(e) => setMeshes(e.target.checked)}
                     />
                     Predicted brain and hippocampus boundaries
+                    {regionalDisplay && " (original spatial output only)"}
                   </label>
                   <Button
                     variant="outline"
                     disabled={matches.length < 2}
-                    onClick={() => setAnimating((v) => !v)}
+                    onClick={() => {
+                      if (!animating) {
+                        setFutureCompare(true);
+                        setCompare(false);
+                        setAlignment(false);
+                      }
+                      setAnimating((v) => !v);
+                    }}
                   >
                     {animating
                       ? "Pause forecast timeline"
-                      : "Play generated forecast timeline"}
+                      : regionalDisplay
+                        ? "Play hippocampus progression"
+                        : "Play generated forecast timeline"}
                   </Button>
                   <small>
-                    Discrete model-generated intervals only; no crossfade or
-                    mesh scaling.
+                    {regionalDisplay
+                      ? "Saved scalar-guided hippocampus illustrations; no crossfade."
+                      : "Discrete model-generated intervals only; no crossfade or mesh scaling."}
                   </small>
                 </>
               )}
@@ -1087,7 +1226,9 @@ export function VolumeExplorer({
           <div className="volume-disclaimer">
             <strong>
               {future
-                ? "Input and model-deformed MRI research comparison"
+                ? regionalDisplay
+                  ? "Input and scalar-guided hippocampus illustration"
+                  : "Input and model-deformed MRI research comparison"
                 : "Observed MRI research visualization"}
               {observedLabelUrl(comparisonVisit.id)
                 ? " with yellow hippocampus highlighting"
@@ -1096,7 +1237,9 @@ export function VolumeExplorer({
             </strong>{" "}
             MRI includes non-brain head tissue.{" "}
             {future
-              ? "Forecast and cutoff share the same native grid."
+              ? regionalDisplay
+                ? "The acquired head is unchanged outside the local hippocampus region."
+                : "Forecast and cutoff share the same native grid."
               : "Linked observed views are not registered."}
             Difference colors show shape-normalized intensity changes, not
             disease probability, atrophy or Grad-CAM.

@@ -500,6 +500,8 @@ def future_anatomy_artifact(
             or manifest["model_sha256"] != forecast.model_sha256
             or manifest["version"] != forecast.spatial_model_version
             or manifest["release_sha256"] != forecast.release_sha256
+            or manifest.get("display_magnification") != forecast.display_magnification
+            or manifest.get("display_mode") != forecast.display_mode
             or manifest["source_sha256"] != [v.source_sha256 for v in result.anatomy.visits]
         ):
             raise ValueError("Future metadata changed")

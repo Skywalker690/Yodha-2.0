@@ -2,6 +2,28 @@
 
 ## Patient-specific experimental forecasts (D046)
 
+D062 supersedes the whole-field magnifier below. The default experimental viewer
+uses separate scalar-guided hippocampus illustrations with acquired head geometry
+fixed. Yellow labels and local MRI use the same field. Identify the illustration
+in the canvas title and show acquired/displayed mask volumes, displayed change and
+the learned scalar estimate. Original spatial model measurements are expandable
+diagnostics. Playback advances through the prepared 12/24/36-month illustrations.
+No whole-head magnification control or raw mesh overlay is enabled in this view.
+API regional keys use camel case; annual scalar values accept these keys correctly.
+
+D061 selects experimental mode by default for the five pinned patients
+(OAS2_0048/0070/0073/0127/0017). Forecast positions load their matching generated
+12/24/36-month output without requiring a query parameter. Show actual changes;
+increasing change is not guaranteed and monthly anatomy is not interpolated.
+The annual scalar table shows bilateral hippocampus changes at the same cutoff.
+The presentation magnifier is selected initially for these patients but uses
+only separately generated artifacts passing scalar magnitude/geometry limits.
+Display its gain and presentation status in the canvas title. At gain 1, explain
+that enlargement failed those limits. The control can restore the original MRI;
+yellow labels follow the chosen MRI and raw meshes appear only with the original.
+Comparison measurements always describe the original forecast. Playback changes
+both selected future position and time, cycling completed predictions only.
+
 D049 opens explicit experimental links/actions in a side-by-side slice comparison
 of the actual cutoff MRI and generated MRI. D050 restores yellow labels by default
 following the user's clarification; separate mesh boundaries remain optional. Show
@@ -16,8 +38,9 @@ original cutoff source/segmentation. Missing measured labels stay unavailable.
 D048 adds a visible `Show experimental forecast` action in the future panel. It
 sets the existing opt-in. Explicit patient links with `experimentalForecast` set
 to 183/365/731/1096 days open that experimental time at the prepared cutoff and
-load matching saved artifacts; they do not start a job. Future badges say
-`Unvalidated experimental preview`, separating visible outputs from accuracy evidence.
+load matching saved artifacts; they do not start a job. D060 removes the repeated
+`Unvalidated experimental preview` badges from the forecast timeline and unavailable
+anatomy card. Experimental controls, model provenance and evaluation warnings remain.
 
 The MRI workspace offers unchecked `Experimental forecasts (small-cohort model)`.
 With at least two prepared scans, select a future timeline time or compare

@@ -1,5 +1,23 @@
 # Data Contract
 
+D062 adds optional `display_mode: hippocampus_scalar` (API `displayMode`) and
+`display_regions` (API `displayRegions`) with bilateral input/display mask volumes
+and scalar/display percent change. This mode requires all three separate display
+artifacts even at magnification 1. It constructs a localized illustration from
+learned scalar ratios, not a new spatial CNN forecast. The manifest records its
+algorithm, field support, positive Jacobian and unchanged-outside-ROI evidence;
+the artifact endpoint binds the display mode to the completed result. Regional
+keys and measurement fields are camel-cased in JSON responses.
+
+D061 adds optional `display_magnification` (API `displayMagnification`, 1 to 3)
+to experimental forecasts. Values above 1 require separate hash-bound
+`mri_display`, `labels_display`, `pull_display` artifacts. Original MRI, labels,
+field, meshes, scalar volumes and comparison measurements retain their meanings.
+Presentation artifact names use the existing owner-scoped future endpoint.
+The private manifest records magnification policy and surface sampling factors.
+The display magnitude limit is the larger of scalar/raw regional change magnitude
+plus 12 percentage points. This tolerance is a display allowance, not uncertainty.
+
 `GET /analysis/{id}/forecast-comparison` returns owner-scoped, read-only deformation
 and hippocampus change measurements from the hash-verified cutoff/prediction files.
 It separates native mask change from scalar model change and requires the same

@@ -1,5 +1,26 @@
 # Anatomy forecasting lifecycle
 
+D062 replaces D061's full-field magnification with local scalar-guided hippocampus
+illustrations. The experimental generation path prepares MRI/labels/local field
+using the acquired cutoff and learned scalar ratios. The presentation CLI now
+prepares the same regional mode for existing forecasts, preserving raw files and
+prior results. It uses native-grid volume fitting, 8-mm smooth support within
+brain labels, positive Jacobians, source coverage and exact head identity.
+This representation is not an evaluated spatial forecast or a disease diagnosis.
+
+D061 prepares 12/24/36-month outputs for the five pinned patients using the same
+frozen v3 predictor. It also creates explicitly labeled presentation artifacts
+with bounded field magnification, independent of raw outputs and measurements.
+Thin-region surface refinement repairs mesh approximation while retaining the
+5% native-volume guard; saved source/model files and review status are unchanged.
+See the decision log for the scalar limit and queued preprocessing policy.
+The queue CLI accepts `--subjects CODE ...` to restrict a batch to requested cases.
+`python -m scripts.prepare_forecast_presentations --batch-report PATH --output PATH`
+adds new presentation variants for the completed 15-entry annual batch using the
+shared compute lock. Earlier results and all original prediction file hashes remain
+unchanged; new variants share immutable raw files through local hard links. The
+edited manifest and display files are written separately. It does not refit models.
+
 D046 now permits explicit experimental patient-specific inference with the frozen
 historical v3 candidate. This does not satisfy the promoted lifecycle below. Use
 `experimental: true`, two-to-five prepared observations, and the configured pinned

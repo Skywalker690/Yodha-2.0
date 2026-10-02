@@ -50,6 +50,14 @@ export type AnatomyResult = {
   signConvention: string;
   forecast: {
     experimental?: boolean;
+    displayMagnification?: number | null;
+    displayMode?: "hippocampus_scalar" | null;
+    displayRegions?: Record<string, {
+      inputMaskMm3: number;
+      displayMaskMm3: number;
+      scalarChangePercent: number;
+      displayChangePercent: number;
+    }> | null;
     trainingSubjectCount?: number | null;
     status: "unavailable" | "available";
     cutoffVisitId: string;

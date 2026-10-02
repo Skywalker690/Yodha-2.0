@@ -20,6 +20,7 @@ def main() -> None:
         "--queue", action="store_true", help="Persist jobs; otherwise report eligibility only"
     )
     parser.add_argument("--interval-days", type=int, default=365)
+    parser.add_argument("--subjects", nargs="+", help="Queue only these patient codes")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     state = readiness(experimental=True)
@@ -33,6 +34,12 @@ def main() -> None:
             .where(User.email == get_settings().seed_email, Patient.source == "oasis-2")
             .order_by(Patient.code)
         ).all()
+        if args.subjects:
+            requested = set(args.subjects)
+            missing = requested - {patient.code for patient in patients}
+            if missing:
+                raise SystemExit(f"Unknown owned OASIS patients: {', '.join(sorted(missing))}")
+            patients = [patient for patient in patients if patient.code in requested]
         for patient in patients:
             sources = db.scalars(
                 select(Analysis)

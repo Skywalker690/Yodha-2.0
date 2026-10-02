@@ -1,5 +1,80 @@
 # Decision Log
 
+## D062: Restore head geometry and show scalar-guided hippocampal progression
+
+Status: Accepted (2026-10-03, user reports skull distortion)
+
+Retire D061's whole-field magnification from the default forecast viewer. It
+amplified displacement in the skull/head instead of focusing on hippocampal loss.
+Generate a separate scalar-guided hippocampus illustration from the acquired
+cutoff and its measured left/right masks. Fit a smooth local radial pull to each
+learned scalar volume ratio, with categorical-mask quantization reported explicitly.
+The field is zero outside an 8-mm hippocampal neighborhood and outside brain
+labels. MRI and labels use the same local field. Require positive Jacobians,
+source coverage and target volume agreement within 1% of the input mask volume;
+preserve cutoff MRI exactly outside the affected neighborhood. No exaggerated
+gain or whole-head motion is used. The five patients' scalar losses increase at
+12/24/36 months; no direction is forced if a future scalar estimate predicts growth.
+
+Identify this as a scalar-guided illustration, not the evaluated spatial CNN
+prediction or a diagnosis/proof of increasing Alzheimer's severity. Preserve raw
+forecasts, weights, sources and previous artifacts. New presentation analyses
+contain separate files, explicit display mode, regional measurements and private
+identity/geometry evidence. The default viewer uses these regional artifacts;
+original spatial measurements remain separately identified diagnostics.
+
+## D061: Open annual experimental forecasts for the five pinned patients
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Enable the existing experimental mode by default for OAS2_0048, OAS2_0070,
+OAS2_0073, OAS2_0127 and OAS2_0017 and prepare patient-specific forecasts at
+365/731/1096 days from their measured cutoff. Explicit selection of evaluated
+mode remains possible. Interpret progression as actual time-conditioned outputs;
+do not force positive change or manufacture increasing atrophy. The saved model
+and review/evaluation status remain unchanged. These five display-priority patients
+are not a new training split. No monthly interpolated anatomy is implied.
+
+The user clarifies that scalar estimates should bound a visibly enlarged display
+for judges. Generate separate presentation MRI/labels/field with the learned field
+multiplied by the largest passing gain in 3/2/1.5. Each region's absolute relative
+volume change must stay within max(abs(scalar change), abs(original mask change))
+plus the existing 12-percentage-point consistency tolerance as a display allowance.
+The initial strict magnitude-only limit blocked enlargement in the annual batch.
+This allowance is explicitly a presentation policy, not a calibrated uncertainty
+interval or a claim that magnification passes scientific release gates. Reject folding,
+missing coverage and disappearing regions. If no gain passes, show the original.
+Scalar estimates are not confidence bounds. Identify magnification in the canvas
+title and control, keep original measurements and allow switching back. This
+supersedes D049's prohibition on a separately identified presentation view, never
+its preservation of actual predictions. Playback advances the selected timeline
+position together with the future time, showing completed artifacts only.
+
+Presentation refinement creates a new analysis with preserved raw artifacts and
+separate display files; completed earlier predictions and their results are immutable.
+
+Experimental requests may coexist with queued native preprocessing for the same
+patient, using the immutable completed source. Processing jobs or another queued
+forecast still block requests. The existing worker/compute lock serializes work;
+paused native jobs remain queued and the experimental-only worker ignores them.
+
+Repair native marching-cubes volume loss in thin regional masks by retrying surface
+extraction on a cropped, doubled categorical grid when the original surface misses
+the existing 5% volume tolerance. Replication preserves occupied voxel cells; map
+subvoxel centers back to the original affine. Retain all geometry checks, native
+MRI/masks and earlier artifacts; record the surface sampling factor. This affects
+mesh approximation only and does not change learned predictions.
+
+## D060: Remove repeated experimental preview badges in the MRI workspace
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Remove the `Unvalidated experimental preview` badge from the 12/24/36-month
+forecast timeline positions and the unavailable future anatomy card. Forecast
+selection and rendering retain their existing behavior. The workspace's
+experimental mode controls, model provenance and evaluation warnings continue
+to identify the research outputs. This supersedes D048's badge placement.
+
 ## D059: Remove MRI Analysis from sidebar navigation
 
 Status: Accepted (2026-10-03, explicit user request)

@@ -2,6 +2,15 @@
 
 ## Product
 
+D062 restores head geometry in the forecast viewer and shows hippocampal volume
+progression in a separately identified scalar-guided illustration.
+
+D061 opens patient-specific 12/24/36-month experimental forecasts for the five
+pinned patients, showing actual model progression without enforcing its direction.
+
+D060 removes the repeated experimental preview badges from MRI workspace
+forecast positions and the unavailable anatomy card.
+
 D059 removes MRI Analysis from sidebar navigation.
 
 D058 defaults the MRI Analysis patient selector to OAS2_0048 when available.

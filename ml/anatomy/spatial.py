@@ -76,10 +76,42 @@ def mesh(mask: nib.Nifti1Image, destination: Path) -> dict:
     # A fixed 0.0001 offset resolves the tie; labels stay unchanged, no smoothing
     # is applied, and closure/face/physical-volume checks still must pass.
     isovalue = 0.5001
-    vertices, faces, _, _ = marching_cubes(
-        data.astype(np.float32), isovalue, gradient_direction="ascent", allow_degenerate=False
-    )
-    vertices = nib.affines.apply_affine(mask.affine, vertices).astype(np.float32)
+    measured = float(data.sum() * abs(np.linalg.det(mask.affine[:3, :3])))
+    sampling_factor = 1
+    surface_data = data
+    surface_affine = mask.affine
+    while True:
+        vertices, faces, _, _ = marching_cubes(
+            surface_data.astype(np.float32), isovalue,
+            gradient_direction="ascent", allow_degenerate=False,
+        )
+        vertices = nib.affines.apply_affine(surface_affine, vertices).astype(np.float32)
+        # Center the volume calculation to avoid cancellation at large RAS offsets.
+        centered = vertices.astype(np.float64) - vertices.mean(axis=0)
+        a, b, c = centered[faces[:, 0]], centered[faces[:, 1]], centered[faces[:, 2]]
+        signed_volume = float(np.sum(np.einsum("ij,ij->i", a, np.cross(b, c))) / 6)
+        relative_error = abs(abs(signed_volume) - measured) / measured
+        if relative_error <= 0.05:
+            break
+        if sampling_factor == 2:
+            raise ValueError("Mesh differs from mask voxel volume by more than 5%; no simplification accepted")
+        # Thin binary regions lose volume at marching-cubes corners. Replicate each
+        # voxel into 2x2x2 cells; this preserves its physical occupancy, not a new mask.
+        occupied = np.argwhere(data)
+        lower = occupied.min(axis=0) - 1
+        upper = occupied.max(axis=0) + 2
+        crop = data[tuple(slice(int(lo), int(hi)) for lo, hi in zip(lower, upper))]
+        if crop.size * 8 > 32_000_000:
+            raise ValueError("Refined mesh grid exceeds the bounded surface budget")
+        surface_data = crop
+        for axis in range(3):
+            surface_data = np.repeat(surface_data, 2, axis=axis)
+        # Repeated voxel centers j correspond to native centers (j + .5)/2 - .5.
+        transform = np.eye(4)
+        transform[:3, :3] *= 0.5
+        transform[:3, 3] = lower - 0.25
+        surface_affine = mask.affine @ transform
+        sampling_factor = 2
     edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
     _, edge_counts = np.unique(edges, axis=0, return_counts=True)
     if np.any(edge_counts != 2):
@@ -87,13 +119,8 @@ def mesh(mask: nib.Nifti1Image, destination: Path) -> dict:
     a, b, c = vertices[faces[:, 0]], vertices[faces[:, 1]], vertices[faces[:, 2]]
     if np.any(np.linalg.norm(np.cross(b - a, c - a), axis=1) <= 1e-8):
         raise ValueError("Mesh contains degenerate faces")
-    signed_volume = float(np.sum(np.einsum("ij,ij->i", a, np.cross(b, c))) / 6)
     if signed_volume < 0:
         faces = faces[:, [0, 2, 1]]
-    measured = float(data.sum() * abs(np.linalg.det(mask.affine[:3, :3])))
-    relative_error = abs(abs(signed_volume) - measured) / measured
-    if relative_error > 0.05:
-        raise ValueError("Mesh differs from mask voxel volume by more than 5%; no simplification accepted")
     arrays = [
         nib.gifti.GiftiDataArray(vertices, intent="NIFTI_INTENT_POINTSET"),
         nib.gifti.GiftiDataArray(faces.astype(np.int32), intent="NIFTI_INTENT_TRIANGLE"),
@@ -102,6 +129,7 @@ def mesh(mask: nib.Nifti1Image, destination: Path) -> dict:
     return {
         "coordinate_units": "mm",
         "isovalue": isovalue,
+        "sampling_factor": sampling_factor,
         "components": components,
         "voxel_volume_mm3": measured,
         "mesh_volume_mm3": abs(signed_volume),

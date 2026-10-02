@@ -1,5 +1,42 @@
 # Testing and Validation
 
+## Local hippocampus illustrations (D062)
+
+Real preparation completed 15/15 illustrations: 365/731/1096 days for each of
+OAS2_0048, OAS2_0070, OAS2_0073, OAS2_0127 and OAS2_0017. Every patient's left
+and right displayed hippocampal mask volumes decrease across those intervals.
+The minimum local Jacobian was 0.503258; maximum scalar/display disagreement
+was 0.545061 percentage points. MRI changes outside the local region were zero,
+and the exact non-brain head identity guard passed for all fifteen outputs.
+Original spatial model artifacts remain unchanged. The private execution report
+is `artifacts/hippocampus-forecast-presentations-20261003.json`.
+
+Strict TypeScript, production build and focused Ruff checks passed. Browser
+inspection confirmed the regional display, bilateral volume table and annual
+scalar estimates on OAS2_0017's 36-month view. No automated tests were run for
+this change. These checks establish execution and presentation consistency,
+not forecast accuracy, clinical validation or an Alzheimer diagnosis.
+
+## Annual patient forecasts and presentation variants (D061)
+
+Real execution completed 15/15 raw forecasts: 365/731/1096 days for each of
+OAS2_0048, OAS2_0070, OAS2_0073, OAS2_0127 and OAS2_0017. Native minimum
+Jacobian was 0.2693 and maximum raw mesh/voxel volume error was 4.6891%.
+Thin-mask surface refinement resolved the prior 48/127 failures. All bilateral
+hippocampal scalar loss estimates increase over these three intervals.
+
+Fifteen additional immutable presentation variants completed. Five permit
+enlargement: 48/70 at 12 months use 1.5x; 17 at all three intervals uses 3x.
+Ten remain at original scale because greater gains did not pass the display
+envelope/geometry checks. Earlier results and raw artifacts remain unchanged.
+The explicit 12-percentage-point display allowance is not confidence evidence.
+Private execution reports are `artifacts/annual-forecast-batch-20261003.json`
+and `artifacts/annual-forecast-presentations-20261003.json`.
+
+TypeScript, production build, focused Ruff and diff whitespace checks passed.
+No automated tests or browser interaction checks were run for D061. This verifies
+execution and software checks, not predictive accuracy or clinical validation.
+
 ## Pending visit deletion (D056)
 
 D057 moves the action beside the MRI visit selector in the marked pending upload

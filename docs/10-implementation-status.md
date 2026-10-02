@@ -1,5 +1,25 @@
 # Implementation Status
 
+## Regional hippocampus display correction (2026-10-03, D062)
+
+The default forecast viewer now shows scalar-guided local hippocampus changes
+with the acquired skull/head fixed. All fifteen five-patient annual illustrations
+completed. Bilateral displayed mask volumes decrease at 12/24/36 months; actual
+scalar estimates and voxel quantization are shown separately. The full-head
+magnifier is retired. Source MRI, previous outputs and weights are preserved.
+This is a presentation mapping from learned scalar volumes, not an evaluated
+spatial MRI predictor or evidence of Alzheimer's progression.
+
+## Five-patient annual forecasts (2026-10-03, D061)
+
+The five pinned patients have completed patient-specific 12/24/36-month outputs
+from the frozen historical v3 model, plus separately identified presentation
+variants. The workspace defaults these patients to experimental mode, offers
+annual scalar progression and plays completed horizons. Five of fifteen views
+permit 1.5x/3x magnification; others show original scale. Original outputs,
+model weights, training membership and unvalidated status remain unchanged.
+See [07](07-testing-validation.md) for runtime counts and check limitations.
+
 ## Optional nWBV module integration (2026-10-02)
 
 The supplied package is extracted at `nwbv_reference_module/`, installed with

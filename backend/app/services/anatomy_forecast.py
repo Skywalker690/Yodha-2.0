@@ -116,10 +116,16 @@ def enqueue_forecast(
                 409, "Valid segmentation and rating outputs required for research forecasting."
             )
     db.execute(select(Patient).where(Patient.id == source.patient_id).with_for_update()).scalar_one()
-    if db.scalar(
+    active = db.scalars(
         select(Analysis).where(
             Analysis.patient_id == source.patient_id, Analysis.status.in_(["queued", "processing"])
         )
+    ).all()
+    if any(
+        job.status == "processing"
+        or not experimental
+        or any(item.get("forecast_spec") for item in job.input_json)
+        for job in active
     ):
         raise HTTPException(409, "An analysis is already running for this patient.")
     snapshot = [{k: v for k, v in item.items() if k != "forecast_spec"} for item in source.input_json[:end]]

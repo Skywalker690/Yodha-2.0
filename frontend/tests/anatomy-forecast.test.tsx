@@ -447,8 +447,9 @@ it("renders observed visits and experimental future positions (+12m, +24m, +36m)
   expect(screen.getByText("+12m Predicted")).toBeVisible();
   expect(screen.getByText("+24m Predicted")).toBeVisible();
   expect(screen.getByText("+36m Predicted")).toBeVisible();
-  const badges = screen.getAllByText("Unvalidated experimental preview");
-  expect(badges.length).toBeGreaterThanOrEqual(3);
+  expect(
+    screen.queryByText("Unvalidated experimental preview"),
+  ).not.toBeInTheDocument();
 });
 
 it("navigates into future positions past the cutoff scan using Later MRI and renders predicted MRI and meshes with experimental badge", () => {
