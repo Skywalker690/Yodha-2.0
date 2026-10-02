@@ -1,5 +1,15 @@
 # Decision Log
 
+## D041: Compact regional measurements and remove the regional comparison chart
+
+Status: Accepted (2026-10-02, explicit user request)
+
+Remove the observed-versus-model-predicted regional anatomy section from the MRI
+analysis panel. Show its first four regional measurement rows initially, preserving
+the existing order. Reveal the remaining rows with a keyboard-accessible dropdown
+button; collapse again on visit/analysis changes. Measurements, forecast outputs,
+3D timeline and reports remain available through their existing data paths.
+
 ## D040: Hide cyan regional highlights and keep the hippocampus visible
 
 Status: Accepted (2026-10-02, explicit user request)

@@ -51,6 +51,11 @@ action to reveal descriptive values. Provide a link to the full patient case for
 
 ## Core interactions
 
+In the MRI analysis anatomy panel, show the first four regional measurements by
+default. A dropdown button reveals/collapses the remaining rows and resets on
+visit/analysis changes. Omit the observed-versus-model-predicted regional anatomy
+chart and its region selector (D041).
+
 - Sign in as a researcher.
 - List and select a patient.
 - Create a patient and add a visit.

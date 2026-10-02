@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Play, Download } from "lucide-react";
+import { Play, Download, ChevronDown } from "lucide-react";
 import {
   Line,
   LineChart,
@@ -9,8 +9,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Area,
-  ComposedChart,
 } from "recharts";
 import type { Analysis, Patient, Report, Visit } from "@/types";
 import { post } from "@/lib/api";
@@ -36,11 +34,12 @@ export function AnatomyPanel({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [report, setReport] = useState<Report | null>(null);
+  const [showAllRegions, setShowAllRegions] = useState(false);
   useEffect(() => {
+    setShowAllRegions(false);
     setReport(null);
     setError("");
   }, [visit.id, patient.completedAnatomy?.id]);
-  const [region, setRegion] = useState("");
   const job = patient.latestAnatomy;
   const anatomy = patient.completedAnatomy?.resultJson?.anatomy;
   const selected = anatomy?.visits.find((v) => v.visitId === visit.id);
@@ -57,31 +56,7 @@ export function AnatomyPanel({
     : ratings?.status === "invalid"
       ? "Scoring failed"
       : "Unavailable";
-  const forecast = anatomy?.forecast;
-  const matchingForecast =
-    forecast?.status === "available" && forecast.cutoffVisitId === visit.id
-      ? forecast
-      : null;
-  const selectedRegion = region || Object.keys(selected?.volumesMm3 || {})[0];
-  const volumeSeries =
-    anatomy?.visits
-      .filter((v) => v.daysFromBaseline <= visit.daysFromBaseline)
-      .map((v) => ({
-        day: v.daysFromBaseline,
-        measured: v.volumesMm3[selectedRegion],
-        predicted:
-          v.visitId === visit.id && matchingForecast
-            ? v.volumesMm3[selectedRegion]
-            : null,
-        band: null as [number, number] | null,
-      })) || [];
-  if (matchingForecast && matchingForecast.intervalDays > 0)
-    volumeSeries.push({
-      day: visit.daysFromBaseline + matchingForecast.intervalDays,
-      measured: undefined!,
-      predicted: matchingForecast.volumesMm3?.[selectedRegion] ?? null,
-      band: matchingForecast.predictionIntervals?.[selectedRegion] ?? null,
-    });
+  const regionalMeasurements = Object.entries(selected?.volumesMm3 || {});
   const includedIds = new Set(included.map((v) => v.id));
   const visibleChanges = anatomy?.changes.filter(
     (v) => includedIds.has(v.earlierVisitId) && includedIds.has(v.laterVisitId),
@@ -210,7 +185,7 @@ export function AnatomyPanel({
               estimators.
             </p>
             <div className="table-wrap">
-              <table className="data-table">
+              <table className="data-table" aria-label="Regional measurements">
                 <thead>
                   <tr>
                     <th>Region</th>
@@ -219,24 +194,44 @@ export function AnatomyPanel({
                     <th>Stats / eTIV</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {Object.entries(selected.volumesMm3).map(([name, value]) => (
-                    <tr key={name}>
-                      <td>{regionLabel(name)}</td>
-                      <td>{value.toFixed(1)}</td>
-                      <td>
-                        {selected.maskVolumesMm3[name]?.toFixed(1) ??
-                          "Unavailable"}
-                      </td>
-                      <td>
-                        {selected.headSizeRatios[name]?.toFixed(6) ??
-                          "Unavailable"}
-                      </td>
-                    </tr>
-                  ))}
+                <tbody id="regional-measurement-rows">
+                  {regionalMeasurements
+                    .slice(0, showAllRegions ? undefined : 4)
+                    .map(([name, value]) => (
+                      <tr key={name}>
+                        <td>{regionLabel(name)}</td>
+                        <td>{value.toFixed(1)}</td>
+                        <td>
+                          {selected.maskVolumesMm3[name]?.toFixed(1) ??
+                            "Unavailable"}
+                        </td>
+                        <td>
+                          {selected.headSizeRatios[name]?.toFixed(6) ??
+                            "Unavailable"}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
+            {regionalMeasurements.length > 4 && (
+              <Button
+                variant="outline"
+                aria-expanded={showAllRegions}
+                aria-controls="regional-measurement-rows"
+                onClick={() => setShowAllRegions((expanded) => !expanded)}
+              >
+                <ChevronDown
+                  size={15}
+                  style={{
+                    transform: showAllRegions ? "rotate(180deg)" : undefined,
+                  }}
+                />
+                {showAllRegions
+                  ? "Show fewer regions"
+                  : `Show ${regionalMeasurements.length - 4} more regions`}
+              </Button>
+            )}
             <p>
               Hippocampal asymmetry:{" "}
               {selected.hippocampalAsymmetryPercent.toFixed(2)}% · 200 × (left −
@@ -255,112 +250,6 @@ export function AnatomyPanel({
             Not processed for this visit. Native FastSurfer outputs are
             required; source nWBV is not a segmented regional volume.
           </p>
-        )}
-        {selected && (
-          <>
-            <h3>Observed versus model-predicted regional anatomy</h3>
-            <label>
-              Region
-              <select
-                aria-label="Anatomy chart region"
-                value={selectedRegion}
-                onChange={(e) => setRegion(e.target.value)}
-              >
-                {Object.keys(selected.volumesMm3).map((name) => (
-                  <option key={name} value={name}>
-                    {regionLabel(name)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="trajectory-chart">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={volumeSeries}>
-                  <CartesianGrid stroke="#223141" />
-                  <XAxis
-                    dataKey="day"
-                    type="number"
-                    domain={["dataMin", "dataMax"]}
-                  />
-                  <YAxis domain={[0, "auto"]} />
-                  <Tooltip />
-                  <Area
-                    dataKey="band"
-                    name="Evaluated structural prediction interval (mm³)"
-                    fill="#66dfd2"
-                    fillOpacity={0.2}
-                    stroke="none"
-                    connectNulls={false}
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    dataKey="measured"
-                    name="Observed FastSurfer stats (mm³)"
-                    stroke="#66dfd2"
-                    connectNulls={false}
-                    isAnimationActive={false}
-                  />
-                  <Line
-                    dataKey="predicted"
-                    name="Model-generated stats estimate (mm³)"
-                    stroke="#b99bff"
-                    strokeDasharray="5 4"
-                    connectNulls={false}
-                    isAnimationActive={false}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-            {matchingForecast ? (
-              <>
-                <p>
-                  Model-generated estimate at +{matchingForecast.intervalDays}{" "}
-                  days · {matchingForecast.spatialModelVersion}. Not an acquired
-                  measurement.
-                </p>
-                <p>
-                  Release {matchingForecast.releaseSha256?.slice(0, 12)} ·
-                  checkpoint {matchingForecast.modelSha256?.slice(0, 12)}.
-                </p>
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Region</th>
-                        <th>Predicted mm³</th>
-                        <th>Evaluated interval mm³</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(matchingForecast.volumesMm3 || {}).map(
-                        ([name, value]) => (
-                          <tr key={name}>
-                            <td>{regionLabel(name)}</td>
-                            <td>{value.toFixed(1)}</td>
-                            <td>
-                              {matchingForecast.predictionIntervals?.[name]
-                                ?.map((v) => v.toFixed(1))
-                                .join(" – ") || "Unavailable"}
-                            </td>
-                          </tr>
-                        ),
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <p>
-                  {matchingForecast.intervalEvidence
-                    ? `${matchingForecast.intervalEvidence.level * 100}% target coverage; evaluated on ${matchingForecast.intervalEvidence.subjects} held-out subjects (${matchingForecast.intervalEvidence.method}). Small-cohort research evidence only.`
-                    : "Intervals are unavailable: physical bounds or held-out coverage gates were not satisfied."}
-                </p>
-              </>
-            ) : (
-              <p>
-                No matching evaluated structural forecast exists for this
-                cutoff. Observations above are not extrapolated.
-              </p>
-            )}
-          </>
         )}
         <h3>Measured change history</h3>
         <h4>Automatic score history through selected cutoff</h4>

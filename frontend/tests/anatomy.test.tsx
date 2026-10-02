@@ -1,6 +1,12 @@
 import React from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { AnatomyPanel } from "@/components/anatomy-panel";
 import { fetchMesh } from "@/lib/volume-viewer";
 import type { Patient, Analysis, AnatomyResult } from "@/types";
@@ -80,13 +86,31 @@ const completed = {
 } as Analysis;
 afterEach(() => vi.unstubAllGlobals());
 
-it("requires explicit visual review and shows no substituted atrophy ratings", () => {
+it("shows four regional measurements and expands the remainder without a review prompt", () => {
+  const regionalVolumes = {
+    hippocampus_left_mm3: 4000,
+    hippocampus_right_mm3: 4100,
+    lateral_ventricle_left_mm3: 9000,
+    lateral_ventricle_right_mm3: 9100,
+    entorhinal_left_mm3: 2200,
+    entorhinal_right_mm3: 2300,
+  };
+  const expandedResult = {
+    ...completed,
+    resultJson: {
+      ...completed.resultJson!,
+      anatomy: {
+        ...anatomy,
+        visits: [{ ...anatomy.visits[0], volumesMm3: regionalVolumes }],
+      },
+    },
+  };
   render(
     <AnatomyPanel
       patient={{
         ...patient,
-        latestAnatomy: completed,
-        completedAnatomy: completed,
+        latestAnatomy: expandedResult,
+        completedAnatomy: expandedResult,
       }}
       visit={patient.visits[0]}
       reload={vi.fn()}
@@ -94,13 +118,22 @@ it("requires explicit visual review and shows no substituted atrophy ratings", (
   );
   expect(screen.getAllByText("Unavailable").length).toBeGreaterThanOrEqual(3);
   expect(screen.getByText("Alignment review required")).toBeInTheDocument();
-  const confirm = screen.getByRole("button", {
-    name: "Record visual segmentation review",
-  });
-  expect(confirm).toBeDisabled();
-  fireEvent.click(screen.getByRole("checkbox"));
-  expect(confirm).toBeEnabled();
-  expect(screen.getByText("0.002667")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Record visual segmentation review" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("Observed versus model-predicted regional anatomy"),
+  ).not.toBeInTheDocument();
+  const table = screen.getByRole("table", { name: "Regional measurements" });
+  expect(within(table).getAllByRole("row")).toHaveLength(5);
+  expect(within(table).queryByText("entorhinal left")).not.toBeInTheDocument();
+  const expand = screen.getByRole("button", { name: "Show 2 more regions" });
+  expect(expand).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(expand);
+  expect(within(table).getByText("entorhinal left")).toBeVisible();
+  expect(within(table).getAllByRole("row")).toHaveLength(7);
+  fireEvent.click(screen.getByRole("button", { name: "Show fewer regions" }));
+  expect(within(table).getAllByRole("row")).toHaveLength(5);
 });
 
 it("requests the selected anatomy report explicitly instead of replacing the legacy report", async () => {
