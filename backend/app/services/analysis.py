@@ -11,6 +11,7 @@ from backend.app.models import Analysis, Patient, Visit
 from backend.app.services.storage import resolve_key
 from ml.contracts import MODEL_VERSION, VisitInput
 from ml.anatomy.contracts import VERSION as ANATOMY_VERSION
+from ml.anatomy.ratings import AUTOMATIC_RESEARCH_RATING_POLICY
 from src.common import sha256
 
 NUMERIC_COVARIATES = ("Age", "EDUC", "SES", "MMSE", "eTIV", "nWBV", "ASF", "MR Delay", "Visit")
@@ -141,6 +142,7 @@ def enqueue(
                 etiv_unit="cm3" if patient.source == "oasis-2" else None,
                 source_units_verified=patient.source == "oasis-2",
                 future_interval_days=future_interval_days,
+                rating_policy=AUTOMATIC_RESEARCH_RATING_POLICY,
             )
     if mode == "trained":
         snapshot = trained_snapshot(list(visits))

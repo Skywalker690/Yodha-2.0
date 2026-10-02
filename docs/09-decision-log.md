@@ -1,5 +1,87 @@
 # Decision Log
 
+## D040: Hide cyan regional highlights and keep the hippocampus visible
+
+Status: Accepted (2026-10-02, explicit user request)
+
+Keep the yellow hippocampal labels and boundaries visible in observed/predicted views.
+Make temporal/parietal labels transparent and omit their cyan regional meshes. Keep
+the hippocampus highlight control and a neutral gray complete brain boundary. Purple
+ventricle highlighting remains hidden. Stored segmentation, regional meshes,
+measurements and training inputs are unchanged; this is a visual change.
+
+## D039: Hide ventricle highlighting in the MRI viewer
+
+Status: Accepted (2026-10-02, explicit user request)
+
+Make lateral-ventricle labels transparent in the shared anatomy overlay and omit
+ventricle meshes from the predicted view. Remove the purple ventricle legend.
+This is a display-only change: source MRI, segmentation labels, measurements,
+stored meshes and model inputs remain unchanged.
+
+## D038: Automatically expose unreviewed anatomy values for research use
+
+Status: Accepted (2026-10-02, explicit user direction)
+
+After automated checks complete, use the produced hippocampal volumes and AVRA
+MTA-left/MTA-right/Koedam outputs directly in the dashboard and anatomy report;
+remove manual visual confirmation controls from the value workflow. Label AVRA
+scores and unreviewed measurements as unreviewed research estimates and preserve
+raw regression outputs, including finite values outside nominal score bounds.
+This does not claim visual QC, independent rating agreement, or clinical meaning.
+Only display values after source, segmentation, rating CSV, transform and provenance
+integrity checks pass. Missing, failed, or tampered artifacts remain unavailable.
+Explicit forecast release/promotion and scientific evaluation gates remain unchanged.
+
+This supersedes the dashboard display restriction in D036 and the app review
+workflow for direct descriptive values. API review endpoints remain for historical
+compatibility but the dashboard no longer asks the researcher to invoke them.
+
+## D037: Provisional 6-subject research candidate training on CUDA
+
+Status: Accepted (2026-10-02, explicit user direction)
+
+Train the MTA/Koedam-conditioned 3D longitudinal anatomy model on the first 6 completed
+subjects (16 registered longitudinal examples: OAS2_0048, OAS2_0070, OAS2_0073, OAS2_0127,
+OAS2_0017, OAS2_0027) using the pinned CUDA container (`yodha-anatomy-training:20261002`)
+for 20 epochs. For this provisional research run, OAS2_0027 serves as calibration while
+OAS2_0048, OAS2_0070, and OAS2_0127 train, OAS2_0017 provides hyperparameter selection,
+and OAS2_0073 evaluates holdout generalization. All predictions produced by this checkpoint
+remain explicitly tagged with honest research provenance and labeled experimental.
+
+## D036: Source-bound patient value snapshot on the dashboard
+
+Status: Accepted (2026-10-02, user request)
+
+Add a dashboard panel with patient and observed-visit selectors. Show source OASIS
+demographics/clinical values, FastSurfer regional statistics, hard-label mask volumes,
+eTIV ratios, bilateral hippocampal volume/asymmetry, MTA/Koedam estimates, and the
+optional descriptive nWBV age reference when present. Show BMI only from an explicit
+source BMI field; do not infer it without height and weight. Keep MTA/Koedam hidden
+unless AVRA alignment is reviewed, and show longitudinal hippocampal volume change
+only when both adjacent scans pass visual QC. State unavailability and provenance
+beside each value. Distinguish pending scan QC from pending AVRA alignment QC and link
+to the full patient workspace for the required review action. These values are
+descriptive research measurements, not a diagnosis or atrophy norm.
+
+## D035: Interactive 12/24/36-month future prediction timeline with explicit experimental provenance
+
+Status: Accepted (2026-10-02, explicit user request)
+
+The longitudinal anatomy model generates 3D displacement fields, warped T1 MRI volumes,
+categorical segmentation masks, and 19 boundary meshes (`brain_mesh.gii` and 18 regional meshes)
+at discrete horizons. The scan-count-selected frozen cohort split contains insufficient holdout
+scans matching exact 12-, 24-, and 36-month intervals (±90 days) to meet formal holdout
+validation thresholds.
+
+Connect 12-, 24-, and 36-month prediction positions to the interactive 3D timeline strip
+in `VolumeExplorer` and `MLWorkspace`, tied to the cutoff scan. Allow sequential navigation
+(Earlier / Later MRI) past the cutoff scan into +12m, +24m, and +36m future brain positions.
+When viewing future brain predictions, load the real model-generated NIfTI MRI, categorical labels,
+and all 19 boundary meshes. Clearly label every 12-, 24-, and 36-month position and view
+with an explicit "Experimental (unsupported horizon)" badge and honest provenance disclaimers.
+Never fabricate synthetic holdout support, crossfade transitions, or uniformly scaled meshes.
+
 ## D034: Preserve unbounded AVRA outputs in provisional research training
 
 Status: Accepted (2026-10-02, investigation of the user-reported training blocker)

@@ -62,6 +62,7 @@ The primary user is a researcher or clinician reviewing longitudinal cases. The 
 - Structural-change metrics.
 - MRI and explanation comparison.
 - Interactive 3D MRI volume exploration, multiplanar slices, cutaway clipping and linked longitudinal comparison (user-requested extension, 2026-10-01).
+- Dashboard snapshot for a selected patient and observed visit: source demographics, recorded clinical values, automatically available MTA/Koedam research estimates, regional hippocampal measurements and provenance-labeled longitudinal volume change. Unreviewed outputs remain explicitly labeled; missing source values remain unavailable.
 - Short, cautious interpretation.
 - Research report generation and download.
 - Explicit output provenance: demo, precomputed, or inference.

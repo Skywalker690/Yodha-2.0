@@ -184,6 +184,14 @@ def train(
         role: [c for c in cases if roles[c[0]["subject_id"]] == role]
         for role in ("train", "selection", "calibration", "test")
     }
+    active_roles = dict(roles)
+    if allow_unreviewed_research and not grouped["calibration"] and len(grouped["train"]) >= 4:
+        extra_subject = grouped["train"][-1][0]["subject_id"]
+        active_roles[extra_subject] = "calibration"
+        grouped["calibration"] = [c for c in cases if c[0]["subject_id"] == extra_subject]
+        grouped["train"] = [
+            c for c in cases if c[0]["subject_id"] != extra_subject and roles[c[0]["subject_id"]] == "train"
+        ]
     if (
         any(not values for values in grouped.values())
         or len({c[0]["subject_id"] for c in grouped["train"]}) < 2
@@ -208,7 +216,7 @@ def train(
             "stage": "training",
             "synthetic": synthetic,
             "gates": GATES,
-            "roles": roles,
+            "roles": active_roles,
             "study_sha256": sha256(study),
         },
     )
@@ -373,7 +381,7 @@ def train(
         "candidate_sha256": {name: sha256(output / name) for name in ("with_scores.pt", "with_scores.json")},
         "study_sha256": sha256(study),
         "split": manifest["split"],
-        "roles": roles,
+        "roles": active_roles,
         "supported_intervals_days": supported,
         "selection": selection,
         "calibration_metrics": calibration_metrics,

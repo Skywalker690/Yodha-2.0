@@ -441,6 +441,100 @@ small {
   grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr);
   gap: 22px;
 }
+.patient-values-content {
+  padding: 0 23px 23px;
+}
+.patient-values-controls {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 17px;
+}
+.patient-values-controls label {
+  display: grid;
+  gap: 6px;
+  min-width: 210px;
+  color: #aebed0;
+  font-size: 11px;
+}
+.patient-values-controls select {
+  min-height: 38px;
+  padding: 0 34px 0 11px;
+}
+.patient-values-link {
+  margin-left: auto;
+  padding-bottom: 9px;
+}
+.patient-values-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  color: #b5c5d5;
+  font-size: 12px;
+}
+.patient-values-identity .patient-avatar {
+  width: 30px;
+  height: 30px;
+}
+.patient-values-identity .badge {
+  margin-left: auto;
+}
+.patient-values-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+.patient-value-number {
+  font-size: 23px;
+  letter-spacing: -0.4px;
+  overflow-wrap: anywhere;
+}
+.patient-values-subtitle {
+  margin: 19px 0 10px;
+}
+.patient-values-source-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.patient-values-source-grid > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #111c29;
+}
+.patient-values-source-grid span,
+.patient-values-source-grid small {
+  color: #8fa3b7;
+  font-size: 10px;
+}
+.patient-values-source-grid strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.patient-values-disclaimer {
+  margin-top: 12px;
+  color: #96a8b9;
+  font-size: 11px;
+}
+.patient-values-qc-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 17px;
+  padding: 12px 15px;
+}
+.patient-values-qc-notice p {
+  margin: 0;
+}
+.patient-values-empty {
+  padding: 18px 0;
+}
 .badge {
   display: inline-flex;
   align-items: center;
@@ -977,6 +1071,40 @@ textarea:focus {
 }
 .visit-ready.missing {
   color: #d8ac6e;
+}
+.timeline-visit.future .timeline-track > span {
+  border-style: dashed;
+  border-color: #a879e6;
+  color: #c49eff;
+  background: #251b38;
+}
+.timeline-visit.future.selected .timeline-track > span {
+  color: #061a1c;
+  background: #a879e6;
+  border-color: #a879e6;
+  box-shadow: 0 0 0 4px rgba(168, 121, 230, 0.15);
+}
+.timeline-visit.future.selected strong {
+  color: #c49eff;
+}
+.timeline-visit.future .timeline-track i {
+  border-top: 1px dashed #4e3568;
+  background: transparent;
+}
+.visit-experimental {
+  display: inline-block;
+  margin-top: 9px;
+  color: #d88ec6;
+  font-size: 9px;
+  background: #381f33;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #6b345e;
+}
+.volume-timeline {
+  padding: 10px 16px;
+  background: #0d1a24;
+  border-bottom: 1px solid #1f3342;
 }
 .analysis-grid {
   display: grid;
@@ -1840,6 +1968,10 @@ progress::-webkit-progress-value {
   .stats-grid {
     grid-template-columns: 1fr 1fr;
   }
+  .patient-values-stats,
+  .patient-values-source-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .page-heading h1 {
     font-size: 27px;
   }
@@ -1890,6 +2022,21 @@ progress::-webkit-progress-value {
   }
   .main-content {
     padding: 24px 17px 0;
+  }
+  .patient-values-content {
+    padding: 0 15px 17px;
+  }
+  .patient-values-controls label {
+    width: 100%;
+  }
+  .patient-values-link {
+    margin-left: 0;
+  }
+  .patient-values-identity {
+    flex-wrap: wrap;
+  }
+  .patient-values-identity .badge {
+    margin-left: 0;
   }
   .mobile-menu {
     display: inline-flex;

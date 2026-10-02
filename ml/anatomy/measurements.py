@@ -32,8 +32,9 @@ def changes(visits: list[AnatomyVisit]) -> list[dict]:
         if earlier.volumes_mm3.keys() != later.volumes_mm3.keys():
             raise ValueError("Regional definitions changed between visits")
         reviewed = earlier.qc == later.qc == "passed"
+        automatic_research = earlier.qc == later.qc == "automated_checks_only"
         regions = {}
-        if reviewed:
+        if reviewed or automatic_research:
             for name, before in earlier.volumes_mm3.items():
                 delta = later.volumes_mm3[name] - before
                 regions[name] = {
@@ -47,7 +48,7 @@ def changes(visits: list[AnatomyVisit]) -> list[dict]:
                 "earlier_visit_id": earlier.visit_id,
                 "later_visit_id": later.visit_id,
                 "elapsed_days": days,
-                "status": "ok" if reviewed else "pending_review",
+                "status": "ok" if reviewed else "automated_checks_only" if automatic_research else "pending_review",
                 "regions": regions,
             }
         )

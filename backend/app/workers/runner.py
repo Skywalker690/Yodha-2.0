@@ -72,6 +72,7 @@ def execute(analysis_id: str) -> None:
         artifact_prefix = f"derived/{analysis_id}"
         if mode == "anatomy":
             from ml.anatomy.pipeline import run_anatomy
+            from ml.anatomy.ratings import AUTOMATIC_RESEARCH_RATING_POLICY
 
             failure_message = "Anatomy processing failed. Verify Docker availability, pinned image, native MRI geometry and private execution logs. No synthetic anatomy or scores were substituted."
             inputs = [{**s, "mri_path": str(resolve_key(s["mri_key"]))} for s in snapshot]
@@ -107,6 +108,8 @@ def execute(analysis_id: str) -> None:
                     snapshot[-1]["future_interval_days"],
                     spec["release_sha256"],
                     snapshot[-1]["visit_id"],
+                    allow_unreviewed_research=spec.get("is_research_candidate", False),
+                    candidate_dir=spec.get("candidate_dir"),
                 )
             else:
                 result = run_anatomy(
@@ -115,6 +118,11 @@ def execute(analysis_id: str) -> None:
                     resolve_key(artifact_prefix),
                     lambda p, s: update_progress(analysis_id, p, s),
                     rating_runtime=get_settings().avra_runtime_manifest,
+                    automatic_research_values=all(
+                        s.get("rating_policy", AUTOMATIC_RESEARCH_RATING_POLICY)
+                        == AUTOMATIC_RESEARCH_RATING_POLICY
+                        for s in snapshot
+                    ),
                 )
             result = ProgressionResult.model_validate(result.model_dump())
             if (

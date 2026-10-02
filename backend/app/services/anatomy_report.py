@@ -40,9 +40,12 @@ def build_anatomy_report(patient: Patient, analysis: Analysis, visits: list[Visi
         story.append(
             para(f"{lookup.get(item.visit_id, 'Visit')} - day {item.days_from_baseline}", "Heading2")
         )
-        story.append(
-            para(f"Measured FastSurfer anatomy; QC: {item.qc}. Automated checks are not visual approval.")
+        qc_note = (
+            "Automated checks only; unreviewed research measurements."
+            if item.qc == "automated_checks_only"
+            else "Visual QC status is reported separately from these measurements."
         )
+        story.append(para(f"Measured FastSurfer anatomy; QC: {item.qc}. {qc_note}"))
         story.append(
             para(
                 f"Hippocampal asymmetry: {item.hippocampal_asymmetry_percent:.2f}% (200*(left-right)/(left+right))."
@@ -79,10 +82,15 @@ def build_anatomy_report(patient: Patient, analysis: Analysis, visits: list[Visi
             )
         )
         story.append(para(f"Automatic MTA/Koedam: {item.ratings.status}; continuous estimates, no rounding."))
-        if item.ratings.status == "ok":
+        if item.ratings.status in {"ok", "unreviewed_research"}:
             story.append(
                 para(
-                    f"MTA left {item.ratings.mta_left:.2f}/4; MTA right {item.ratings.mta_right:.2f}/4; single Koedam PA {item.ratings.posterior_atrophy:.2f}/3. Agreement unverified."
+                    f"MTA left {item.ratings.mta_left:.2f}/4; MTA right {item.ratings.mta_right:.2f}/4; single Koedam PA {item.ratings.posterior_atrophy:.2f}/3. "
+                    + (
+                        "Unreviewed research estimates; alignment and rating agreement are unverified."
+                        if item.ratings.status == "unreviewed_research"
+                        else "Rating agreement is unverified."
+                    )
                 )
             )
         story.extend(para(w) for w in item.ratings.warnings)
@@ -127,7 +135,11 @@ def build_anatomy_report(patient: Patient, analysis: Analysis, visits: list[Visi
             )
             story.append(table)
         else:
-            story.append(para("Changes remain unavailable until both segmentations pass visual review."))
+            story.append(
+                para(
+                    "Changes are unavailable because paired measurements did not pass the applicable processing checks."
+                )
+            )
     forecast = result.anatomy.forecast
     story.append(PageBreak())
     story.append(para(f"Predicted anatomy - {forecast.status}", "Heading2"))

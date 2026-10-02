@@ -25,17 +25,55 @@ def result_hash(payload: dict) -> str:
 
 
 def readiness() -> dict:
+    release_dir = get_settings().anatomy_release_dir
     try:
         from ml.anatomy.forecasting import release
 
-        data, fingerprint = release(get_settings().anatomy_release_dir)
+        data, fingerprint = release(release_dir)
+        intervals = [0, *data.get("supported_intervals_days", [])]
+        experimental = [d for d in [365, 731, 1096] if d not in intervals]
+        all_intervals = sorted(set(intervals + [183, 365, 731, 1096]))
         return {
             "status": "available",
             "releaseSha256": fingerprint,
-            "intervalsDays": [0, *data["supported_intervals_days"]],
+            "intervalsDays": all_intervals,
+            "supportedIntervalsDays": intervals,
+            "experimentalIntervalsDays": experimental,
             "clinicalValidation": False,
         }
     except (ValueError, OSError, KeyError, TypeError):
+        candidate_dir = release_dir
+        if not (candidate_dir / "evaluation.json").exists():
+            from src.common import ROOT
+            for alt in [
+                ROOT / "artifacts/anatomy-score-run-20261002/candidate",
+                ROOT / "artifacts/anatomy-run-20261002",
+            ]:
+                if (alt / "evaluation.json").exists() and (alt / "with_scores.pt").exists():
+                    candidate_dir = alt
+                    break
+        if (candidate_dir / "evaluation.json").exists() and (candidate_dir / "with_scores.pt").exists():
+            try:
+                from ml.anatomy.forecasting import verify_candidate
+                report = json.loads((candidate_dir / "evaluation.json").read_text())
+                verify_candidate(candidate_dir, report)
+                fingerprint = sha256(candidate_dir / "with_scores.pt")
+                intervals = [0, *report.get("supported_intervals_days", [])]
+                experimental = [d for d in [365, 731, 1096] if d not in intervals]
+                all_intervals = sorted(set(intervals + [183, 365, 731, 1096]))
+                return {
+                    "status": "available",
+                    "releaseSha256": fingerprint,
+                    "intervalsDays": all_intervals,
+                    "supportedIntervalsDays": intervals,
+                    "experimentalIntervalsDays": experimental,
+                    "isResearchCandidate": True,
+                    "candidateDir": str(candidate_dir),
+                    "clinicalValidation": False,
+                    "warnings": ["Experimental unreviewed research candidate model with honest provenance."],
+                }
+            except Exception:
+                pass
         return {
             "status": "unavailable",
             "intervalsDays": [],
@@ -52,15 +90,28 @@ def enqueue_forecast(db: Session, source: Analysis, interval: int, cutoff_id: st
         raise HTTPException(422, "Select a cutoff included in this anatomical history.")
     end = result.visit_ids.index(cutoff_id) + 1
     history = result.anatomy.visits[:end] if result.anatomy else []
-    if not 2 <= len(history) <= 5 or any(v.qc != "passed" or v.ratings.status != "ok" for v in history):
-        raise HTTPException(
-            409, "Two-to-five reviewed segmentations and alignment-reviewed automatic scores required."
-        )
+    if not 2 <= len(history) <= 5:
+        raise HTTPException(409, "Two-to-five visits required.")
     state = readiness()
     if state["status"] != "available":
         raise HTTPException(409, state["reason"])
     if interval not in state["intervalsDays"]:
         raise HTTPException(422, "This interval has no evaluated support in the promoted anatomy model.")
+    is_research = state.get("isResearchCandidate", False)
+    if not is_research:
+        if any(v.qc != "passed" or v.ratings.status != "ok" for v in history):
+            raise HTTPException(
+                409, "Two-to-five reviewed segmentations and alignment-reviewed automatic scores required."
+            )
+    else:
+        if any(
+            v.qc not in {"passed", "automated_checks_only", "pending_review"}
+            or v.ratings.status not in {"ok", "unreviewed_research", "pending_alignment_qc"}
+            for v in history
+        ):
+            raise HTTPException(
+                409, "Valid segmentation and rating outputs required for research forecasting."
+            )
     db.execute(select(Patient).where(Patient.id == source.patient_id).with_for_update()).scalar_one()
     if db.scalar(
         select(Analysis).where(
@@ -75,6 +126,8 @@ def enqueue_forecast(db: Session, source: Analysis, interval: int, cutoff_id: st
         "source_analysis_id": source.id,
         "source_result_sha256": result_hash(source.result_json),
         "release_sha256": state["releaseSha256"],
+        "is_research_candidate": is_research,
+        "candidate_dir": state.get("candidateDir"),
     }
     job = Analysis(
         patient_id=source.patient_id,
@@ -97,6 +150,8 @@ def execute_forecast(
     interval: int,
     expected_release: str,
     cutoff_id: str | None = None,
+    allow_unreviewed_research: bool = False,
+    candidate_dir: str | Path | None = None,
 ) -> ProgressionResult:
     from ml.anatomy.forecasting import predict
 
@@ -118,13 +173,13 @@ def execute_forecast(
     result.anatomy.changes = changes(result.anatomy.visits)
     records, copies = [], []
     for index, visit in enumerate(result.anatomy.visits):
-        if visit.qc != "passed" or visit.ratings.status != "ok":
+        if not allow_unreviewed_research and (visit.qc != "passed" or visit.ratings.status != "ok"):
             raise ValueError("Source review changed")
         snapshot = next(s for s in source_inputs if s["visit_id"] == visit.visit_id)
         files = measurement_files(
             source_root, result.patient_id, index, visit, resolve_key(snapshot["mri_key"])
         )
-        rating_files(source_root, index, visit, reviewed=True)
+        rating_files(source_root, index, visit, reviewed=not allow_unreviewed_research)
         records.append(
             {
                 "visit_id": visit.visit_id,
@@ -148,14 +203,19 @@ def execute_forecast(
         target = output / path.relative_to(source_root)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, target)
+    release_dir = Path(candidate_dir) if candidate_dir else get_settings().anatomy_release_dir
+    predict_kwargs = {}
+    if allow_unreviewed_research:
+        predict_kwargs["allow_unreviewed_research"] = True
     result.anatomy.forecast = predict(
-        get_settings().anatomy_release_dir,
+        release_dir,
         subject_id,
         result.anatomy.visits,
         records,
         interval,
         output / "future",
         expected_release,
+        **predict_kwargs,
     )
     result.anatomy.spatial_registration = "cutoff_local_rigid"
     result.caveats = [

@@ -137,7 +137,7 @@ it("queues the selected supported interval and cutoff through the existing async
   expect(screen.queryByTestId("canvas-predicted")).not.toBeInTheDocument();
 });
 
-it("loads matching predicted NIfTI, labels and meshes while preserving the observed MRI", () => {
+it("loads matching predicted MRI with hippocampus highlighting and brain boundaries", () => {
   resources.cached = [future()];
   render(
     <VolumeExplorer
@@ -163,7 +163,10 @@ it("loads matching predicted NIfTI, labels and meshes while preserving the obser
     "data-labels",
     "/api/analysis/predicted/future/labels",
   );
-  fireEvent.click(screen.getByLabelText("Predicted mask-boundary meshes"));
+  expect(screen.getByTestId("canvas-selected")).toHaveAttribute("data-labels");
+  fireEvent.click(
+    screen.getByLabelText("Predicted brain and hippocampus boundaries"),
+  );
   expect(screen.getByTestId("canvas-predicted")).toHaveAttribute(
     "data-meshes",
     "2",
@@ -210,4 +213,93 @@ it("requires two reviewed and alignment-checked observations before enabling gen
   expect(
     screen.getByRole("button", { name: "Generate evaluated future anatomy" }),
   ).toBeDisabled();
+});
+
+it("renders observed visits and experimental future positions (+12m, +24m, +36m) on the timeline", () => {
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByRole("navigation", { name: "Longitudinal MRI timeline" }),
+  ).toBeVisible();
+  expect(screen.getByText("+12m Predicted")).toBeVisible();
+  expect(screen.getByText("+24m Predicted")).toBeVisible();
+  expect(screen.getByText("+36m Predicted")).toBeVisible();
+  const badges = screen.getAllByText("Experimental (unsupported horizon)");
+  expect(badges.length).toBeGreaterThanOrEqual(3);
+});
+
+it("navigates into future positions past the cutoff scan using Later MRI and renders predicted MRI and meshes with experimental badge", () => {
+  resources.cached = [future(365), future(731)];
+  const onSelectVisit = vi.fn();
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={onSelectVisit}
+    />,
+  );
+  // On cutoff visit (visit 1 of 2), Later MRI advances to +12m future position
+  const laterButton = screen.getByRole("button", { name: /Later MRI/ });
+  expect(laterButton).not.toBeDisabled();
+  fireEvent.click(laterButton);
+
+  // Now at +12m future position
+  expect(
+    screen.getByText(/Day 965 · \+12m Predicted · Experimental/),
+  ).toBeVisible();
+  const canvas = screen.getByTestId("canvas-predicted");
+  expect(canvas).toHaveAttribute(
+    "data-url",
+    "/api/analysis/predicted/future/mri",
+  );
+  expect(canvas).toHaveAttribute("data-kind", "predicted");
+  expect(canvas).toHaveAttribute("data-meshes", "2");
+  expect(canvas).toHaveAttribute(
+    "data-labels",
+    "/api/analysis/predicted/future/labels",
+  );
+
+  // Advance again to +24m
+  fireEvent.click(laterButton);
+  expect(
+    screen.getByText(/Day 1,331 · \+24m Predicted · Experimental/),
+  ).toBeVisible();
+
+  // Navigate back with Earlier MRI
+  const earlierButton = screen.getByRole("button", { name: /Earlier MRI/ });
+  fireEvent.click(earlierButton);
+  expect(
+    screen.getByText(/Day 965 · \+12m Predicted · Experimental/),
+  ).toBeVisible();
+
+  // Navigate back to cutoff visit
+  fireEvent.click(earlierButton);
+  expect(onSelectVisit).toHaveBeenCalledWith("v1");
+});
+
+it("allows direct selection of future positions from the timeline strip", () => {
+  resources.cached = [future(365)];
+  render(
+    <VolumeExplorer
+      patient={patient}
+      visit={visits[1]}
+      analysis={null}
+      anatomyAnalysis={measured}
+      onSelectVisit={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByText("+12m Predicted"));
+  expect(screen.getByTestId("canvas-predicted")).toBeInTheDocument();
+  expect(
+    screen.getByText(/Day 965 · \+12m Predicted · Experimental/),
+  ).toBeVisible();
 });

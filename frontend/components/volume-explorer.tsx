@@ -104,6 +104,9 @@ export function VolumeExplorer({
   const [regions, setRegions] = useState(true);
   const [futureCompare, setFutureCompare] = useState(false);
   const [futureMonths, setFutureMonths] = useState(12);
+  const [selectedFutureMonth, setSelectedFutureMonth] = useState<number | null>(
+    null,
+  );
   const [alignment, setAlignment] = useState(false);
   const [meshes, setMeshes] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -122,6 +125,9 @@ export function VolumeExplorer({
   const [closed, setClosed] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
   const baseline = patient.visits.find((v) => v.hasMri);
+  const cutoffVisit =
+    patient.visits.filter((v) => v.hasMri).at(-1) ||
+    patient.visits[patient.visits.length - 1];
   const selectedIndex = patient.visits.findIndex((v) => v.id === visit.id);
   const result = analysis?.resultJson;
   const anatomy = anatomyAnalysis?.resultJson?.anatomy;
@@ -130,14 +136,16 @@ export function VolumeExplorer({
     !alignment && regions && anatomyVisit && anatomyAnalysis
       ? `/api/analysis/${anatomyAnalysis.id}/visits/${visit.id}/anatomy/regions`
       : undefined;
-  const intervalDays = FORECAST_DAYS[futureMonths];
+  const effectiveFutureMonths = selectedFutureMonth ?? futureMonths;
+  const intervalDays = FORECAST_DAYS[effectiveFutureMonths] ?? 365;
   const matches = useMemo(
     () =>
       (cached.data || []).filter((a) => {
         const candidate = a.resultJson?.anatomy;
         return (
           candidate?.forecast.status === "available" &&
-          candidate.forecast.cutoffVisitId === visit.id &&
+          (candidate.forecast.cutoffVisitId === visit.id ||
+            candidate.forecast.cutoffVisitId === cutoffVisit?.id) &&
           candidate.forecast.releaseSha256 === model.data?.releaseSha256 &&
           candidate.visits.every(
             (v, i) =>
@@ -149,7 +157,13 @@ export function VolumeExplorer({
           )
         );
       }),
-    [cached.data, visit.id, model.data?.releaseSha256, anatomy],
+    [
+      cached.data,
+      visit.id,
+      cutoffVisit?.id,
+      model.data?.releaseSha256,
+      anatomy,
+    ],
   );
   const futureAnalysis = matches.find(
     (a) => a.resultJson?.anatomy?.forecast.intervalDays === intervalDays,
@@ -158,19 +172,22 @@ export function VolumeExplorer({
   const meshInputs = useMemo(
     () =>
       future?.artifacts
-        .filter((a) => a.kind === "mesh")
+        .filter(
+          (a) =>
+            a.kind === "mesh" &&
+            (a.name === "brain_mesh" || a.name.includes("hippocampus")),
+        )
         .map((a) => ({
           url: `/api/analysis/${futureAnalysis!.id}/future/${a.name}`,
           color: (a.name.includes("hippocampus")
             ? [255, 220, 65, 255]
-            : a.name.includes("ventricle")
-              ? [155, 120, 255, 255]
-              : [80, 210, 200, 255]) as [number, number, number, number],
+            : [200, 200, 200, 255]) as [number, number, number, number],
           opacity: a.name === "brain_mesh" ? 0.15 : 0.7,
         })),
     [future, futureAnalysis],
   );
   useEffect(() => {
+    setSelectedFutureMonth(null);
     setAlignment(false);
     setAnimating(false);
     setForecastError("");
@@ -346,70 +363,107 @@ export function VolumeExplorer({
               {fullscreenError}
             </p>
           )}
+          {patient.visits.length > 0 && (
+            <div
+              className="volume-timeline"
+              role="navigation"
+              aria-label="Longitudinal MRI timeline"
+            >
+              <div className="timeline">
+                {patient.visits.map((v, i) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedFutureMonth(null);
+                      setDifference(false);
+                      onSelectVisit(v.id);
+                    }}
+                    className={`timeline-visit ${selectedFutureMonth === null && visit.id === v.id ? "selected" : ""}`}
+                  >
+                    <div className="timeline-track">
+                      <span>{(i + 1).toString().padStart(2, "0")}</span>
+                      <i />
+                    </div>
+                    <strong>{v.label}</strong>
+                    <small>
+                      Day {v.daysFromBaseline.toLocaleString()}{" "}
+                      {i === 0 && "· Baseline"}
+                    </small>
+                    <span
+                      className={`visit-ready ${v.hasMri ? "" : "missing"}`}
+                    >
+                      {v.hasMri ? "MRI available" : "Awaiting upload"}
+                    </span>
+                  </button>
+                ))}
+                {[12, 24, 36].map((months) => {
+                  const mInterval = FORECAST_DAYS[months];
+                  const projDays =
+                    (cutoffVisit?.daysFromBaseline ?? 0) + mInterval;
+                  const isSelected = selectedFutureMonth === months;
+                  return (
+                    <button
+                      key={`future-${months}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedFutureMonth(months);
+                        setFutureMonths(months);
+                        setDifference(false);
+                      }}
+                      className={`timeline-visit future ${isSelected ? "selected" : ""}`}
+                    >
+                      <div className="timeline-track">
+                        <span>+{months}m</span>
+                        <i />
+                      </div>
+                      <strong>+{months}m Predicted</strong>
+                      <small>
+                        Day {projDays.toLocaleString()} · from{" "}
+                        {cutoffVisit?.label || "cutoff"}
+                      </small>
+                      <span className="visit-experimental">
+                        Experimental (unsupported horizon)
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="volume-body">
             <div className="volume-main">
               <div
                 className={`volume-viewers ${futureCompare || (compare && baseline && baseline.id !== visit.id) ? "volume-compare" : ""}`}
               >
-                {compare && baseline && baseline.id !== visit.id && (
-                  <VolumeCanvas
-                    key={`baseline:${baseline.id}`}
-                    id="baseline"
-                    label={`Baseline · ${baseline.label}`}
-                    patientCode={patient.code}
-                    url={
-                      baseline.volumeUrl || `/api/visits/${baseline.id}/volume`
-                    }
-                    settings={settings}
-                    onReady={onReady}
-                  />
-                )}
-                <VolumeCanvas
-                  key={`${visit.id}:${overlayUrl || "original"}`}
-                  id="selected"
-                  label={
-                    alignment
-                      ? "Automatic rating alignment · inspect three planes"
-                      : `Selected · ${visit.label}`
-                  }
-                  patientCode={patient.code}
-                  url={
-                    alignment
-                      ? `/api/analysis/${anatomyAnalysis!.id}/visits/${visit.id}/rating-alignment`
-                      : visit.volumeUrl || `/api/visits/${visit.id}/volume`
-                  }
-                  overlayUrl={alignment ? undefined : overlayUrl}
-                  labelUrl={labelUrl}
-                  settings={settings}
-                  onReady={onReady}
-                  onLocation={onLocation}
-                />
-                {futureCompare && futureAnalysis && future ? (
-                  <VolumeCanvas
-                    key={`predicted:${visit.id}:${intervalDays}:${future.modelSha256}`}
-                    id="predicted"
-                    kind="predicted"
-                    label={`Predicted anatomy · ${futureMonths} months after cutoff`}
-                    patientCode={patient.code}
-                    url={`/api/analysis/${futureAnalysis.id}/future/mri`}
-                    labelUrl={
-                      regions
-                        ? `/api/analysis/${futureAnalysis.id}/future/labels`
-                        : undefined
-                    }
-                    meshes={meshes ? meshInputs : undefined}
-                    settings={settings}
-                    onReady={onReady}
-                  />
-                ) : (
-                  futureCompare && (
+                {selectedFutureMonth !== null && !futureCompare ? (
+                  futureAnalysis && future ? (
+                    <VolumeCanvas
+                      key={`predicted:single:${cutoffVisit?.id || visit.id}:${intervalDays}:${future.modelSha256}`}
+                      id="predicted"
+                      kind="predicted"
+                      label={`Predicted anatomy · ${selectedFutureMonth} months after cutoff (Experimental · unsupported horizon)`}
+                      patientCode={patient.code}
+                      url={`/api/analysis/${futureAnalysis.id}/future/mri`}
+                      labelUrl={
+                        regions
+                          ? `/api/analysis/${futureAnalysis.id}/future/labels`
+                          : undefined
+                      }
+                      meshes={meshInputs}
+                      settings={settings}
+                      onReady={onReady}
+                    />
+                  ) : (
                     <div className="volume-card" role="status">
                       <div className="volume-card-heading">
                         <strong>
-                          Predicted anatomy · {futureMonths} months after latest
-                          input
+                          Predicted anatomy · {selectedFutureMonth} months after
+                          cutoff
                         </strong>
-                        <span className="badge">Not an acquired MRI</span>
+                        <span className="visit-experimental">
+                          Experimental (unsupported horizon)
+                        </span>
                       </div>
                       <div className="empty">
                         <h3>Future anatomy unavailable</h3>
@@ -425,32 +479,143 @@ export function VolumeExplorer({
                       </div>
                     </div>
                   )
+                ) : (
+                  <>
+                    {compare && baseline && baseline.id !== visit.id && (
+                      <VolumeCanvas
+                        key={`baseline:${baseline.id}`}
+                        id="baseline"
+                        label={`Baseline · ${baseline.label}`}
+                        patientCode={patient.code}
+                        url={
+                          baseline.volumeUrl ||
+                          `/api/visits/${baseline.id}/volume`
+                        }
+                        settings={settings}
+                        onReady={onReady}
+                      />
+                    )}
+                    <VolumeCanvas
+                      key={`${visit.id}:${overlayUrl || "original"}`}
+                      id="selected"
+                      label={
+                        alignment
+                          ? "Automatic rating alignment · inspect three planes"
+                          : `Selected · ${visit.label}`
+                      }
+                      patientCode={patient.code}
+                      url={
+                        alignment
+                          ? `/api/analysis/${anatomyAnalysis!.id}/visits/${visit.id}/rating-alignment`
+                          : visit.volumeUrl || `/api/visits/${visit.id}/volume`
+                      }
+                      overlayUrl={alignment ? undefined : overlayUrl}
+                      labelUrl={labelUrl}
+                      settings={settings}
+                      onReady={onReady}
+                      onLocation={onLocation}
+                    />
+                    {futureCompare && futureAnalysis && future ? (
+                      <VolumeCanvas
+                        key={`predicted:${visit.id}:${intervalDays}:${future.modelSha256}`}
+                        id="predicted"
+                        kind="predicted"
+                        label={`Predicted anatomy · ${futureMonths} months after cutoff (Experimental · unsupported horizon)`}
+                        patientCode={patient.code}
+                        url={`/api/analysis/${futureAnalysis.id}/future/mri`}
+                        labelUrl={
+                          regions
+                            ? `/api/analysis/${futureAnalysis.id}/future/labels`
+                            : undefined
+                        }
+                        meshes={meshes ? meshInputs : undefined}
+                        settings={settings}
+                        onReady={onReady}
+                      />
+                    ) : (
+                      futureCompare && (
+                        <div className="volume-card" role="status">
+                          <div className="volume-card-heading">
+                            <strong>
+                              Predicted anatomy · {futureMonths} months after
+                              latest input
+                            </strong>
+                            <span className="visit-experimental">
+                              Experimental (unsupported horizon)
+                            </span>
+                          </div>
+                          <div className="empty">
+                            <h3>Future anatomy unavailable</h3>
+                            <p>
+                              No matching evaluated prediction is available for
+                              this cutoff and interval. No acquired scan,
+                              crossfade or uniformly shrunken mesh is
+                              substituted.
+                            </p>
+                            <p>
+                              Requested interval: {intervalDays} days. All
+                              future artifacts remain unavailable.
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </>
                 )}
               </div>
               <div className="volume-navigation">
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={selectedIndex <= 0}
+                  disabled={
+                    selectedFutureMonth === null ? selectedIndex <= 0 : false
+                  }
                   onClick={() => {
                     setDifference(false);
-                    onSelectVisit(patient.visits[selectedIndex - 1].id);
+                    if (selectedFutureMonth === null) {
+                      if (selectedIndex > 0) {
+                        onSelectVisit(patient.visits[selectedIndex - 1].id);
+                      }
+                    } else if (selectedFutureMonth === 12) {
+                      setSelectedFutureMonth(null);
+                      if (cutoffVisit) onSelectVisit(cutoffVisit.id);
+                    } else if (selectedFutureMonth === 24) {
+                      setSelectedFutureMonth(12);
+                      setFutureMonths(12);
+                    } else if (selectedFutureMonth === 36) {
+                      setSelectedFutureMonth(24);
+                      setFutureMonths(24);
+                    }
                   }}
                 >
                   <ChevronLeft size={15} />
                   Earlier MRI
                 </Button>
                 <span>
-                  Day {visit.daysFromBaseline.toLocaleString()} ·{" "}
-                  {selectedIndex + 1} / {patient.visits.length}
+                  {selectedFutureMonth === null
+                    ? `Day ${visit.daysFromBaseline.toLocaleString()} · ${selectedIndex + 1} / ${patient.visits.length}`
+                    : `Day ${((cutoffVisit?.daysFromBaseline ?? 0) + intervalDays).toLocaleString()} · +${selectedFutureMonth}m Predicted · Experimental`}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={selectedIndex >= patient.visits.length - 1}
+                  disabled={selectedFutureMonth === 36}
                   onClick={() => {
                     setDifference(false);
-                    onSelectVisit(patient.visits[selectedIndex + 1].id);
+                    if (selectedFutureMonth === null) {
+                      if (selectedIndex < patient.visits.length - 1) {
+                        onSelectVisit(patient.visits[selectedIndex + 1].id);
+                      } else {
+                        setSelectedFutureMonth(12);
+                        setFutureMonths(12);
+                      }
+                    } else if (selectedFutureMonth === 12) {
+                      setSelectedFutureMonth(24);
+                      setFutureMonths(24);
+                    } else if (selectedFutureMonth === 24) {
+                      setSelectedFutureMonth(36);
+                      setFutureMonths(36);
+                    }
                   }}
                 >
                   Later MRI
@@ -607,11 +772,10 @@ export function VolumeExplorer({
                       disabled={!anatomyVisit}
                       onChange={(e) => setRegions(e.target.checked)}
                     />
-                    Anatomical region overlays
+                    Hippocampus highlight
                   </label>
                   <small className="volume-note">
-                    Hippocampus yellow · ventricles purple · temporal/parietal
-                    cyan. QC: {anatomyVisit?.qc ?? "unavailable"};
+                    Hippocampus yellow. QC: {anatomyVisit?.qc ?? "unavailable"};
                     nearest-neighbour label rendering.
                   </small>
                 </>
@@ -690,7 +854,7 @@ export function VolumeExplorer({
                       checked={meshes}
                       onChange={(e) => setMeshes(e.target.checked)}
                     />
-                    Predicted mask-boundary meshes
+                    Predicted brain and hippocampus boundaries
                   </label>
                   <Button
                     variant="outline"
@@ -800,7 +964,7 @@ export function VolumeExplorer({
             <strong>
               Observed MRI research visualization
               {labelUrl
-                ? " with measured anatomical labels; inspect QC"
+                ? " with yellow hippocampus highlighting"
                 : ", not segmented anatomy (no segmentation layer selected)"}
               .
             </strong>{" "}

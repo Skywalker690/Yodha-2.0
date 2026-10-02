@@ -174,13 +174,7 @@ export function VolumeCanvas({
             2008, 2009, 2015, 2025, 2029, 2030,
           ];
           const colors = numbers.map((n) =>
-            n === 0
-              ? [0, 0, 0, 0]
-              : n === 17 || n === 53
-                ? [220, 216, 20, 255]
-                : n === 4 || n === 43
-                  ? [120, 18, 134, 255]
-                  : [102, 223, 210, 255],
+            n === 17 || n === 53 ? [220, 216, 20, 255] : [0, 0, 0, 0],
           );
           instance.volumes[instance.volumes.length - 1].setColormapLabel({
             I: numbers,

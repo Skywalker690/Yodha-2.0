@@ -19,6 +19,7 @@ import {
 } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { PatientTable } from "@/components/patient-table";
+import { PatientValuesPanel } from "@/components/patient-values-panel";
 import { TrajectoryChart } from "@/components/trajectory-chart";
 import { useResource } from "@/lib/use-resource";
 import type { Patient } from "@/types";
@@ -94,6 +95,7 @@ export default function Dashboard() {
           </div>
         ))}
       </div>
+      <PatientValuesPanel patients={patients} />
       <div className="dashboard-middle">
         <section className="panel">
           <div className="panel-heading">

@@ -9,7 +9,7 @@ from typing import Callable
 from ml.anatomy.contracts import AnatomyResult, AnatomyVisit, StructuralForecast, VERSION
 from ml.anatomy.masks import export_masks
 from ml.anatomy.measurements import asymmetry, changes, etiv_mm3
-from ml.anatomy.ratings import run_rating
+from ml.anatomy.ratings import AUTOMATIC_RESEARCH_RATING_POLICY, run_rating
 from ml.contracts import ProgressionResult
 from src.common import ROOT, config, sha256, write_json
 from src.fastsurfer.feature_map import STATS_RELATIVE
@@ -25,6 +25,7 @@ def run_anatomy(
     progress: Callable[[int, str], None],
     *,
     rating_runtime: Path | None = None,
+    automatic_research_values: bool = False,
 ) -> ProgressionResult:
     if not 1 <= len(inputs) <= 5:
         raise ValueError("Anatomy supports at most five visits")
@@ -93,11 +94,16 @@ def run_anatomy(
         progress(
             10 + index * 70 // len(inputs) + 35 // len(inputs), "AVRA alignment and MTA/Koedam estimation"
         )
-        ratings = run_rating(source, output / f"rating_{index}", rating_runtime)
+        ratings = run_rating(
+            source,
+            output / f"rating_{index}",
+            rating_runtime,
+            allow_unreviewed_research=automatic_research_values,
+        )
         visit = AnatomyVisit(
             visit_id=item["visit_id"],
             days_from_baseline=item["days_from_baseline"],
-            qc="pending_review",
+            qc="automated_checks_only" if automatic_research_values else "pending_review",
             source_sha256=item["source_sha256"],
             segmentation_sha256=sha256(seg),
             statistics_sha256=sha256(stats),
@@ -152,9 +158,17 @@ def run_anatomy(
         days_from_baseline=[v.days_from_baseline for v in visits],
         anatomy=anatomy,
         caveats=[
-            "Measured anatomy is pending visual segmentation QC; automated checks are not approval.",
+            (
+                "Measured anatomy uses automated checks only; visual segmentation and alignment review were skipped by research policy."
+                if automatic_research_values
+                else "Measured anatomy is pending visual segmentation QC; automated checks are not approval."
+            ),
             "Scalar volumes are not registered tissue movement. Thickness and future anatomy unavailable.",
-            "Automatic ratings unavailable until AVRA preprocessing/runtime and alignment QC are verified.",
+            (
+                f"MTA/Koedam values use {AUTOMATIC_RESEARCH_RATING_POLICY}; alignment and rating agreement are unreviewed."
+                if automatic_research_values
+                else "Automatic ratings unavailable until AVRA preprocessing/runtime and alignment QC are verified."
+            ),
             "Research estimates only; not a medical diagnosis or clinical validation.",
         ],
     )

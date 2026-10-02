@@ -684,6 +684,65 @@ function MLWorkspace({
           reload={reload}
         />
       )}
+      {patient.visits.length > 0 && (
+        <section className="panel timeline-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>MRI timeline</h2>
+              <p>Select an observation or future prediction horizon</p>
+            </div>
+            <span className="muted small">DAYS FROM BASELINE</span>
+          </div>
+          <div className="timeline">
+            {patient.visits.map((v, i) => (
+              <button
+                key={v.id}
+                onClick={() => setSelectedId(v.id)}
+                className={`timeline-visit ${visit.id === v.id ? "selected" : ""}`}
+              >
+                <div className="timeline-track">
+                  <span>{(i + 1).toString().padStart(2, "0")}</span>
+                  <i />
+                </div>
+                <strong>{v.label}</strong>
+                <small>
+                  Day {v.daysFromBaseline.toLocaleString()}{" "}
+                  {i === 0 && "· Baseline"}
+                </small>
+                <span className={`visit-ready ${v.hasMri ? "" : "missing"}`}>
+                  {v.hasMri ? "MRI available" : "Awaiting upload"}
+                </span>
+              </button>
+            ))}
+            {[12, 24, 36].map((months) => {
+              const cutoff =
+                patient.visits.filter((v) => v.hasMri).at(-1) ||
+                patient.visits[patient.visits.length - 1];
+              const intervalDays =
+                months === 12 ? 365 : months === 24 ? 731 : 1096;
+              const projectedDays = cutoff.daysFromBaseline + intervalDays;
+              return (
+                <div
+                  key={`future-${months}`}
+                  className="timeline-visit future"
+                >
+                  <div className="timeline-track">
+                    <span>+{months}m</span>
+                    <i />
+                  </div>
+                  <strong>+{months}m Prediction</strong>
+                  <small>
+                    Day {projectedDays.toLocaleString()} · from {cutoff.label}
+                  </small>
+                  <span className="visit-experimental">
+                    Experimental (unsupported horizon)
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
       {visit ? (
         <section className="panel" style={{ padding: "1.5rem" }}>
           <label>

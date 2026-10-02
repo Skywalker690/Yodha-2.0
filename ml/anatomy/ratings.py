@@ -13,6 +13,8 @@ from pathlib import Path
 from ml.anatomy.contracts import RatingEstimate
 from src.common import sha256, write_json
 
+AUTOMATIC_RESEARCH_RATING_POLICY = "automatic-unreviewed-research-v1"
+
 
 def readiness() -> RatingEstimate:
     warnings = []
@@ -37,7 +39,7 @@ def parse_avra_csv(
     path: Path, *, alignment_verified: bool = False, allow_unreviewed_research: bool = False
 ) -> RatingEstimate:
     """Preserve raw means; nominal bounds apply unless explicitly exporting research inputs."""
-    if not alignment_verified:
+    if not alignment_verified and not allow_unreviewed_research:
         return RatingEstimate(
             status="pending_alignment_qc",
             warnings=["AC-PC alignment has not passed verified quality checks."],
@@ -56,15 +58,22 @@ def parse_avra_csv(
         outside = {
             name: value for (name, value), upper in zip(values.items(), (4, 4, 3)) if not 0 <= value <= upper
         }
-        if allow_unreviewed_research and outside:
+        if allow_unreviewed_research and (outside or not alignment_verified):
+            warnings = [
+                "AVRA output is used as an unreviewed research estimate; AC-PC alignment and visual agreement were not reviewed."
+            ]
+            if outside:
+                warnings.append(
+                    f"Raw AVRA regression estimates outside nominal scale: {outside}. Preserved without clipping; not clinical ordinal ratings."
+                )
             return RatingEstimate(
                 status="unreviewed_research",
                 method="AVRA-v0.8-ensemble-raw-regression-research",
                 **values,
-                warnings=[
-                    f"Raw AVRA regression estimates outside nominal scale: {outside}. Preserved without clipping; not clinical ordinal ratings.",
-                ],
+                warnings=warnings,
             )
+        if outside:
+            raise ValueError("AVRA estimate falls outside its nominal rating scale")
         return RatingEstimate(
             status="ok",
             method="AVRA-v0.8-ensemble-continuous",
@@ -77,11 +86,17 @@ def parse_avra_csv(
         )
 
 
-def run_rating(source: Path, output: Path, runtime_manifest: Path | None = None) -> RatingEstimate:
+def run_rating(
+    source: Path,
+    output: Path,
+    runtime_manifest: Path | None = None,
+    *,
+    allow_unreviewed_research: bool = False,
+) -> RatingEstimate:
     """Execute the upstream scorer in a pinned Linux runtime with private read-only inputs.
 
-    Scoring is automatic. Alignment QC is an independent prerequisite, not a patient
-    scoring input. Failed or unchecked alignment cannot expose numerical estimates.
+    Scoring is automatic. Explicit research mode exposes numerical estimates with
+    unreviewed provenance and warnings; it does not mark alignment as reviewed.
     The manifest is local operator configuration, never an uploaded patient field.
     """
     if runtime_manifest is None:
@@ -183,11 +198,18 @@ def run_rating(source: Path, output: Path, runtime_manifest: Path | None = None)
             "matrix_sha256": sha256(matrix),
             "csv_sha256": sha256(csv_path),
             "weights_sha256": expected,
-            "alignment_qc": "pending_review",
+            "alignment_qc": "not_reviewed_research_policy" if allow_unreviewed_research else "pending_review",
         }
+        if allow_unreviewed_research:
+            provenance["rating_policy"] = AUTOMATIC_RESEARCH_RATING_POLICY
         write_json(output / "provenance.json", provenance)
-        # Upstream's own diagonal test cannot establish registration quality.
-        estimate = parse_avra_csv(csv_path, alignment_verified=False)
+        # Automatic values are usable in this explicit research policy without
+        # claiming that AC-PC alignment or inter-rater agreement was reviewed.
+        estimate = parse_avra_csv(
+            csv_path,
+            alignment_verified=False,
+            allow_unreviewed_research=allow_unreviewed_research,
+        )
         estimate.provenance_sha256 = sha256(output / "provenance.json")
         return estimate
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):

@@ -1,7 +1,7 @@
 # Next.js UI Specification
 
 The approved longitudinal anatomy direction is integrated into both existing workspace
-variants; see [17](17-longitudinal-anatomy.md). It adds measured labels, review controls,
+variants; see [17](17-longitudinal-anatomy.md). It adds measured labels, QC provenance,
 source observations, continuous-score availability/history, head-size ratios and a
 separate report action. Current/future selection keeps unavailable future anatomy
 explicit; there is no fabricated image or transition animation. The generic canvas
@@ -40,6 +40,14 @@ Patient page: summary, MRI timeline, risk chart, biomarkers, Analyze MRI
 Analysis workspace: visit selector, MRI, heatmap, navigation, risk, confidence
 Reports page: generated reports and download action
 ```
+
+The dashboard also provides a patient-value snapshot with patient and observed-visit
+selectors. It shows recorded OASIS values, available anatomy estimates, the complete
+regional volume table and provenance-labeled hippocampal change. BMI is displayed
+only when source BMI is supplied; it is not derived without height and weight. MTA/Koedam
+values and automated longitudinal changes are shown as soon as integrity
+checks pass, with unreviewed research status visible. Do not ask for a manual review
+action to reveal descriptive values. Provide a link to the full patient case for 3D MRI.
 
 ## Core interactions
 

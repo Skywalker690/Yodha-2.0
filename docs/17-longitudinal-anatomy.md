@@ -27,15 +27,16 @@ The job records raw-source and segmentation digests, method and dictionary versi
 volume units, observed metadata and owned artifact digests. The existing report route
 can emit a separate anatomy report. `GET /analysis/{id}` remains owner-scoped; the
 artifact route allowlists named regions and verifies the per-analysis artifact manifest
-and content digest. A researcher must inspect each segmentation against its MRI before
-posting the explicit visual-review confirmation. The API binds that review to the
-current raw scan, segmentation, and complete unchanged artifact set, and records the
-reviewer and time. Only reviewed pairs yield longitudinal volume changes. These
-measurements do not imply spatial registration or tissue movement.
+and content digest. Under the user-approved automatic research policy, successfully
+integrity-checked volumes, AVRA values and paired changes are available without a
+manual review step, labeled as unreviewed research estimates. This does not record
+visual QC or rating agreement. These measurements do not imply spatial registration
+or tissue movement.
 
 The workspace can display the measured labels over the selected acquired MRI, measured
 volume tables, asymmetry, source nWBV/MMSE/CDR history, processing/QC and an anatomy
-report. The current-versus-predicted control and requested-time selector use queued
+report. Direct descriptive outputs no longer require manual review confirmation;
+their visual-review status and provenance remain visible. The current-versus-predicted control and requested-time selector use queued
 forecasts and owned NIfTI/GIFTI artifacts from an evaluated release. Until real
 training, evaluation and promotion pass, future anatomy remains unavailable.
 No image, mesh, score or uncertainty is generated as a substitute. The implemented
@@ -46,11 +47,11 @@ training/release and application lifecycle is documented in
 
 - AVRA v0.8 has a worker execution adapter requiring a digest-pinned Linux runtime
   and a hash allowlist of all upstream MTA/PA/GCA-F checkpoints. It uses upstream
-  preprocessing, records private alignment/CSV provenance and hides unverified scores.
+  preprocessing and records private alignment/CSV provenance.
   All 15 upstream checkpoints are now hash-pinned locally and the isolated FSL runtime
-  completed preprocessing and scoring on one real MRI. The API/UI alignment-review
-  workflow is implemented; smoke-test scores remain pending review. Independent
-  agreement ratings are absent, so rating accuracy is unverified.
+  completed preprocessing and scoring on one real MRI. Automatically scored values
+  are available with unreviewed research status after artifact integrity checks.
+  Independent agreement ratings are absent, so rating accuracy is unverified.
 - `ml/anatomy/` now includes cutoff-local rigid/target registration, train-only scalar
   preprocessing, saved mixed-effects models, matched score ablations, a time-conditioned
   3D displacement model, subject-held-out calibration/evaluation and native artifact
@@ -95,8 +96,9 @@ Install optional geometry dependencies using `python -m pip install -r requireme
 Restart the single existing worker after code changes; do not run competing GPU workers.
 `POST /analysis/{cutoff_visit_id}` accepts `outputMode: anatomy` and optional
 `futureIntervalDays` (default 365, range 0–3650). The result stores native measurements
-but does not promise a forecast for that interval. Reviews use
-`POST /analysis/{id}/anatomy-qc/{visit_id}` with `visualReviewConfirmed: true`.
+but does not promise a forecast for that interval. Legacy manual-QC endpoints remain
+available for compatibility, but the dashboard does not require them to expose
+integrity-checked descriptive measurements.
 Owned artifacts use `GET /analysis/{id}/visits/{visit_id}/anatomy/{artifact}`;
 `regions`, `segmentation`, and the 18 region keys are allowlisted. Raw data is unchanged.
 `POST /reports/{patient_id}?analysis_id={id}` selects the anatomy report explicitly;
@@ -111,7 +113,9 @@ The pinned container provisioner is `scripts/provision_avra.py`; it preserves so
 weights, build logs and a runtime manifest in a fresh artifact directory. AVRA code
 is MIT; FSL has separate terms. The user authorized non-commercial FSL research use
 for this installation. The v2 container completed real-MRI upstream preprocessing and
-scoring; alignment quality and reference-rating agreement remain unverified.
+scoring. Scores are exposed under the explicitly unreviewed research policy after
+artifact integrity checks; alignment quality and reference-rating agreement remain
+unverified.
 
 Alternative investigated: [MRI Visual Scores](https://github.com/l-kuo/mri_visual_scores)
 provides MTA/ERICA/GCA, not the required Koedam PA output. It cannot silently replace

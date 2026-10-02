@@ -36,6 +36,10 @@ Primary sources inspected:
 - Adjustable difference opacity and visualization threshold (normalized intensity, not a clinical cutoff); values below threshold are transparent so source anatomy stays visible.
 - Reset, fullscreen and local PNG snapshot export.
 - Loading/error/WebGL2-unavailable states and the existing 2D image fallback.
+- Yellow hippocampus highlighting remains available in observed and predicted views;
+  cyan temporal/parietal and purple ventricle highlighting are hidden. Predicted
+  boundaries show the hippocampus and neutral gray complete brain mesh. Regional
+  masks and meshes remain stored for analysis (D039, D040).
 
 ## Data and honesty boundaries
 

@@ -2,7 +2,7 @@ export type Mode = "demo" | "precomputed" | "inference" | "trained" | "anatomy";
 export type AnatomyVisit = {
   visitId: string;
   daysFromBaseline: number;
-  qc: "pending_review" | "passed";
+  qc: "pending_review" | "automated_checks_only" | "passed";
   method: string;
   fastsurferVersion: string;
   dictionaryVersion: string;
@@ -71,6 +71,16 @@ export type AnatomyResult = {
     }[];
   };
 };
+export type NwbvAgeReference = {
+  visitId: string;
+  status: string;
+  ageYears: number | null;
+  nwbvFraction: number | null;
+  zScore: number | null;
+  relativeVolumeBand: string | null;
+  referenceBin?: { n: number } | null;
+  reason?: string | null;
+};
 export type TrainedPrediction = {
   target: "observed_cdr_increase";
   score: number;
@@ -92,7 +102,11 @@ export type Result = {
   visitIds: string[];
   riskScores: number[];
   daysFromBaseline: number[];
-  biomarkers: { foregroundFraction: number[]; featureChange: number[] };
+  biomarkers: {
+    foregroundFraction: number[];
+    featureChange: number[];
+    nwbvAgeReferenceV1?: NwbvAgeReference;
+  };
   outputMode: Mode;
   confidence: number | null;
   caveats: string[];

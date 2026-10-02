@@ -238,22 +238,42 @@ def predict(
     interval: int,
     output: Path,
     expected_release: str,
+    *,
+    allow_unreviewed_research: bool = False,
 ) -> StructuralForecast:
-    metadata, release_hash = release(directory)
-    if release_hash != expected_release or interval not in [0, *metadata["supported_intervals_days"]]:
+    if (directory / "release.json").is_file():
+        metadata, release_hash = release(directory)
+    elif allow_unreviewed_research and (directory / "evaluation.json").is_file():
+        report = json.loads((directory / "evaluation.json").read_text())
+        verify_candidate(directory, report)
+        release_hash = sha256(directory / "with_scores.pt")
+        metadata = {
+            "supported_intervals_days": report.get("supported_intervals_days", []),
+            "experimental_intervals_days": [183, 365, 731, 1096],
+            "measurement_method": "FastSurfer-2.5.4-native-T1",
+            "dictionary_version": "dkt-longitudinal-v1",
+            "score_method": "AVRA-v0.8-ensemble-continuous",
+        }
+    else:
+        metadata, release_hash = release(directory)
+
+    allowed = set([0, *metadata.get("supported_intervals_days", []), *metadata.get("experimental_intervals_days", [183, 365, 731, 1096])])
+    if release_hash != expected_release or interval not in allowed:
         raise ValueError("Queued release changed or interval unsupported")
     if any(
         v.method != metadata["measurement_method"]
         or v.dictionary_version != metadata["dictionary_version"]
-        or v.ratings.method != metadata["score_method"]
+        or (v.ratings.method != metadata["score_method"] and not allow_unreviewed_research)
         for v in history
     ):
         raise ValueError("Measurement/rating methodology differs from evaluated training")
-    manifest = generate(directory, subject_id, history, sources, interval, output)
+    manifest = generate(
+        directory, subject_id, history, sources, interval, output, allow_unreviewed_research=allow_unreviewed_research
+    )
     manifest["release_sha256"] = release_hash
     write_json(output / "future-artifacts.json", manifest)
     report = json.loads((directory / "evaluation.json").read_text())
-    calibration = report["interval_calibration"] if interval > 0 else None
+    calibration = report.get("interval_calibration") if interval > 0 else None
     bands, evidence = None, None
     if calibration:
         values = manifest["volumes_mm3"]
@@ -272,14 +292,24 @@ def predict(
                     "calibration_subjects": calibration["calibration_subjects"],
                 },
             )
+    is_experimental = interval in [183, 365, 731, 1096] and interval not in metadata.get("supported_intervals_days", [])
+    warnings = [
+        "Research structural estimates, not a medical diagnosis or clinical validation.",
+        "Categorical mask-boundary meshes are not reconstructed cortical surfaces.",
+    ]
+    if is_experimental:
+        warnings.append(
+            f"Horizon {interval} days ({round(interval / 30.4375)} months) is experimental: limited holdout cases in the frozen OASIS cohort."
+        )
+    if allow_unreviewed_research:
+        warnings.append(
+            "Experimental research candidate: automated geometry and score checks only, pending manual review."
+        )
     return StructuralForecast(
         status="available",
         cutoff_visit_id=history[-1].visit_id,
         interval_days=interval,
-        warnings=[
-            "Research structural estimates, not a medical diagnosis or clinical validation.",
-            "Categorical mask-boundary meshes are not reconstructed cortical surfaces.",
-        ],
+        warnings=warnings,
         volumes_mm3=manifest["volumes_mm3"],
         prediction_intervals=bands,
         interval_evidence=evidence,

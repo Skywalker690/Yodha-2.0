@@ -36,11 +36,7 @@ export function AnatomyPanel({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [report, setReport] = useState<Report | null>(null);
-  const [reviewConfirmed, setReviewConfirmed] = useState(false);
-  const [alignmentConfirmed, setAlignmentConfirmed] = useState(false);
   useEffect(() => {
-    setReviewConfirmed(false);
-    setAlignmentConfirmed(false);
     setReport(null);
     setError("");
   }, [visit.id, patient.completedAnatomy?.id]);
@@ -54,6 +50,13 @@ export function AnatomyPanel({
   );
   const eligible = included.length <= 5 && included.every((v) => v.hasMri);
   const ratings = selected?.ratings;
+  const ratingsVisible =
+    ratings?.status === "ok" || ratings?.status === "unreviewed_research";
+  const ratingStatusLabel = !selected
+    ? "Not processed"
+    : ratings?.status === "invalid"
+      ? "Scoring failed"
+      : "Unavailable";
   const forecast = anatomy?.forecast;
   const matchingForecast =
     forecast?.status === "available" && forecast.cutoffVisitId === visit.id
@@ -158,28 +161,40 @@ export function AnatomyPanel({
             <div className="stat-card" key={String(label)}>
               <span className="stat-top">{label}</span>
               <strong className="stat-value">
-                {ratings?.status === "ok" && typeof value === "number"
+                {ratingsVisible && typeof value === "number"
                   ? value.toFixed(2)
-                  : "Unavailable"}
+                  : ratingStatusLabel}
               </strong>
-              <p>Automatic model estimate · not a diagnosis</p>
+              <p>
+                {ratings?.status === "unreviewed_research"
+                  ? "Automatic, unreviewed research estimate · not a diagnosis"
+                  : !selected
+                    ? "Run anatomical analysis to create an estimate."
+                    : "Automatic model estimate · not a diagnosis"}
+              </p>
             </div>
           ))}
           <div className="stat-card">
-            <span className="stat-top">Anatomy QC</span>
+            <span className="stat-top">Measurement status</span>
             <strong>
               {selected?.qc === "passed"
                 ? "Reviewed"
-                : selected
-                  ? "Pending visual review"
-                  : "Not processed"}
+                : selected?.qc === "automated_checks_only"
+                  ? "Automated checks only"
+                  : selected
+                    ? "Not visually reviewed"
+                    : "Not processed"}
             </strong>
-            <p>Automated geometry checks are not visual approval.</p>
+            <p>
+              {selected?.qc === "automated_checks_only"
+                ? "Measurements are available as unreviewed research estimates."
+                : "QC and provenance are reported separately from the numeric estimates."}
+            </p>
           </div>
         </div>
         {(
           ratings?.warnings || [
-            "AVRA runtime/weights and AC–PC alignment quality have not been verified locally. No scores are substituted.",
+            "No AVRA estimate is available for this visit. No substitute score was generated.",
           ]
         ).map((w) => (
           <p className="warning-text" key={w}>
@@ -241,92 +256,6 @@ export function AnatomyPanel({
             required; source nWBV is not a segmented regional volume.
           </p>
         )}
-        {selected?.qc === "pending_review" && (
-          <div className="notice">
-            <div>
-              <p>
-                Inspect the anatomical overlays against this source MRI in all
-                three planes before confirming. This reviews segmentation, not
-                patient atrophy scores.
-              </p>
-              <label className="volume-check">
-                <input
-                  type="checkbox"
-                  checked={reviewConfirmed}
-                  onChange={(e) => setReviewConfirmed(e.target.checked)}
-                />
-                I have visually inspected this segmentation and accept its
-                anatomical QC.
-              </label>
-              <Button
-                variant="outline"
-                disabled={!reviewConfirmed || busy}
-                onClick={async () => {
-                  setBusy(true);
-                  setError("");
-                  try {
-                    await post(
-                      `/analysis/${patient.completedAnatomy!.id}/anatomy-qc/${visit.id}`,
-                      { visualReviewConfirmed: true },
-                    );
-                    setReviewConfirmed(false);
-                    reload();
-                  } catch (e) {
-                    setError((e as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                Record visual segmentation review
-              </Button>
-            </div>
-          </div>
-        )}
-        {selected?.qc === "passed" &&
-          ratings?.status === "pending_alignment_qc" && (
-            <div className="notice">
-              <div>
-                <p>
-                  Use “Inspect automatic rating alignment” in the MRI viewer.
-                  Check axial, coronal and sagittal alignment and anatomical
-                  coverage before accepting. This confirms alignment, not a
-                  manual score or independent rating agreement.
-                </p>
-                <label className="volume-check">
-                  <input
-                    type="checkbox"
-                    checked={alignmentConfirmed}
-                    onChange={(e) => setAlignmentConfirmed(e.target.checked)}
-                  />
-                  I inspected all three aligned planes and accept
-                  automatic-rating alignment QC.
-                </label>
-                <Button
-                  variant="outline"
-                  disabled={!alignmentConfirmed || busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    setError("");
-                    try {
-                      await post(
-                        `/analysis/${patient.completedAnatomy!.id}/rating-qc/${visit.id}`,
-                        { visualReviewConfirmed: true },
-                      );
-                      setAlignmentConfirmed(false);
-                      reload();
-                    } catch (e) {
-                      setError((e as Error).message);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  Record automatic alignment review
-                </Button>
-              </div>
-            </div>
-          )}
         {selected && (
           <>
             <h3>Observed versus model-predicted regional anatomy</h3>
@@ -443,7 +372,7 @@ export function AnatomyPanel({
                 <th>MTA left</th>
                 <th>MTA right</th>
                 <th>Single Koedam PA</th>
-                <th>Alignment QC</th>
+                <th>AVRA research status</th>
               </tr>
             </thead>
             <tbody>
@@ -453,18 +382,24 @@ export function AnatomyPanel({
                   <tr key={v.visitId}>
                     <td>{v.daysFromBaseline}</td>
                     <td>
-                      {v.ratings.status === "ok"
+                      {(v.ratings.status === "ok" ||
+                        v.ratings.status === "unreviewed_research") &&
+                      typeof v.ratings.mtaLeft === "number"
                         ? v.ratings.mtaLeft?.toFixed(2)
                         : "Unavailable"}
                     </td>
                     <td>
-                      {v.ratings.status === "ok"
+                      {(v.ratings.status === "ok" ||
+                        v.ratings.status === "unreviewed_research") &&
+                      typeof v.ratings.mtaRight === "number"
                         ? v.ratings.mtaRight?.toFixed(2)
                         : "Unavailable"}
                     </td>
                     <td>
-                      {v.ratings.status === "ok"
-                        ? v.ratings.posteriorAtrophy?.toFixed(2)
+                      {(v.ratings.status === "ok" ||
+                        v.ratings.status === "unreviewed_research") &&
+                      typeof v.ratings.posteriorAtrophy === "number"
+                        ? v.ratings.posteriorAtrophy.toFixed(2)
                         : "Unavailable"}
                     </td>
                     <td>{v.ratings.status}</td>
@@ -483,10 +418,11 @@ export function AnatomyPanel({
               <summary>
                 {change.elapsedDays} days · {change.status}
               </summary>
-              {change.status !== "ok" ? (
+              {change.status !== "ok" &&
+              change.status !== "automated_checks_only" ? (
                 <p>
-                  Both segmentations must pass visual review before changes are
-                  reported.
+                  Regional changes are unavailable because paired measurements
+                  did not pass the required processing checks.
                 </p>
               ) : (
                 <div className="table-wrap">
