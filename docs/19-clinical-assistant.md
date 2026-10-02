@@ -54,9 +54,6 @@ passages, optional provider search suggestions, context summary, model and a rev
 disclaimer. Provider HTML is limited to Google's search-suggestion widget in a sandboxed
 iframe with scripts and same-origin access disabled. Model answers are escaped text.
 Search results can include non-paper web pages; the UI calls them Web references.
-The Web references toggle changes the next submitted question only: it enables Gemini
-Google Search grounding and shows any returned links/supporting passages. Switching it
-on does not start a request by itself.
 
 Chat is held only in React state. Polling keeps the conversation, while leaving the page,
 switching patients or Erase memory resets it. The reply area automatically follows the

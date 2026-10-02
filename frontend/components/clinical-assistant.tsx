@@ -205,7 +205,7 @@ function AssistantSession({
 
   return (
     <section
-      className={`panel assistant-panel ${messages.length ? "assistant-panel-has-messages" : "assistant-panel-empty"}`}
+      className="panel assistant-panel"
       aria-labelledby="assistant-title"
     >
       <div className="assistant-heading">
@@ -227,7 +227,6 @@ function AssistantSession({
         {suggestions.map((item) => (
           <button
             key={item.label}
-            className={item.research ? "assistant-suggestion-research" : ""}
             disabled={busy}
             onClick={() => {
               if (item.research) setResearch(true);
@@ -322,7 +321,7 @@ function AssistantSession({
               disabled={busy}
               onChange={(event) => setResearch(event.target.checked)}
             />
-            <BookOpen size={14} /> Web references
+            <BookOpen size={14} /> Research sources
           </label>
           <span className="assistant-char-count">{question.length}/1000</span>
           <Button type="submit" disabled={busy || !question.trim()} size="sm">
