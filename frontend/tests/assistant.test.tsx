@@ -50,6 +50,7 @@ it("sends bounded history, survives patient polling, and shows supported researc
   vi.mocked(api).mockResolvedValue(response);
   const { rerender } = render(<ClinicalAssistant patient={patient} />);
   openAssistant();
+  expect(screen.getByText("Web references")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Explore research" }));
   await screen.findByText(response.answer);
   expect(api).toHaveBeenCalledWith(
