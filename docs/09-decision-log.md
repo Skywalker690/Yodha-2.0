@@ -1,5 +1,14 @@
 # Decision Log
 
+## D043: Floating assistant widget preserves workspace space
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Render the Clinical Assistant as a fixed launcher and overlay drawer rather than an
+in-flow patient-workspace panel. It stays scoped to the selected patient, has keyboard
+Escape, backdrop and Close controls, and does not alter backend behavior or send data
+until the clinician submits a question.
+
 ## D042: Gemini assistant for the five-hour hackathon
 
 Status: Accepted (2026-10-03, explicit user implementation request)

@@ -111,6 +111,12 @@ test("patient assistant: follow-up context, references, errors and mobile layout
   });
   await page.goto("/patients/assistant-qa");
   await expect(
+    page.getByRole("button", { name: "Clinical Assistant", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Clinical Assistant", exact: true })
+    .click();
+  await expect(
     page.getByRole("heading", { name: "Clinical Assistant", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Patient context connected")).toBeVisible();

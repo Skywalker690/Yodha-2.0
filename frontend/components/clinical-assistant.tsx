@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -45,10 +46,66 @@ const suggestions = [
 ];
 
 export function ClinicalAssistant({ patient }: { patient: Patient }) {
-  return <AssistantSession key={patient.id} patient={patient} />;
+  const [open, setOpen] = useState(false);
+  const dialog = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    dialog.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="assistant-widget-launcher"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls="clinical-assistant-dialog"
+        onClick={() => setOpen(true)}
+      >
+        <BrainCircuit size={19} />
+        <span>Clinical Assistant</span>
+      </button>
+      <div
+        className="assistant-widget-layer"
+        hidden={!open}
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setOpen(false);
+        }}
+      >
+        <div
+          id="clinical-assistant-dialog"
+          className="assistant-widget-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="assistant-title"
+          ref={dialog}
+          tabIndex={-1}
+        >
+          <AssistantSession
+            key={patient.id}
+            patient={patient}
+            onClose={() => setOpen(false)}
+          />
+        </div>
+      </div>
+    </>
+  );
 }
 
-function AssistantSession({ patient }: { patient: Patient }) {
+function AssistantSession({
+  patient,
+  onClose,
+}: {
+  patient: Patient;
+  onClose: () => void;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [research, setResearch] = useState(false);
@@ -145,6 +202,14 @@ function AssistantSession({ patient }: { patient: Patient }) {
         <span className="assistant-connected">
           <span /> Patient context connected
         </span>
+        <button
+          type="button"
+          className="assistant-widget-close"
+          aria-label="Close Clinical Assistant"
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
       </div>
       <div className="assistant-context">
         <span>

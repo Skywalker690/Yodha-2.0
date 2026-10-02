@@ -2,7 +2,7 @@
 
 ## Hackathon clinical assistant (2026-10-03)
 
-Add an authenticated patient-workspace chat using Gemini for concise case summaries,
+Add an authenticated floating patient-workspace chat widget using Gemini for concise case summaries,
 missing-information review, explanations of current outputs and optional web references.
 Patient context is rebuilt server-side, with numeric source fields and explicitly labeled
 anatomy/QC and forecast availability. Raw MRI, patient codes/UUIDs, notes, paths and owner

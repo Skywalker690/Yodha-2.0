@@ -42,9 +42,14 @@ const response: AssistantResponse = {
 
 beforeEach(() => vi.mocked(api).mockReset());
 
+function openAssistant() {
+  fireEvent.click(screen.getByRole("button", { name: "Clinical Assistant" }));
+}
+
 it("sends bounded history, survives patient polling, and shows supported research references", async () => {
   vi.mocked(api).mockResolvedValue(response);
   const { rerender } = render(<ClinicalAssistant patient={patient} />);
+  openAssistant();
   fireEvent.click(screen.getByRole("button", { name: "Explore research" }));
   await screen.findByText(response.answer);
   expect(api).toHaveBeenCalledWith(
@@ -82,6 +87,7 @@ it("preserves the question after failure and retries without duplicating a faile
   vi.mocked(api).mockRejectedValueOnce(new Error("Configure GEMINI_API_KEY"));
   vi.mocked(api).mockResolvedValueOnce(response);
   render(<ClinicalAssistant patient={patient} />);
+  openAssistant();
   fireEvent.change(screen.getByLabelText("Ask about this patient"), {
     target: { value: "Summarize" },
   });
@@ -108,6 +114,7 @@ it("aborts late replies when switching patients and clears conversation", async 
     }),
   );
   const { rerender } = render(<ClinicalAssistant patient={patient} />);
+  openAssistant();
   fireEvent.click(screen.getByRole("button", { name: "Summarize the case" }));
   const signal = vi.mocked(api).mock.calls[0][1]!.signal;
   rerender(<ClinicalAssistant patient={{ ...patient, id: "patient-b" }} />);
@@ -124,9 +131,21 @@ it("displays an explicit empty-source state and clears completed messages", asyn
     searchSuggestions: null,
   });
   render(<ClinicalAssistant patient={patient} />);
+  openAssistant();
   expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Explore research" }));
   await screen.findByText("No web references were returned for this response.");
   fireEvent.click(screen.getByRole("button", { name: "Clear" }));
   expect(screen.queryByRole("log")).toBeNull();
+});
+
+it("keeps the chat out of the workspace until its widget is opened", () => {
+  render(<ClinicalAssistant patient={patient} />);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  openAssistant();
+  expect(screen.getByRole("dialog")).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Close Clinical Assistant" }),
+  );
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

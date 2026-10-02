@@ -1,7 +1,9 @@
 # Clinical Assistant
 
-The patient workspace includes a Gemini-powered chat card with four suggested questions,
-temporary follow-up history and optional Google Search references. This is a hackathon
+The patient workspace includes a Gemini-powered floating chat widget with four suggested
+questions, temporary follow-up history and optional Google Search references. The launcher
+does not consume workspace space; it opens an overlay and closes with Escape, its Close
+button or a backdrop click. This is a hackathon
 research demonstration; use synthetic/OASIS de-identified cases and omit identifiers in
 questions. The application sends structured values and recent messages to Google.
 
