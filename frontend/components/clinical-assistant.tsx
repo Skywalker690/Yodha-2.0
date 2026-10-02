@@ -223,22 +223,6 @@ function AssistantSession({
           <X size={18} />
         </button>
       </div>
-      <div className="assistant-suggestions">
-        {suggestions.map((item) => (
-          <button
-            key={item.label}
-            disabled={busy}
-            onClick={() => {
-              if (item.research) setResearch(true);
-              void send(item.question, item.research ?? research);
-            }}
-          >
-            {item.research ? <BookOpen size={15} /> : <Sparkles size={15} />}
-            {item.label}
-            <ArrowUpRight size={13} />
-          </button>
-        ))}
-      </div>
       {messages.length > 0 && (
         <div
           className="assistant-conversation"
@@ -284,6 +268,22 @@ function AssistantSession({
           </Button>
         </div>
       )}
+      <div className="assistant-suggestions">
+        {suggestions.map((item) => (
+          <button
+            key={item.label}
+            disabled={busy}
+            onClick={() => {
+              if (item.research) setResearch(true);
+              void send(item.question, item.research ?? research);
+            }}
+          >
+            {item.research ? <BookOpen size={15} /> : <Sparkles size={15} />}
+            {item.label}
+            <ArrowUpRight size={13} />
+          </button>
+        ))}
+      </div>
       <form
         className="assistant-composer"
         onSubmit={(event) => {
