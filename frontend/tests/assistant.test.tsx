@@ -135,7 +135,7 @@ it("displays an explicit empty-source state and clears completed messages", asyn
   expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Explore research" }));
   await screen.findByText("No web references were returned for this response.");
-  fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+  fireEvent.click(screen.getByRole("button", { name: "Erase memory" }));
   expect(screen.queryByRole("log")).toBeNull();
 });
 
@@ -144,6 +144,9 @@ it("keeps the chat out of the workspace until its widget is opened", () => {
   expect(screen.queryByRole("dialog")).toBeNull();
   openAssistant();
   expect(screen.getByRole("dialog")).toBeVisible();
+  expect(screen.queryByText("YOUR CASE, IN CONTEXT")).toBeNull();
+  expect(screen.queryByText("Raw MRI stays local")).toBeNull();
+  expect(screen.queryByText(/Review the story across visits/)).toBeNull();
   fireEvent.click(
     screen.getByRole("button", { name: "Close Clinical Assistant" }),
   );

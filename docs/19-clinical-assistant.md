@@ -56,7 +56,8 @@ iframe with scripts and same-origin access disabled. Model answers are escaped t
 Search results can include non-paper web pages; the UI calls them Web references.
 
 Chat is held only in React state. Polling keeps the conversation, while leaving the page,
-switching patients or Clear resets it. Pending browser requests are aborted on unmount;
+switching patients or Erase memory resets it. The reply area automatically follows the
+latest answer. Pending browser requests are aborted on unmount;
 the backend/provider may finish an already-started request. Failed questions stay editable
 and retry without adding a duplicate history turn. There are no database chat tables,
 provider file uploads or application logs of prompt bodies. Gemini's own retention still

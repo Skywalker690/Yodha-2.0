@@ -119,7 +119,7 @@ test("patient assistant: follow-up context, references, errors and mobile layout
   await expect(
     page.getByRole("heading", { name: "Clinical Assistant", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Patient context connected")).toBeVisible();
+  await expect(page.getByText("Patient context connected")).toHaveCount(0);
   await page.getByRole("button", { name: "Summarize the case" }).click();
   await expect(page.locator(".assistant-answer").last()).toContainText(
     "MMSE changed from 27 to 25",
@@ -131,6 +131,13 @@ test("patient assistant: follow-up context, references, errors and mobile layout
   await expect(page.locator(".assistant-message-assistant")).toHaveCount(2);
   expect(requests[1].history).toHaveLength(2);
   await page.getByRole("button", { name: "Explore research" }).click();
+  await expect
+    .poll(() =>
+      page
+        .locator(".assistant-conversation")
+        .evaluate((element) => element.scrollTop),
+    )
+    .toBeGreaterThan(0);
   await page.getByText("Web references (1)").click();
   await expect(
     page.getByRole("link", { name: /Example research reference/ }),
@@ -163,7 +170,7 @@ test("patient assistant: follow-up context, references, errors and mobile layout
   await expect(page.getByLabel("Ask about this patient")).toHaveValue(
     "A failed question",
   );
-  await page.getByRole("button", { name: "Clear", exact: true }).click();
+  await page.getByRole("button", { name: "Erase memory", exact: true }).click();
   await expect(page.getByRole("log")).toHaveCount(0);
   expect(errors).toEqual([]);
 });

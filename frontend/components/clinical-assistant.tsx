@@ -6,7 +6,6 @@ import {
   BookOpen,
   BrainCircuit,
   Send,
-  ShieldCheck,
   Sparkles,
   Trash2,
   X,
@@ -116,7 +115,7 @@ function AssistantSession({
     research: boolean;
   } | null>(null);
   const pending = useRef<AbortController | null>(null);
-  const end = useRef<HTMLDivElement>(null);
+  const conversation = useRef<HTMLDivElement>(null);
 
   useEffect(
     () => () => {
@@ -126,7 +125,29 @@ function AssistantSession({
     [],
   );
   useEffect(() => {
-    end.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    const frame = requestAnimationFrame(() => {
+      const chat = conversation.current;
+      if (chat) {
+        const latestMessage = chat.querySelector<HTMLElement>(
+          ".assistant-message:last-of-type",
+        );
+        const target = latestMessage
+          ? Math.max(
+              0,
+              latestMessage.getBoundingClientRect().top -
+                chat.getBoundingClientRect().top +
+                chat.scrollTop -
+                8,
+            )
+          : chat.scrollHeight;
+        if (typeof chat.scrollTo === "function") {
+          chat.scrollTo({ top: target, behavior: "smooth" });
+        } else {
+          chat.scrollTop = target;
+        }
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [messages, busy]);
 
   async function send(text: string, useResearch = research) {
@@ -195,13 +216,9 @@ function AssistantSession({
             <BrainCircuit size={24} />
           </div>
           <div>
-            <div className="eyebrow">YOUR CASE, IN CONTEXT</div>
             <h2 id="assistant-title">Clinical Assistant</h2>
           </div>
         </div>
-        <span className="assistant-connected">
-          <span /> Patient context connected
-        </span>
         <button
           type="button"
           className="assistant-widget-close"
@@ -211,20 +228,6 @@ function AssistantSession({
           <X size={18} />
         </button>
       </div>
-      <div className="assistant-context">
-        <span>
-          {patient.visits.length}{" "}
-          {patient.visits.length === 1 ? "visit" : "visits"}
-        </span>
-        <span>Clinical values & anatomy</span>
-        <span>
-          <ShieldCheck size={13} /> Raw MRI stays local
-        </span>
-      </div>
-      <p className="assistant-intro">
-        Review the story across visits, clarify findings, and explore evidence
-        without leaving this case.
-      </p>
       <div className="assistant-suggestions">
         {suggestions.map((item) => (
           <button
@@ -247,6 +250,7 @@ function AssistantSession({
           role="log"
           aria-label="Conversation with Clinical Assistant"
           aria-live="polite"
+          ref={conversation}
         >
           {messages.map((message, index) => (
             <article
@@ -262,7 +266,6 @@ function AssistantSession({
               )}
             </article>
           ))}
-          <div ref={end} />
         </div>
       )}
       {busy && (
@@ -332,11 +335,6 @@ function AssistantSession({
         </div>
       </form>
       <div className="assistant-footer">
-        <p>
-          Gemini receives structured case values and your messages. Use
-          de-identified demo data; omit identifying details. Chat clears when
-          you leave.
-        </p>
         <Button
           variant="ghost"
           size="sm"
@@ -348,7 +346,7 @@ function AssistantSession({
             setQuestion("");
           }}
         >
-          <Trash2 size={13} /> Clear
+          <Trash2 size={13} /> Erase memory
         </Button>
       </div>
     </section>

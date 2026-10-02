@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 .panel.assistant-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
   margin: 0;
   border-color: #35565b;
@@ -37,9 +41,9 @@
   background: #02070b80;
 }
 .assistant-widget-dialog {
+  display: flex;
   width: min(620px, calc(100vw - 48px));
-  max-height: calc(100dvh - 48px);
-  overflow-y: auto;
+  height: min(780px, calc(100dvh - 48px));
   filter: drop-shadow(0 20px 45px #00000088);
 }
 .assistant-widget-close {
@@ -75,9 +79,6 @@
   align-items: center;
   gap: 13px;
 }
-.assistant-identity .eyebrow {
-  margin-bottom: 3px;
-}
 .assistant-mark {
   display: grid;
   place-items: center;
@@ -88,40 +89,11 @@
   color: var(--cyan);
   background: #66dfd20d;
 }
-.assistant-connected {
-  font-size: 11px;
-  color: #a6e5d7;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.assistant-connected > span {
-  width: 6px;
-  height: 6px;
-  background: var(--cyan);
-  border-radius: 50%;
-  box-shadow: 0 0 10px #66dfd266;
-}
-.assistant-context,
 .assistant-suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   padding: 0 24px;
-}
-.assistant-context > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid #35505b;
-  border-radius: 20px;
-  padding: 3px 9px;
-  font-size: 10px;
-  color: #aac2cf;
-}
-.assistant-intro {
-  padding: 14px 24px;
-  font-size: 12px;
 }
 .assistant-suggestions {
   padding-bottom: 18px;
@@ -141,8 +113,10 @@
   color: var(--cyan);
 }
 .assistant-conversation {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 0 24px 16px;
-  max-height: 520px;
+  max-height: none;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -247,7 +221,7 @@
   font-size: 12px;
 }
 .assistant-composer {
-  margin: 0 24px;
+  margin: auto 24px 0;
   padding: 12px;
   border: 1px solid #3b5662;
   background: #0d1924;
@@ -296,11 +270,7 @@
   padding: 12px 24px 18px;
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.assistant-footer p {
-  font-size: 10px;
-  flex: 1;
+  justify-content: flex-end;
 }
 @media (max-width: 700px) {
   .assistant-widget-launcher {
@@ -312,16 +282,14 @@
   }
   .assistant-widget-dialog {
     width: 100%;
-    max-height: calc(100dvh - 20px);
+    height: calc(100dvh - 20px);
   }
   .assistant-heading {
     padding: 18px 16px 12px;
   }
-  .assistant-context,
   .assistant-suggestions {
     padding-inline: 16px;
   }
-  .assistant-intro,
   .assistant-conversation,
   .assistant-loading,
   .assistant-footer {
