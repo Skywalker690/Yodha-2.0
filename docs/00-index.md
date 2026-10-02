@@ -1,6 +1,6 @@
 # Documentation Index
 
-This folder is the working specification for the full-stack NeuroPredict AI platform. Read the root AGENTS.md and this file before implementation.
+This folder is the working specification for the full-stack Alzhio platform. Read the root AGENTS.md and this file before implementation.
 
 | Document | Purpose |
 |---|---|

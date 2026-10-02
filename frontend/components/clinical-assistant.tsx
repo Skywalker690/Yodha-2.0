@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   BookOpen,
-  BrainCircuit,
   Send,
   Sparkles,
   Trash2,
@@ -68,8 +67,7 @@ export function ClinicalAssistant({ patient }: { patient: Patient }) {
         aria-controls="clinical-assistant-dialog"
         onClick={() => setOpen(true)}
       >
-        <BrainCircuit size={19} />
-        <span>Clinical Assistant</span>
+        <span className="bot-wordmark">Alzhio Bot</span>
       </button>
       <div
         className="assistant-widget-layer"
@@ -212,17 +210,14 @@ function AssistantSession({
     >
       <div className="assistant-heading">
         <div className="assistant-identity">
-          <div className="assistant-mark">
-            <BrainCircuit size={24} />
-          </div>
-          <div>
-            <h2 id="assistant-title">Clinical Assistant</h2>
-          </div>
+          <h2 id="assistant-title" className="bot-wordmark">
+            Alzhio Bot
+          </h2>
         </div>
         <button
           type="button"
           className="assistant-widget-close"
-          aria-label="Close Clinical Assistant"
+          aria-label="Close Alzhio Bot"
           onClick={onClose}
         >
           <X size={18} />
@@ -248,7 +243,7 @@ function AssistantSession({
         <div
           className="assistant-conversation"
           role="log"
-          aria-label="Conversation with Clinical Assistant"
+          aria-label="Conversation with Alzhio Bot"
           aria-live="polite"
           ref={conversation}
         >
@@ -258,7 +253,7 @@ function AssistantSession({
               className={`assistant-message assistant-message-${message.role}`}
             >
               <div className="assistant-message-label">
-                {message.role === "user" ? "You" : "Clinical Assistant"}
+                {message.role === "user" ? "You" : "Alzhio Bot"}
               </div>
               <div className="assistant-answer">{message.content}</div>
               {message.response && (

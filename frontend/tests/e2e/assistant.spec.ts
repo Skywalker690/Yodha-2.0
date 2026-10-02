@@ -31,7 +31,7 @@ test("patient assistant: follow-up context, references, errors and mobile layout
           status: 503,
           json: {
             detail:
-              "Clinical Assistant needs GEMINI_API_KEY in the backend environment.",
+              "Alzhio Bot needs GEMINI_API_KEY in the backend environment.",
           },
         });
         return;
@@ -111,13 +111,11 @@ test("patient assistant: follow-up context, references, errors and mobile layout
   });
   await page.goto("/patients/assistant-qa");
   await expect(
-    page.getByRole("button", { name: "Clinical Assistant", exact: true }),
+    page.getByRole("button", { name: "Alzhio Bot", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Clinical Assistant", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Alzhio Bot", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Clinical Assistant", exact: true }),
+    page.getByRole("heading", { name: "Alzhio Bot", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Patient context connected")).toHaveCount(0);
   await page.getByRole("button", { name: "Summarize the case" }).click();

@@ -33,7 +33,7 @@ Provide a researcher login screen with email, password, validation, loading stat
 ## Application layout
 
 ```
-Header: NeuroPredict AI | Researcher | Online
+Header: Alzhio | Researcher | Online
 Sidebar: Dashboard, Patients, MRI Analysis, Reports, Settings
 Dashboard: overview metrics and recent patients
 Patient page: summary, MRI timeline, risk chart, biomarkers, Analyze MRI

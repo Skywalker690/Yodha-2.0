@@ -242,7 +242,7 @@ def ask_assistant(
 
     patient = owned_patient(db, user, patient_id)
     if not get_settings().gemini_api_key.get_secret_value().strip():
-        raise HTTPException(503, "Clinical Assistant needs GEMINI_API_KEY in the backend environment. Configure it and restart the backend.")
+        raise HTTPException(503, "Alzhio Bot needs GEMINI_API_KEY in the backend environment. Configure it and restart the backend.")
     context, summary = build_context(db, patient)
     # Release the read transaction before waiting on the external text API.
     db.rollback()
@@ -782,5 +782,5 @@ def download_report(report_id: str, user: User = Depends(current_user)) -> FileR
     return FileResponse(
         resolve_key(f"reports/{report_id}.pdf"),
         media_type="application/pdf",
-        filename=f"NeuroPredict-{metadata['patientCode']}-{datetime.now():%Y%m%d}.pdf",
+        filename=f"Alzhio-{metadata['patientCode']}-{datetime.now():%Y%m%d}.pdf",
     )

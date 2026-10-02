@@ -1,10 +1,19 @@
 # Decision Log
 
+## D044: Alzhio text-only product and bot branding
+
+Status: Accepted (2026-10-03, explicit user request)
+
+Use a CSS-styled text wordmark, `Alzhio`, for public product branding and `Alzhio Bot`
+for the contextual chat. Remove the brain icon marks from those brand areas rather than
+adding a graphical logo. Public browser, API, report and export labels use Alzhio; routes,
+database identifiers and package names remain unchanged for compatibility.
+
 ## D043: Floating assistant widget preserves workspace space
 
 Status: Accepted (2026-10-03, explicit user request)
 
-Render the Clinical Assistant as a fixed launcher and overlay drawer rather than an
+Render Alzhio Bot as a fixed launcher and overlay drawer rather than an
 in-flow patient-workspace panel. It stays scoped to the selected patient, has keyboard
 Escape, backdrop and Close controls, and does not alter backend behavior or send data
 until the clinician submits a question.
@@ -23,7 +32,7 @@ de-identified demonstration cases. Send only allowlisted structured clinical/ana
 values, preserving unreviewed research status and unavailable forecasts; omit source
 identifiers, patient/visit codes, free text, paths, raw MRI and owner data. User questions
 and recent exchanges are sent to Gemini and must omit identifying details. No chat is
-persisted by NeuroPredict; provider retention terms still apply. Preserve existing forecast
+persisted by Alzhio; provider retention terms still apply. Preserve existing forecast
 gates and user worktree changes. Record configuration and verification in doc 19.
 
 ## D041: Compact regional measurements and remove the regional comparison chart

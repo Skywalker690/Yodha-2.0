@@ -1,6 +1,6 @@
-# Clinical Assistant
+# Alzhio Bot
 
-The patient workspace includes a Gemini-powered floating chat widget with four suggested
+The patient workspace includes Alzhio Bot, a Gemini-powered floating chat widget with four suggested
 questions, temporary follow-up history and optional Google Search references. The launcher
 does not consume workspace space; it opens an overlay and closes with Escape, its Close
 button or a backdrop click. This is a hackathon

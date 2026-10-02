@@ -190,7 +190,7 @@ def build_report(patient: Patient, analysis: Analysis, visits: list[Visit], over
     def footer(canvas, document):
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#526477"))
-        canvas.drawString(42, 24, "NeuroPredict AI | Research Prototype | Not a medical diagnosis")
+        canvas.drawString(42, 24, "Alzhio | Research Prototype | Not a medical diagnosis")
         canvas.drawRightString(553, 24, f"Page {document.page}")
 
     doc.build(story, onFirstPage=footer, onLaterPages=footer)

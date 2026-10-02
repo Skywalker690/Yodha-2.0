@@ -43,7 +43,7 @@ const response: AssistantResponse = {
 beforeEach(() => vi.mocked(api).mockReset());
 
 function openAssistant() {
-  fireEvent.click(screen.getByRole("button", { name: "Clinical Assistant" }));
+  fireEvent.click(screen.getByRole("button", { name: "Alzhio Bot" }));
 }
 
 it("sends bounded history, survives patient polling, and shows supported research references", async () => {
@@ -147,8 +147,6 @@ it("keeps the chat out of the workspace until its widget is opened", () => {
   expect(screen.queryByText("YOUR CASE, IN CONTEXT")).toBeNull();
   expect(screen.queryByText("Raw MRI stays local")).toBeNull();
   expect(screen.queryByText(/Review the story across visits/)).toBeNull();
-  fireEvent.click(
-    screen.getByRole("button", { name: "Close Clinical Assistant" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Close Alzhio Bot" }));
   expect(screen.queryByRole("dialog")).toBeNull();
 });

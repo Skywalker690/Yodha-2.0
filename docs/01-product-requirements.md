@@ -55,7 +55,7 @@ No validated all-horizon default is claimed before runtime, QC, event support an
 matched evaluation gates pass. See [15 Architecture](15-fastsurfer-architecture.md)
 and [current blockers](blockers.md).
 
-NeuroPredict AI is a clinical research platform that analyzes repeated MRI scans from the same subject and presents an understandable progression story over time.
+Alzhio is a clinical research platform that analyzes repeated MRI scans from the same subject and presents an understandable progression story over time.
 
 ## Primary user
 
