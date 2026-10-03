@@ -10,35 +10,124 @@
         ".superdesign/design-system.md",
         "frontend/components/ui/button.tsx",
         "frontend/components/common.tsx",
-        "frontend/components/volume-explorer.tsx",
-        "frontend/components/volume-canvas.tsx",
-        "frontend/app/globals.css:1:160",
+        "frontend/components/volume-explorer.tsx:412:1280",
+        "frontend/components/volume-canvas.tsx:319:392",
+        "frontend/components/analysis-workspace.tsx:706:842",
+        "frontend/components/mmse-assessment.tsx:161:390",
+        "frontend/app/(workspace)/patients/[id]/page.tsx",
+        "frontend/app/globals.css:523:613",
+        "frontend/app/globals.css:688:800",
+        "frontend/app/globals.css:2132:2346",
         "frontend/components/shell.tsx"
       ],
       "fingerprints": {
-        ".superdesign/design-system.md": "be95e5c9283fe854b787a8438a77368fbda2a74b947a7b6ba2aedd5df87de8c9",
+        ".superdesign/design-system.md": "a76f43d5d494a9690360ddb910d7854663e2680cd8436921c93313b53e2ad359",
         "frontend/components/ui/button.tsx": "4a3ef422df04536ca87757d61f9ebbaa67f24a99d88570f53117d81c61fe8936",
         "frontend/components/common.tsx": "94cec6efb3b67f71dca3c61305d0db24f4eea17c1efc49f17b908b2c215487ee",
-        "frontend/components/volume-explorer.tsx": "73b46a4c9a74ef378d6a389ecc9cc70e4d304876ebd8dd53dd0c8e5a5f4da55f",
-        "frontend/components/volume-canvas.tsx": "7a3267e7510259e4bf143a2511c249a6b01f8984116273865f6a44a3a2a6b7f2",
-        "frontend/app/globals.css": "36315710e99d012e08f7b77294f71c65c72383dbf531babb0fee9bddb1a02064",
-        "frontend/components/shell.tsx": "3f6338de0d3220dca011a42780723d329f87185972bba484369cbd23a300a96e"
+        "frontend/components/volume-explorer.tsx": "558789d72a13cbf069498ccb31d8ec8fded72c4b898f5d029f37cecd15e45a2a",
+        "frontend/components/volume-canvas.tsx": "5c997758e69a5dbc45f6de1c0ab1b93e8e2670090225312197773f3655ced90f",
+        "frontend/components/analysis-workspace.tsx": "1577ad68060d554aa89de92c5876dc22459bef5cf31e7db165154a1dffede545",
+        "frontend/components/mmse-assessment.tsx": "39bed17553cdc483a18ed72af117e31e82a282779752cb389a1ee2775d6df457",
+        "frontend/app/(workspace)/patients/[id]/page.tsx": "ca7f50f0fa56f5a8e064c43bb3abf079ce01b22f8742c5d102209df03c10fff4",
+        "frontend/app/globals.css": "994f3b18866d465706d90a4867ff1cab9e6bda45cee3e980474720eb04e5ac8d",
+        "frontend/components/shell.tsx": "83701c7d5998b4a4423641d5776afd575bf5273e2fc2a2a2cc6608fed8664d6e"
       },
       "components": [
         {
           "name": "WorkspaceSidebar",
           "id": "d3fce2ca-0e68-43b8-8477-04fb229cd28a",
-          "sourcePath": "frontend/components/shell.tsx"
+          "sourcePath": "frontend/components/shell.tsx",
+          "currentVersion": 2
         }
       ],
       "drafts": {
         "70c1a9a3-6b4c-40a9-97d5-eca28eb63375": {
           "title": "NeuroPredict Longitudinal UI",
-          "visualDirection": "existing navy/cyan; synthetic placeholders and blocked future",
-          "currentVersion": 2
+          "visualDirection": "Alzhio navy/teal patient workspace with tabs, large axial schematic, yellow hippocampus and guided assessment; design proposal only",
+          "currentVersion": 4
         }
       },
-      "updatedAt": "2026-10-02T04:18:03.551Z"
+      "updatedAt": "2026-10-03T00:00:30.5218718Z"
+    },
+    "/patients": {
+      "targetKind": "existing-ui",
+      "projectId": "e9bfda2f-bec1-4ba2-867c-8ac2f38f3b87",
+      "baselineDraftId": "b73015dd-d8fa-411b-af04-88edaebd13c5",
+      "baselineVersion": 3,
+      "activeDraftId": "b73015dd-d8fa-411b-af04-88edaebd13c5",
+      "designSystemPath": ".superdesign/patients-visual-skin.md",
+      "contextFiles": [
+        ".superdesign/patients-visual-skin.md",
+        "frontend/app/(workspace)/patients/page.tsx",
+        "frontend/components/patient-table.tsx",
+        "frontend/components/shell.tsx",
+        "frontend/components/common.tsx",
+        "frontend/components/ui/button.tsx",
+        "frontend/components/mri-metadata-fields.tsx",
+        "frontend/lib/utils.ts",
+        "frontend/app/globals.css:523:842",
+        "frontend/app/globals.css:886:958",
+        "frontend/app/globals.css:1227:1312",
+        "frontend/app/globals.css:1335:1352",
+        "frontend/app/globals.css:1408:1480",
+        "frontend/app/globals.css:2414:2735",
+        ".superdesign/full-product-design.md",
+        ".superdesign/full-product-feature-inventory.md",
+        ".superdesign/full-product-skin.css",
+        ".superdesign/sidebar-refinement.css",
+        ".superdesign/sidebar-color-grade.css"
+      ],
+      "fingerprints": {
+        ".superdesign/patients-visual-skin.md": "5eae89be6ff4bc4033b8bd14b061d7a8fe63eda204cea48f0beaedac66aaec5f",
+        "frontend/app/(workspace)/patients/page.tsx": "b30d6f586ad1363030f8e70c17fdc10099864672b5a149e4cb237987ab362931",
+        "frontend/components/patient-table.tsx": "c8ee65411c3c0b58fdad11a6c3036b844e672af35b7fa0be582d632dd92d254d",
+        "frontend/components/shell.tsx": "83701c7d5998b4a4423641d5776afd575bf5273e2fc2a2a2cc6608fed8664d6e",
+        "frontend/components/common.tsx": "94cec6efb3b67f71dca3c61305d0db24f4eea17c1efc49f17b908b2c215487ee",
+        "frontend/components/ui/button.tsx": "4a3ef422df04536ca87757d61f9ebbaa67f24a99d88570f53117d81c61fe8936",
+        "frontend/components/mri-metadata-fields.tsx": "6accf28a76883cbfceded2a3a459f7d3f13eda628107dc4cd11157cb913c0fbc",
+        "frontend/lib/utils.ts": "10344abd4b9c74ae151d00343a96d05cf5e15df2582d24f66b411005204923a9",
+        "frontend/app/globals.css": "994f3b18866d465706d90a4867ff1cab9e6bda45cee3e980474720eb04e5ac8d",
+        ".superdesign/full-product-feature-inventory.md": "bbcf7a462c62bb6a37b513c35b1fec5af501f282de6dbdc575c681c0884d0632",
+        ".superdesign/sidebar-refinement.css": "c24758749071dd8e4ba6651063a376896dd7628c2fa9ab178eff139d210958f9",
+        ".superdesign/full-product-design.md": "e460ab0ca130d5168819ab3cb054fe0b28220fa9528729b5c05cf84f044074b9",
+        ".superdesign/full-product-skin.css": "0a7f5cb4d17b2e7bb49d3a69a3375460444748723598862882bdc7bea5a89c64",
+        ".superdesign/sidebar-color-grade.css": "9f82a54a9b5dbdf35657f84697e097567df412bd4ed0f18054cae04c3f6d82c0"
+      },
+      "drafts": {
+        "b73015dd-d8fa-411b-af04-88edaebd13c5": {
+          "title": "Patient directory — visual styling",
+          "visualDirection": "Premium light workspace with a sidebar-only slate-blue tonal background, pale teal selection and readable cool labels from D079. Existing geometry, navigation, page content and behavior retained. Design only.",
+          "currentVersion": 11
+        }
+      },
+      "updatedAt": "2026-10-03T01:27:33.3675714Z",
+      "completePreview": {
+        "url": "http://localhost:3100/patients",
+        "path": "artifacts/alzhio-design-preview",
+        "style": ".superdesign/full-product-skin.css",
+        "featureInventory": ".superdesign/full-product-feature-inventory.md",
+        "referenceResearch": ".superdesign/full-product-design.md",
+        "sampleService": "http://127.0.0.1:3101",
+        "status": "Design only. Isolated UI copy with synthetic fixtures and simulated workflows.",
+        "instructions": "artifacts/alzhio-design-preview/README.md",
+        "screenshot": "artifacts/alzhio-sidebar-color-grade.png"
+      },
+      "sidebarRefinement": {
+        "version": 9,
+        "style": ".superdesign/sidebar-refinement.css",
+        "scope": "Sidebar only, isolated design preview",
+        "generatedModel": "gemini-3.1-pro",
+        "creditsConsumed": 37.5,
+        "contrastCorrections": "Readable slate secondary labels; original page body retained."
+      },
+      "sidebarColorGrade": {
+        "version": 11,
+        "style": ".superdesign/sidebar-color-grade.css",
+        "scope": "Sidebar colors only, isolated design preview",
+        "palette": "Slate blue and mist teal",
+        "savedStyleVerified": true,
+        "pageBodyUnchanged": true
+      }
     }
   }
 }

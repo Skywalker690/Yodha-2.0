@@ -1,5 +1,87 @@
 # Decision Log
 
+## D079: Sidebar color grading
+
+Status: Proposed design only (2026-10-03, explicit sidebar color request)
+
+Recolor D078's sidebar in the isolated preview and saved design draft. Use a
+subtle slate-blue tonal background, pale teal selected navigation, cool readable
+labels and a matching local-workspace card. Change only sidebar-scoped colors,
+borders and shadows; retain its geometry, content, controls and route behavior.
+The working frontend and all other preview styling remain unchanged.
+
+
+## D078: Sidebar-only design refinement
+
+Status: Proposed design only (2026-10-03, explicit sidebar-only request)
+
+Refine only the left sidebar of D077's isolated design preview and its saved
+Superdesign draft. Keep Alzhio branding, Dashboard/Patients/Reports ordering,
+Lucide icons, route behavior, responsive drawer, local-workspace status and
+research identity. Scope all new visual rules to `.sidebar`; retain the page,
+topbar, content, MRI rendering and original application files. Improve brand
+hierarchy, selected navigation, label contrast and the local-workspace surface.
+
+
+## D077: Complete interactive visual design preview with isolated sample services
+
+Status: Proposed design only (2026-10-03, explicit full-function preview request)
+
+Extend D076 across the entire existing UI, preserving its current routes, component
+order, copy, Lucide icons, sidebar, controls and workflows. Research Linear, Attio
+and OHIF as visual references and use a shared light/navy/violet skin. To retain
+every current function, copy the source frontend into an ignored design-artifact
+directory and apply styling there only. Connect this copy to a separate local,
+in-memory sample service for prototype interactions; do not connect to or alter
+the real backend, stored patients, models or configuration. Use synthetic MRI and
+matching labels, simulated forecasts/jobs, original demo assessment tasks, canned
+assistant replies and labeled sample exports. A persistent design-preview notice
+identifies these fixtures. An outside-canvas guide exposes existing non-sidebar
+routes without adding product navigation. The real application remains unchanged;
+the preview does not implement or scientifically validate the proposed redesign.
+
+## D076: Visual styling proposal with existing interface structure
+
+Status: Proposed design only (2026-10-03, explicit visual-only brief)
+
+The latest brief supersedes D075's proposed reorganization for this redesign.
+Use the running frontend's existing composition, copy, Lucide icons, actions,
+table columns and responsive structure as the source of truth. Preview a light
+gray/white skin, deep navy navigation and primary buttons, rounded surfaces,
+soft borders/shadows and restrained violet/cyan accents. Start with the current
+patient directory. No reference screenshot accompanied the pasted description;
+use its supplied style tokens pending an optional reference. Use synthetic preview
+rows without sending patient records or MRI assets to the design service. Change
+design artifacts/documentation only, with no application implementation, API,
+route, state, model, MRI or workflow changes.
+
+## D075: Patient workspace frontend design preview
+
+Status: Proposed design only (2026-10-03, user requested a design)
+
+Refine the existing Superdesign patient/anatomy draft into a compact Alzhio
+patient workspace. Keep the navy/teal palette, text wordmark, existing sidebar
+destinations, axial default and yellow hippocampus annotation. Propose Overview,
+MRI Workspace, Assessment and Reports tabs, a larger viewer, concise horizon
+controls, collapsible processing/provenance details and clearer assessment
+progress. Use synthetic UI details and a labeled schematic only; send no patient
+MRI or record screenshots to the design service. This preview does not change
+the running application, data, model outputs, scientific readiness or assessment
+protocol. Implementation remains a subsequent user choice.
+
+## D074: Make assessment completion prerequisites clear
+
+Status: Accepted and implemented (2026-10-03, reported completion bug)
+
+The imported assessment permits advancing past unscored tasks, leading to a
+disabled completion action at review. Require a numeric task score before Next
+or Review, explicitly explain that zero is a valid administered result, and
+provide a direct return to an unanswered task from incomplete review. Reset the
+task area's scroll on navigation. Keep all eleven required task scores, server
+validation, demo provenance and saved records intact; never fill missing answers
+with zero. The user requested checking completion, so add focused synthetic UI
+and isolated API regression checks without completing a real patient assessment.
+
 ## D073: Import remote cognitive assessment through reviewed diffs
 
 Status: Accepted and implemented (2026-10-03, explicit user request)

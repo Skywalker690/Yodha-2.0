@@ -29,13 +29,16 @@ export function MMSEAssessment({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const request = useRef<AbortController | null>(null);
   const summary = visit.metadata.mmseAssessment;
   const imported = patient.source === "oasis-2";
   const demo = attempt?.instrument === "alzhio-cognitive-demo";
   const tasks = attempt?.definition.items || [];
   const task = tasks[step];
-  const scored = tasks.filter((item) => points[item.id] != null).length;
+  const unanswered = tasks.filter((item) => points[item.id] == null);
+  const scored = tasks.length - unanswered.length;
+  const taskScored = !!task && points[task.id] != null;
   const complete = scored === tasks.length && tasks.length > 0;
   const preview = Object.values(points).reduce<number>(
     (total, value) => total + (value ?? 0),
@@ -43,6 +46,9 @@ export function MMSEAssessment({
   );
 
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => {
+    if (content.current) content.current.scrollTop = 0;
+  }, [step, attempt?.id]);
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement as HTMLElement | null;
@@ -87,6 +93,7 @@ export function MMSEAssessment({
     setOpen(true);
     setBusy(true);
     setError("");
+    setAttempt(null);
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -243,7 +250,7 @@ export function MMSEAssessment({
                   max={tasks.length}
                   aria-label="Assessment progress"
                 />
-                <div className="cognitive-dialog-content">
+                <div className="cognitive-dialog-content" ref={content}>
                   {task ? (
                     <>
                       <span className="eyebrow">
@@ -266,7 +273,18 @@ export function MMSEAssessment({
                         <summary>Clinician scoring guide</summary>
                         <p>{task.rubric}</p>
                       </details>
-                      <fieldset disabled={busy} className="cognitive-points">
+                      <p
+                        id="cognitive-score-help"
+                        className="cognitive-score-help"
+                      >
+                        Select the points earned to continue. Choose 0 if the
+                        administered task earned no points.
+                      </p>
+                      <fieldset
+                        disabled={busy}
+                        className="cognitive-points"
+                        aria-describedby="cognitive-score-help"
+                      >
                         <legend>
                           Points earned · maximum {task.max_points}
                         </legend>
@@ -297,8 +315,23 @@ export function MMSEAssessment({
                       <p>
                         {complete
                           ? `Calculated preview: ${preview}/30. The backend verifies the final total.`
-                          : "Some tasks are unanswered. Save a draft or return to complete them."}
+                          : `Score ${unanswered.length} unanswered ${unanswered.length === 1 ? "task" : "tasks"} before completing. You can save a draft and resume later.`}
                       </p>
+                      {!complete && (
+                        <Button
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() =>
+                            setStep(
+                              tasks.findIndex(
+                                (item) => points[item.id] == null,
+                              ),
+                            )
+                          }
+                        >
+                          Return to first unanswered task
+                        </Button>
+                      )}
                       <div className="cognitive-review-list">
                         {tasks.map((item, index) => (
                           <button
@@ -348,7 +381,7 @@ export function MMSEAssessment({
                     </Button>
                     {task ? (
                       <Button
-                        disabled={busy}
+                        disabled={busy || !taskScored}
                         onClick={() => setStep((value) => value + 1)}
                       >
                         {step === tasks.length - 1 ? "Review" : "Next"}

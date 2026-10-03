@@ -1,0 +1,116 @@
+/* Sidebar Redesign Refinements */
+.sidebar {
+  background: #070c20;
+  border-right: 1px solid #141c33;
+  border-radius: 0;
+  box-shadow: 4px 0 24px rgba(7, 12, 32, 0.12);
+}
+.sidebar .brand {
+  padding: 32px 24px 28px;
+  display: block;
+}
+.sidebar .brand-wordmark {
+  font-size: 22px;
+  letter-spacing: -1px;
+  color: #f8fafc;
+}
+.sidebar .nav-label {
+  padding: 0 24px 12px;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8795af;
+  letter-spacing: 1.5px;
+}
+.sidebar nav {
+  padding: 0 16px;
+}
+.sidebar .nav-item {
+  padding: 11px 14px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8b9bb4;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.18s ease;
+}
+.sidebar .nav-item:hover {
+  color: #cbd5e1;
+  background: #0f1629;
+}
+.sidebar .nav-item.active {
+  background: #1c1a35;
+  border-color: #2e2a4f;
+  color: #d8cfff;
+  box-shadow: 0 4px 12px rgba(28, 26, 53, 0.3);
+}
+.sidebar .nav-item.active :is(svg, iconify-icon):not(.nav-arrow) {
+  color: #a895da;
+}
+.sidebar .sidebar-bottom {
+  padding: 24px 16px;
+  margin-top: auto;
+}
+.sidebar .local-card {
+  background: #0b1123;
+  border: 1px solid #1a243d;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: inset 0 2px 12px rgba(255, 255, 255, 0.02);
+}
+.sidebar .local-card > div {
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar .local-card p {
+  color: #98a5bc;
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.sidebar .local-card > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #70a08b;
+  font-weight: 600;
+  background: #0b1e22;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #14302c;
+}
+.sidebar .local-card > span .status-dot {
+  background: #70a08b;
+  width: 6px;
+  height: 6px;
+}
+.sidebar .research-label {
+  margin-top: 20px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8795af;
+  font-size: 10px;
+  font-weight: 500;
+}
+.sidebar .research-label span {
+  margin-left: auto;
+  color: #8b99b1;
+}
+@media (max-width: 700px) {
+  .sidebar {
+    border-radius: 0 24px 24px 0;
+  }
+}
+

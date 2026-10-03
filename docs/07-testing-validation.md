@@ -1,5 +1,17 @@
 # Testing and Validation
 
+## Assessment completion flow (D074)
+
+The user requested checking completion. Five focused frontend tests and four
+isolated SQLite API tests pass, covering zero/full scoring, required task
+selection, draft/resume, completion retry/revision, persisted separate demo scores
+and MRI upload metadata preservation. TypeScript, the production build, Ruff and
+diff whitespace checks pass. Live inspection reproduced skipped scoring followed
+by a disabled completion action; the updated page requires each task's score and
+shows clear guidance. Temporary browser-only inspection scores were discarded;
+no real patient score was saved or completed. These synthetic checks establish
+workflow/scoring behavior, not clinical instrument validity.
+
 ## Diff-based cognitive assessment import (D073)
 
 Fetched `origin/chatbot` at `bd61b54` and reviewed changes after `7165081`;

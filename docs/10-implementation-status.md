@@ -1,5 +1,14 @@
 # Implementation Status
 
+## Assessment completion correction (2026-10-03, D074)
+
+The assessment now requires a task score before advancing, accepts legitimate
+zero-point responses and explains missing-score requirements. Task navigation
+resets scrolling; incomplete review offers a direct return to unanswered tasks.
+Five UI and four isolated API checks pass, including server completion, draft
+resume, retry and upload metadata preservation. Build/type/lint checks pass; no
+real patient assessment was completed during verification.
+
 ## Cognitive assessment imported through diffs (2026-10-03, D073)
 
 Imported the new assessment feature from remote chatbot `bd61b54` without merging

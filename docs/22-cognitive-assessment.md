@@ -27,6 +27,12 @@ reset local edits. Review all results and the assessment date/time before clicki
 total field. Point controls offer numeric scores only. Unanswered tasks remain null
 and block completion, unlike a valid administered zero-point result.
 
+D074 requires selecting points before Next/Review becomes available. The task
+explains that an administered zero-point result is valid. Navigation resets the
+task area's scroll to the top. An incomplete review names the missing count and
+can return directly to the first unanswered task; missing answers are never
+automatically scored as zero.
+
 The controls are shared by ML-only and retained research workspaces. Imported OASIS
 cases show their preserved recorded MMSE instead of offering assessment writes.
 The dashboard now selects recorded visits independently of completed anatomy and

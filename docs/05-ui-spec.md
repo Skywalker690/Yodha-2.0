@@ -6,6 +6,9 @@ Both patient workspace modes include Start/Resume assessment for the selected
 uploaded-case visit. The dialog shows one clinician-administered task at a time,
 numeric point choices, a scoring guide, draft saving and review/completion. Missing
 answers remain null and block completion; administered zero points is valid.
+Next/Review requires a score for the current task (D074). Explain the selection
+requirement, reset task scrolling on navigation and offer direct navigation to an
+unanswered task from incomplete review.
 Display MMSE-style demo and Demo cognitive score for default original demo content.
 Imported OASIS observations remain read-only. Dashboard visit selection includes
 recorded visits before anatomy processing, with available clinical/demo values
