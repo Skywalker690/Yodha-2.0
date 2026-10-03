@@ -1,0 +1,501 @@
+/* Sidebar Redesign Refinements */
+.sidebar {
+  border-right: 1px solid #202d3b;
+  border-radius: 0;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+}
+.sidebar .brand {
+  padding: 32px 24px 28px;
+  display: block;
+}
+.sidebar .brand-wordmark {
+  font-size: 22px;
+  letter-spacing: -1px;
+}
+.sidebar .nav-label {
+  padding: 0 24px 12px;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+.sidebar nav {
+  padding: 0 16px;
+}
+.sidebar .nav-item {
+  padding: 11px 14px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.18s ease;
+}
+.sidebar .nav-item.active {
+  border-color: #214047;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.sidebar .sidebar-bottom {
+  padding: 24px 16px;
+  margin-top: auto;
+}
+.sidebar .local-card {
+  border: 1px solid #243442;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.02);
+}
+.sidebar .local-card > div {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar .local-card p {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.sidebar .local-card > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.sidebar .local-card > span .status-dot {
+  width: 6px;
+  height: 6px;
+}
+.sidebar .research-label {
+  margin-top: 20px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.sidebar .research-label span {
+  margin-left: auto;
+}
+@media (max-width: 700px) {
+  .sidebar {
+    border-radius: 0 24px 24px 0;
+  }
+}
+
+/* Original prototype palette is inherited from globals.css; sidebar geometry is retained. */
+.sidebar {
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.16);
+}
+.sidebar .nav-item.active {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.sidebar .local-card {
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Approved patient layout. The MRI viewer remains mounted and uses its original styles. */
+.main-content:has(.patient-case-template) {
+  background: #0b121c;
+}
+.patient-case-template > .page-heading {
+  display: none;
+}
+.patient-case-template > .back-link {
+  color: #93a5b8;
+  font-size: 12px;
+  margin-bottom: 24px;
+}
+.patient-case-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+.patient-case-identity .eyebrow {
+  color: #93a5b8;
+  letter-spacing: 1.6px;
+  margin-bottom: 10px;
+}
+.patient-case-identity h1 {
+  color: #e7eef6;
+  font-size: 31px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  margin: 0;
+}
+.patient-case-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  color: #93a5b8;
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+.patient-case-meta span {
+  color: #364557;
+}
+.patient-case-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.patient-case-visit {
+  color: #93a5b8;
+  font-size: 11px;
+  display: grid;
+  gap: 6px;
+}
+.patient-case-visit select {
+  margin-top: 0;
+  min-width: 156px;
+  height: 40px;
+  background: #111c29;
+  border-color: #223141;
+  border-radius: 7px;
+  color: #e7eef6;
+  font-size: 12px;
+  padding-block: 8px;
+  color-scheme: dark;
+}
+.patient-case-actions > .button {
+  min-height: 40px;
+  background: #111c29;
+  border-color: #223141;
+  color: #e7eef6;
+  border-radius: 7px;
+  box-shadow: none;
+  font-size: 12px;
+}
+.patient-case-actions > .button:hover {
+  background: #142231;
+  border-color: #345365;
+}
+.patient-case-links {
+  display: flex;
+  gap: 30px;
+  border-bottom: 1px solid #223141;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+.patient-case-links a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 0 14px;
+  color: #93a5b8;
+  border-bottom: 2px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.patient-case-links a[aria-current] {
+  color: #66dfd2;
+  border-bottom-color: #66dfd2;
+}
+.patient-case-links a:hover {
+  color: #e7eef6;
+}
+.patient-case-links a:focus-visible,
+.patient-case-actions > .button:focus-visible {
+  outline: 2px solid #66dfd2;
+  outline-offset: 4px;
+}
+.patient-case-section,
+#patient-reports {
+  scroll-margin-top: 90px;
+}
+.patient-case-provenance {
+  color: #93a5b8;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+@media (max-width: 960px) {
+  .patient-case-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .patient-case-actions {
+    width: 100%;
+  }
+  .patient-case-visit {
+    max-width: 280px;
+  }
+}
+@media (max-width: 700px) {
+  .patient-case-identity h1 {
+    font-size: 27px;
+  }
+  .patient-case-links {
+    gap: 22px;
+  }
+  .patient-case-actions {
+    gap: 10px;
+  }
+  .patient-case-visit {
+    min-width: 0;
+  }
+  .patient-case-visit select {
+    min-width: 0;
+    width: 100%;
+  }
+  .patient-case-meta {
+    gap: 8px;
+  }
+}
+
+/* Surrounding UI only: no root theme tokens or volume selectors are overridden. */
+.sidebar,
+.topbar,
+.patient-case-header,
+.patient-case-links,
+.patient-case-section {
+  font-family: Inter, Arial, sans-serif;
+}
+.topbar {
+  backdrop-filter: blur(12px);
+}
+.topbar .breadcrumb {
+  font-size: 12px;
+}
+.topbar .breadcrumb strong,
+.topbar .researcher strong {
+  font-weight: 600;
+}
+.topbar .online {
+  font-size: 11px;
+}
+.topbar .icon-button,
+.topbar .mobile-menu {
+  border-radius: 10px;
+}
+.topbar .status-dot {
+  box-shadow: none;
+}
+.patient-case-imaging {
+  border-radius: 22px;
+  box-shadow:
+    0 8px 30px #00000005,
+    0 1px 3px #00000003;
+}
+.patient-case-section,
+.patient-case-page > .form-panel,
+.patient-case-imaging > .upload-form,
+.cognitive-dialog,
+.assistant-widget-dialog {
+  --radius: 22px;
+  color-scheme: dark;
+}
+.patient-case-section :is(h2, h3, h4),
+.patient-case-page > .form-panel h3 {
+  font-weight: 650;
+}
+.patient-case-section .eyebrow {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 1.7px;
+}
+.patient-case-page > .form-panel {
+  border-radius: 22px;
+}
+.patient-case-page > .form-panel :is(input, select, textarea),
+.patient-case-imaging > .upload-form :is(input, select, textarea) {
+  border-radius: 11px;
+}
+.patient-case-page > .form-panel .button {
+  border-radius: 11px;
+}
+.cognitive-dialog,
+.assistant-widget-dialog {
+  font-family: Inter, Arial, sans-serif;
+}
+.cognitive-dialog .button {
+  border-radius: 11px;
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .nav-item,
+  .patient-case-actions .button {
+    transition: none;
+  }
+}
+
+.patient-case-section .panel-heading h2 {
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.patient-case-section .panel-heading p {
+  font-size: 12px;
+}
+
+.patient-case-section .button {
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    box-shadow 0.18s,
+    color 0.18s;
+}
+
+.patient-case-section .button-primary {
+  box-shadow: 0 4px 10px #0000000a;
+}
+
+.patient-case-section .button-primary:hover:not(:disabled) {
+  box-shadow: 0 5px 16px #0000001a;
+}
+
+.patient-case-section .button:disabled {
+  opacity: 0.43;
+  box-shadow: none;
+}
+
+.patient-case-section .numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.patient-case-section .data-table {
+  font-size: 12px;
+}
+
+.patient-case-section .data-table th {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.75px;
+}
+
+.patient-case-section .state {
+  font-size: 10px;
+  border-radius: 99px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+}
+
+.patient-case-section .badge {
+  border-radius: 99px;
+  font-size: 10px;
+}
+
+.patient-case-section input,
+.patient-case-section select,
+.patient-case-section textarea {
+  border-radius: 11px;
+  box-shadow: 0 1px 2px #00000002;
+}
+
+.patient-case-section input:focus,
+.patient-case-section select:focus,
+.patient-case-section textarea:focus {
+  box-shadow: 0 0 0 3px #0000000c;
+}
+
+.patient-case-section label {
+  font-weight: 500;
+}
+
+.patient-case-section .patient-values-source-grid > div {
+  border-radius: 14px;
+}
+
+.patient-case-section .biomarker-grid > div {
+  border-radius: 14px;
+}
+
+.patient-case-section .recharts-tooltip-wrapper .recharts-default-tooltip {
+  border: 1px solid var(--border) !important;
+  border-radius: 13px !important;
+  box-shadow: 0 8px 24px #00000010;
+}
+
+.patient-case-section .pulse-dot {
+  box-shadow: none;
+}
+
+.patient-case-section .mri-file-selection {
+  border-radius: 12px;
+}
+
+.cognitive-dialog-layer,
+.assistant-widget-layer {
+  backdrop-filter: blur(8px);
+}
+
+.cognitive-dialog {
+  box-shadow: 0 32px 100px #00000033;
+  border-radius: 24px;
+}
+
+.cognitive-demo-note {
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+
+.cognitive-dialog progress::-webkit-progress-bar {
+  border-radius: 99px;
+}
+
+.cognitive-dialog progress::-webkit-progress-value {
+  border-radius: 99px;
+}
+
+.cognitive-prompt {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.cognitive-points label {
+  border-radius: 12px;
+}
+
+.cognitive-points label:has(input:checked) {
+  box-shadow: 0 0 0 3px #0000000a;
+}
+
+.cognitive-review-list button {
+  border-radius: 12px;
+}
+
+.assistant-widget-launcher {
+  box-shadow: 0 8px 24px #00000028;
+}
+
+.bot-wordmark:after {
+  box-shadow: none;
+}
+
+.assistant-widget-dialog {
+  box-shadow: 0 28px 100px #00000033;
+  border-radius: 24px;
+}
+
+.assistant-suggestions > button {
+  border-radius: 13px;
+}
+
+.assistant-message {
+  border-radius: 15px;
+}
+
+.assistant-composer textarea {
+  border-radius: 15px;
+}

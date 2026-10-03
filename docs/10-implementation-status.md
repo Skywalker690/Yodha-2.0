@@ -1,5 +1,45 @@
 # Implementation Status
 
+## Guided assessment controls restored to view (2026-10-03, D084)
+
+The full cognitive assessment card now appears directly under the patient section
+links and before the MRI workspace. Uploaded cases retain Start/Resume and the
+existing task/scoring, draft and completion dialog. The empty state clearly names
+the MMSE-style assessment; imported study observations explain their read-only
+status. The saved score header, prototype palette, scoring APIs and MRI viewer
+remain intact. See [07](07-testing-validation.md) for checks.
+
+## Saved MMSE visible on patient entry (2026-10-03, D083)
+
+The default patient header now displays the selected visit's saved MMSE and
+separately labeled demo cognitive score, when available. Score links scroll to
+the original assessment card, which remains below the MRI workspace. Existing
+scoring, storage, styles and MRI viewer components are unchanged. Production
+build/type and whitespace checks pass; local review confirmed the baseline
+OAS2_0048 MMSE of 19/30 in both locations. No stored data was modified.
+
+## First prototype palette restored (2026-10-03, D082)
+
+The patient styling now inherits the original dark navy and teal palette from
+the existing global stylesheet. Card radii/sizes, typography, spacing, button
+arrangement, section navigation and persistent MRI viewer are retained. This
+correction modifies only palette declarations in the added patient stylesheet;
+all other frontend sources, including MRI components and global styles, remain
+unchanged. See [07](07-testing-validation.md) for validation evidence.
+
+## Patient dashboard design implemented (2026-10-03, D081)
+
+The approved patient header, grouped MRI visit/Add visit actions, four section
+links, slate-blue sidebar and surrounding panel palette are integrated into the
+working frontend. All actions retain their existing handlers, endpoints and
+data. Section links scroll without conditionally mounting workspace content;
+loaded patient content is retained alongside transient polling errors. The live
+MRI viewer components and original global stylesheet remain byte-for-byte
+unchanged, including axial defaults, segmentation highlights and forecasts.
+TypeScript, production build and whitespace checks pass; local browser review
+confirmed the actual MRI and retained 3D selection after section navigation.
+No automated tests, new data/model jobs or preview fixtures were introduced.
+
 ## Assessment completion correction (2026-10-03, D074)
 
 The assessment now requires a task score before advancing, accepts legitimate

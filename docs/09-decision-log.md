@@ -1,5 +1,73 @@
 # Decision Log
 
+## D084: Restore a visible entry to the guided patient assessment
+
+Status: Accepted (2026-10-03, user requests the assessment UI back)
+
+Place the existing full cognitive assessment card directly below the patient
+section links and before the long MRI workspace. This supersedes D081's placement
+of the card after the viewer. Keep one mounted assessment component with its
+existing selected-visit key, Start/Resume controls and full question/scoring,
+draft and completion dialog. Name the empty state `MMSE-style assessment` and
+describe the guided workflow. Explain the existing read-only restriction for
+imported OASIS observations; new assessments remain available on uploaded cases.
+Preserve scores, original colors, MRI viewer, endpoint contracts and scoring.
+
+## D083: Keep saved cognitive scores visible in the patient header
+
+Status: Accepted (2026-10-03, user reports missing MMSE score)
+
+The saved score remains in the assessment card, which D081 placed after the MRI
+workspace. Add a compact read-only score link to the patient header for the
+selected visit so it is visible on entry. Display recorded/standard MMSE and
+completed demo cognitive scores separately, using their existing metadata and
+assessment summaries. Preserve legitimate zero scores and hide absent/invalid
+values. Each score links to the existing assessment section. Keep scoring,
+storage, selected-visit behavior, prototype colors and the MRI viewer unchanged.
+
+## D082: Restore the first prototype palette only
+
+Status: Accepted (2026-10-03, explicit user color-only correction)
+
+Restore the existing dark navy surfaces, blue-gray text and teal accents from
+the original `frontend/app/globals.css` across the sidebar, topbar, patient cards
+and dialogs. Remove the D081 light/violet/slate palette overrides while retaining
+its typography, spacing, sizing, borders, radii, section order and controls.
+Preserve the compact header and grouped visit actions, same-page navigation and
+persistent MRI viewer. Edit palette declarations in the added stylesheet only;
+application components, global styles, API/state logic and MRI rendering remain
+unchanged.
+
+## D081: Implement the approved patient dashboard with a persistent viewer
+
+Status: Accepted (2026-10-03, explicit request to implement D080)
+
+Apply the approved compact patient header, grouped MRI visit/Add visit controls,
+four section links, slate-blue sidebar and surrounding page styling to the working
+frontend. Keep the MRI workspace first. Section navigation uses same-page anchors
+and never conditionally mounts the viewer. Retain the patient-keyed viewer and
+all existing volume rendering, forecast, segmentation and camera code/styles.
+Retain loaded patient content alongside transient polling errors so a temporary
+request failure does not dispose the viewer. Changing patients or selecting a
+visit without an MRI keeps the existing ownership and resource cleanup behavior.
+The implementation uses the real backend and MRI artifacts; synthetic fixtures,
+preview controls and static canvas captures remain outside the application.
+
+
+## D080: Template arrangement around the protected MRI viewer
+
+Status: Proposed design only (2026-10-03, user-selected Superdesign template)
+
+Use draft `70c1a9a3-6b4c-40a9-97d5-eca28eb63375` as the patient dashboard
+reference. In the isolated preview, copy its compact patient header, grouped visit
+selector/Add visit action, and Overview/MRI Workspace/Assessment/Reports section
+links. Place the existing MRI workspace before supplementary assessment and anatomy
+panels. Preserve the complete NiiVue component, canvas, controls, styling, masks,
+camera behavior and forecasts. Section links scroll to existing content; no new
+tab state, routes or API behavior are introduced. Keep the working frontend
+unchanged and use synthetic preview fixtures only.
+
+
 ## D079: Sidebar color grading
 
 Status: Proposed design only (2026-10-03, explicit sidebar color request)

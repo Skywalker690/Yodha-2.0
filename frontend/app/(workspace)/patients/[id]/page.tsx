@@ -18,7 +18,9 @@ export default function PatientPage({
     2000,
   );
   return (
-    <>
+    <div
+      className={`patient-case-page ${data?.servingPolicy !== "research" ? "patient-case-template" : ""}`}
+    >
       <Link className="back-link" href="/patients">
         <ArrowLeft size={15} /> Patient directory
       </Link>
@@ -28,13 +30,9 @@ export default function PatientPage({
       >
         A connected view of MRI observations, research metrics, and context.
       </PageTitle>
-      {loading ? (
-        <Loading />
-      ) : error ? (
-        <ErrorState message={error} onRetry={reload} />
-      ) : (
-        data && <AnalysisWorkspace patient={data} reload={reload} />
-      )}
-    </>
+      {loading && <Loading />}
+      {error && <ErrorState message={error} onRetry={reload} />}
+      {data && <AnalysisWorkspace key={id} patient={data} reload={reload} />}
+    </div>
   );
 }

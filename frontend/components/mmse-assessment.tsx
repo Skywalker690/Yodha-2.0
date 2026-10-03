@@ -171,12 +171,14 @@ export function MMSEAssessment({
               ? `${summary.instrument === "mmse-original" ? "MMSE" : "Demo cognitive score"}: ${summary.total}/30`
               : visit.metadata.MMSE != null
                 ? `Recorded MMSE: ${visit.metadata.MMSE}/30`
-                : "No completed assessment"}
+                : "MMSE-style assessment"}
           </h3>
           <p>
             {summary?.assessedAt
               ? `${visit.label} · ${new Date(summary.assessedAt).toLocaleString()} · ${summary.language}`
-              : `${visit.label} · Score is calculated from task performance.`}
+              : imported
+                ? `${visit.label} · Imported study scores are read-only. Conduct new assessments on uploaded patient cases.`
+                : `${visit.label} · Guided questions, point scoring and review.`}
           </p>
         </div>
         {imported ? (

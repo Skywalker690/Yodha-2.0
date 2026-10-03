@@ -38,6 +38,16 @@ cases show their preserved recorded MMSE instead of offering assessment writes.
 The dashboard now selects recorded visits independently of completed anatomy and
 shows clinical and demo values before MRI processing.
 
+D083 also shows saved scores for the selected visit beside the patient details
+at the top of the default patient workspace. Recorded MMSE and demo cognitive
+scores remain separately labeled; their links scroll to the original assessment
+card. D084 places that full card above the MRI viewer so Start/Resume is visible
+on entry for uploaded cases, with the existing question/scoring dialog intact.
+Imported OASIS cards explain their read-only status and where new assessments
+are available. Missing scores are not replaced with another visit's
+result, and saved zero scores remain visible. No scoring or storage change is
+required for this display.
+
 ## Storage and compatibility
 
 The existing `Visit.metadata_json` stores `mmseAssessment.schemaVersion=1` and at

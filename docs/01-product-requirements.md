@@ -25,6 +25,21 @@ research intended use and existing ML-only release gates. See [21 Clinical assis
 
 ## Product
 
+D084 restores the full guided assessment card and Start/Resume controls above
+the MRI workspace, preserving existing assessment eligibility and scoring.
+
+D083 shows saved MMSE and separately labeled demo cognitive scores for the
+selected visit in the patient header, linking to the existing assessment section.
+
+D082 restores the first prototype's dark navy and teal palette while retaining
+the D081 layout, controls, card geometry and persistent MRI viewer.
+
+D081 implements the approved patient dashboard arrangement with grouped visit
+actions, same-page section navigation and the existing MRI workspace as the first
+major section. Preserve the interactive viewer and its state while moving between
+sections; keep loaded content during transient polling errors. Source MRI,
+forecast/model behavior, processing and API contracts remain unchanged.
+
 D072 opens the spatial MRI workspace in axial view and explains when hippocampus
 highlighting awaits a matching FastSurfer segmentation.
 

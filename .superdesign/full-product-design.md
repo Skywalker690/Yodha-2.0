@@ -54,6 +54,20 @@ D079 changes only sidebar colors to a slate-blue tonal background
 and a muted teal connection pill. Geometry and all outside-sidebar styling stay.
 The palette override is `.superdesign/sidebar-color-grade.css`.
 
+## Patient dashboard template arrangement (D080)
+
+The user selected the existing navy/teal patient workspace draft
+`70c1a9a3-6b4c-40a9-97d5-eca28eb63375`. The default patient dashboard preview now
+uses its compact patient header, grouped MRI visit/Add visit controls and four
+section links. The original MRI workspace comes first, ahead of assessment and
+anatomy details. The links scroll to existing sections and preserve their actions.
+The selected draft contains a static screenshot of the synthetic NiiVue canvas;
+the local preview retains the original interactive viewer. All viewer components,
+stylesheets, camera/mask behavior and forecast controls are unchanged. The template
+arrangement is `.superdesign/patient-template-arrangement.css`, imported separately
+only in the isolated copy. Historical research-mode case layouts retain their
+existing arrangement.
+
 ## Preview construction and boundaries
 
 Copy the current source UI into `artifacts/alzhio-design-preview`; preserve its

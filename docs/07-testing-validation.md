@@ -1,5 +1,74 @@
 # Testing and Validation
 
+## Guided assessment entry restored above MRI (D084)
+
+The production frontend build, including TypeScript, and diff whitespace checks
+pass. Live browser inspection of the uploaded `RESEARCH_001` case confirms the
+existing assessment card and Resume action now appear between patient navigation
+and MRI. Reopening its saved draft displays the original eleven-task guided demo,
+the first unanswered task, scoring choices, clinician guide and save/continue
+controls. The existing completion dialog code is unchanged. SHA-256 comparisons
+confirm the MRI viewer, MRI styles, score/API types, resource/API helpers and
+backend assessment service remain unchanged. The ignored screenshot
+`artifacts/alzhio-guided-assessment-restored.png` captures the open dialog. No
+points were entered, assessment saved/completed, patient data modified, automated
+test suite run or model job launched.
+
+## Saved cognitive score header display (D083)
+
+The production build, including TypeScript, and diff whitespace checks pass.
+Live browser review confirms OAS2_0048's selected baseline has `Recorded MMSE:
+19/30` in the patient header and its link scrolls to the existing matching
+assessment card. The local screenshot is
+`artifacts/alzhio-mmse-score-visible.png` (ignored by Git). Read-only comparisons
+confirm the eight protected files remain unchanged: MRI viewer components,
+both stylesheets, assessment component, types, resource and API helpers. Header
+display reads selected-visit metadata/summary, preserves zero and keeps demo
+scores separate. No assessment was started/completed, stored score changed,
+automated test suite run or model job launched during this display correction.
+
+## First prototype palette restoration (D082)
+
+The production frontend build, including TypeScript, and diff whitespace checks
+pass. Read-only SHA-256 comparison of 70 frontend files confirms that only
+`app/patient-dashboard.css` changed in this correction. CSS declaration comparison
+confirms that non-palette declarations, including spacing, sizes, typography,
+radii, border widths and shadow geometry, remain unchanged. Live browser review
+shows original dark navy cards/sidebar and teal accents, with the existing 3D
+selection, MRI rendering and yellow hippocampus highlight still present. The
+local screenshot is `artifacts/alzhio-prototype-colors-restored.png` (ignored by
+Git). No automated tests, patient-data changes or model jobs were performed.
+
+## Patient dashboard design implementation (D081)
+
+Strict TypeScript, the production frontend build and diff whitespace checks pass.
+Read-only SHA-256 comparisons confirm eight protected files remain unchanged:
+the two MRI viewer components, original global stylesheet, resource/API helpers,
+types and both package manifests. The new stylesheet scopes supplementary panel
+colors outside the viewer and does not override MRI selectors or root tokens.
+Live local browser review confirms the implemented header, grouped visit actions
+and section links around the actual acquired MRI viewer. Switching from 3D volume
+to the Assessment section and back retains the selected 3D volume mode and the
+same viewer controls. This review does not establish persistence across reloads
+or patient changes. No automated test suite, patient-data mutation or model job
+was performed for this implementation.
+The local implementation screenshot is
+`artifacts/alzhio-patient-dashboard-implemented.png` (ignored by Git).
+
+## Patient dashboard design template (D080)
+
+Read-only file comparison confirms the two working frontend viewer components,
+the isolated preview's matching viewer components, and both existing preview
+stylesheets are unchanged (six protected files). The 36 original frontend source
+fingerprints also remain unchanged. Browser review shows the compact header,
+grouped MRI visit/Add visit controls and four section links, with all link targets
+present and the viewer above assessment. The unchanged synthetic MRI canvas and
+yellow labels were visually captured. Superdesign draft version 5 was refetched
+and exactly matches the imported HTML. The canvas draft uses a static screenshot;
+the local preview retains the interactive viewer. No automated tests or real
+patient/model operations were run for this design-only change.
+
+
 ## Assessment completion flow (D074)
 
 The user requested checking completion. Five focused frontend tests and four

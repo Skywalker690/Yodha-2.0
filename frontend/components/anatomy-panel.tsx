@@ -396,6 +396,7 @@ export function AnatomyPanel({
           evidence is displayed only for an evaluated release.
         </p>
         <Button
+          id="patient-reports"
           variant="outline"
           disabled={!anatomy || busy}
           onClick={async () => {

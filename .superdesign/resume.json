@@ -18,7 +18,12 @@
         "frontend/app/globals.css:523:613",
         "frontend/app/globals.css:688:800",
         "frontend/app/globals.css:2132:2346",
-        "frontend/components/shell.tsx"
+        "frontend/components/shell.tsx",
+        ".superdesign/patient-template-arrangement.css",
+        ".superdesign/full-product-design.md",
+        "artifacts/alzhio-design-preview/app/(workspace)/patients/[id]/page.tsx",
+        "artifacts/alzhio-design-preview/components/analysis-workspace.tsx",
+        "artifacts/alzhio-design-preview/components/anatomy-panel.tsx"
       ],
       "fingerprints": {
         ".superdesign/design-system.md": "a76f43d5d494a9690360ddb910d7854663e2680cd8436921c93313b53e2ad359",
@@ -30,7 +35,12 @@
         "frontend/components/mmse-assessment.tsx": "39bed17553cdc483a18ed72af117e31e82a282779752cb389a1ee2775d6df457",
         "frontend/app/(workspace)/patients/[id]/page.tsx": "ca7f50f0fa56f5a8e064c43bb3abf079ce01b22f8742c5d102209df03c10fff4",
         "frontend/app/globals.css": "994f3b18866d465706d90a4867ff1cab9e6bda45cee3e980474720eb04e5ac8d",
-        "frontend/components/shell.tsx": "83701c7d5998b4a4423641d5776afd575bf5273e2fc2a2a2cc6608fed8664d6e"
+        "frontend/components/shell.tsx": "83701c7d5998b4a4423641d5776afd575bf5273e2fc2a2a2cc6608fed8664d6e",
+        ".superdesign/patient-template-arrangement.css": "61a700651c189dd955f4a9f7043d514cb01fb0dc5d8c7f4f38f7713484708240",
+        ".superdesign/full-product-design.md": "1100c8f3842bb495ac9c9dfe71478dc757de93a0062285ad65a32719822fa29c",
+        "artifacts/alzhio-design-preview/app/(workspace)/patients/[id]/page.tsx": "d52b36b472bcd798f8d179b310b578d076df2bcc3beec0ee3fcd7bf37de90bcc",
+        "artifacts/alzhio-design-preview/components/analysis-workspace.tsx": "3abd81b46291ad1bfbe0fedb87bb372c91a545fbe7cf74ba8eb6afc1c9446038",
+        "artifacts/alzhio-design-preview/components/anatomy-panel.tsx": "4219a3f5a95d163a19936e8ad91b89150a270ca36ab070be19bae6809e65d401"
       },
       "components": [
         {
@@ -43,11 +53,27 @@
       "drafts": {
         "70c1a9a3-6b4c-40a9-97d5-eca28eb63375": {
           "title": "NeuroPredict Longitudinal UI",
-          "visualDirection": "Alzhio navy/teal patient workspace with tabs, large axial schematic, yellow hippocampus and guided assessment; design proposal only",
-          "currentVersion": 4
+          "visualDirection": "User-selected navy/teal template arrangement: compact patient header, grouped MRI visit/Add visit and Overview/MRI Workspace/Assessment/Reports links. Existing NiiVue viewer comes first and is protected. Design preview only; canvas screenshot is static and synthetic.",
+          "currentVersion": 5
         }
       },
-      "updatedAt": "2026-10-03T00:00:30.5218718Z"
+      "updatedAt": "2026-10-03T03:20:33.9453166Z",
+      "completePreview": {
+        "url": "http://localhost:3100/patients/caa93285-fe91-4129-8076-c01af4a069e2",
+        "path": "artifacts/alzhio-design-preview",
+        "style": ".superdesign/patient-template-arrangement.css",
+        "screenshot": "artifacts/alzhio-patient-template-actions.png",
+        "viewerScreenshot": "artifacts/alzhio-patient-template-viewer.png",
+        "status": "Design only. Original interactive viewer and original frontend unchanged; synthetic fixtures only."
+      },
+      "viewerProtection": {
+        "protectedFilesCompared": 6,
+        "changedFiles": [],
+        "originalSourceFilesCompared": 36,
+        "sourceChangedFiles": [],
+        "savedHtmlVerified": true,
+        "templateSourceVersion": 4
+      }
     },
     "/patients": {
       "targetKind": "existing-ui",
@@ -89,7 +115,7 @@
         "frontend/app/globals.css": "994f3b18866d465706d90a4867ff1cab9e6bda45cee3e980474720eb04e5ac8d",
         ".superdesign/full-product-feature-inventory.md": "bbcf7a462c62bb6a37b513c35b1fec5af501f282de6dbdc575c681c0884d0632",
         ".superdesign/sidebar-refinement.css": "c24758749071dd8e4ba6651063a376896dd7628c2fa9ab178eff139d210958f9",
-        ".superdesign/full-product-design.md": "e460ab0ca130d5168819ab3cb054fe0b28220fa9528729b5c05cf84f044074b9",
+        ".superdesign/full-product-design.md": "1100c8f3842bb495ac9c9dfe71478dc757de93a0062285ad65a32719822fa29c",
         ".superdesign/full-product-skin.css": "0a7f5cb4d17b2e7bb49d3a69a3375460444748723598862882bdc7bea5a89c64",
         ".superdesign/sidebar-color-grade.css": "9f82a54a9b5dbdf35657f84697e097567df412bd4ed0f18054cae04c3f6d82c0"
       },

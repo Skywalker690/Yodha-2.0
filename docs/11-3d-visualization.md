@@ -26,6 +26,10 @@ Primary sources inspected:
 
 ## Product behavior
 
+- The D081 patient dashboard places the original MRI workspace first. Its section
+  links scroll while keeping the viewer mounted, and transient patient polling
+  errors retain the loaded workspace. Rendering, existing controls/styles and
+  patient/scan lifecycle behavior remain unchanged.
 - Default axial view on patient entry and reset, with the existing alternative
   layouts available for manual selection (D072). Uploaded scans without measured
   masks show a FastSurfer segmentation prerequisite; valid masks remain highlighted

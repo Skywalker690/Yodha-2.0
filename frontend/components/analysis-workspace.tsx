@@ -5,7 +5,10 @@ import { MMSEAssessment } from "@/components/mmse-assessment";
 import {
   ArrowLeft,
   ArrowRight,
+  ClipboardList,
   Download,
+  FileText,
+  LayoutDashboard,
   Layers,
   Play,
   Plus,
@@ -725,8 +728,33 @@ function MLWorkspace({
   const [addVisit, setAddVisit] = useState(false);
   const visit =
     patient.visits.find((v) => v.id === selectedId) || patient.visits[0];
+  const assessment = visit?.metadata.mmseAssessment;
+  const savedScores = [
+    {
+      label: "Recorded MMSE",
+      value:
+        visit?.metadata.MMSE ??
+        (assessment?.instrument === "mmse-original" ? assessment.total : null),
+      mode: "mode-inference",
+    },
+    {
+      label: "Demo cognitive score",
+      value:
+        visit?.metadata.cognitiveDemoScore ??
+        (assessment?.instrument === "alzhio-cognitive-demo"
+          ? assessment.total
+          : null),
+      mode: "mode-demo",
+    },
+  ].filter(
+    ({ value }) =>
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= 0 &&
+      value <= 30,
+  );
   const visitSelector = visit && (
-    <label style={{ flex: 1, minWidth: 0 }}>
+    <label className="patient-case-visit" style={{ flex: 1, minWidth: 0 }}>
       MRI visit
       <select value={visit.id} onChange={(e) => setSelectedId(e.target.value)}>
         {patient.visits.map((item) => (
@@ -739,16 +767,65 @@ function MLWorkspace({
   );
   return (
     <>
-      <section className="panel" style={{ padding: "1.5rem" }}>
-        <h2>{patient.code}</h2>
-        <p>
-          ML-only research serving. Historical predictions remain archived, not
-          reused as current forecasts. This is not clinical-production approval.
-        </p>
-        <Button variant="outline" onClick={() => setAddVisit(!addVisit)}>
-          Add visit
-        </Button>
-        {addVisit && (
+      <header className="patient-case-header">
+        <div className="patient-case-identity">
+          <div className="eyebrow">PATIENT WORKSPACE</div>
+          <h1>{patient.code}</h1>
+          <p className="patient-case-meta">
+            {patient.age ? `${patient.age} years` : "Age unspecified"}
+            <span aria-hidden="true">·</span>
+            {patient.sex || "Sex unspecified"}
+            <span aria-hidden="true">·</span>
+            {patient.visits.length} research visits
+            {savedScores.map((score) => (
+              <a
+                key={score.label}
+                href="#patient-assessment"
+                className={`badge ${score.mode}`}
+                title={`${visit.label} · saved score`}
+              >
+                {score.label}: {score.value}/30
+              </a>
+            ))}
+          </p>
+        </div>
+        <div className="patient-case-actions">
+          {visitSelector}
+          <Button variant="outline" onClick={() => setAddVisit(!addVisit)}>
+            {addVisit ? <X size={16} /> : <Plus size={16} />} Add visit
+          </Button>
+        </div>
+      </header>
+      <nav
+        className="patient-case-links"
+        aria-label="Patient workspace sections"
+      >
+        <a href="#patient-overview">
+          <LayoutDashboard size={15} /> Overview
+        </a>
+        <a href="#anatomy-viewer" aria-current="location">
+          <ScanLine size={15} /> MRI Workspace
+        </a>
+        <a href="#patient-assessment">
+          <ClipboardList size={15} /> Assessment
+        </a>
+        <a href="#patient-reports">
+          <FileText size={15} /> Reports
+        </a>
+      </nav>
+      {visit && (
+        <div id="patient-assessment" className="patient-case-section">
+          <MMSEAssessment
+            key={`${patient.id}:${visit.id}`}
+            patient={patient}
+            visit={visit}
+            reload={reload}
+          />
+        </div>
+      )}
+      {addVisit && (
+        <section className="panel form-panel">
+          <h3>Add a chronological visit</h3>
           <VisitForm
             patient={patient}
             onDone={(visitId) => {
@@ -757,27 +834,14 @@ function MLWorkspace({
               reload();
             }}
           />
-        )}
-      </section>
-      {visit && (
-        <MMSEAssessment
-          key={`${patient.id}:${visit.id}`}
-          patient={patient}
-          visit={visit}
-          reload={reload}
-        />
-      )}
-      {visit && (
-        <AnatomyPanel
-          key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}
-          patient={patient}
-          visit={visit}
-          reload={reload}
-        />
+        </section>
       )}
       {visit ? (
-        <section className="panel" style={{ padding: "1.5rem" }}>
-          {visit.hasMri && visitSelector}
+        <section
+          className="panel patient-case-imaging"
+          id={!visit.hasMri ? "anatomy-viewer" : undefined}
+          style={{ padding: "1.5rem" }}
+        >
           <p>
             Follow-up MRI viewing does not change the baseline prediction or add
             future inputs.
@@ -805,7 +869,6 @@ function MLWorkspace({
             <UploadForm
               key={visit.id}
               visit={visit}
-              visitSelector={visitSelector}
               onDone={reload}
               onDeleted={() => {
                 setSelectedId("");
@@ -821,6 +884,20 @@ function MLWorkspace({
           metadata, reviewed anatomy and a promoted model.
         </Empty>
       )}
+      <section id="patient-overview" className="patient-case-section">
+        <p className="patient-case-provenance">
+          ML-only research serving. Historical predictions remain archived, not
+          reused as current forecasts. This is not clinical-production approval.
+        </p>
+        {visit && (
+          <AnatomyPanel
+            key={`${patient.id}:${visit.id}:${patient.completedAnatomy?.id}`}
+            patient={patient}
+            visit={visit}
+            reload={reload}
+          />
+        )}
+      </section>
     </>
   );
 }

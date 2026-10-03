@@ -1,0 +1,35 @@
+/* D080: selected template chrome, isolated design preview only.
+   No selector targets the MRI viewer or changes its inherited tokens. */
+.main-content:has(.patient-case-template) { background: #0b121c; }
+.patient-case-template > .page-heading { display: none; }
+.patient-case-template > .back-link { color: #93a5b8; font-size: 12px; margin-bottom: 24px; }
+.patient-case-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.patient-case-identity .eyebrow { color: #93a5b8; letter-spacing: 1.6px; margin-bottom: 10px; }
+.patient-case-identity h1 { color: #e7eef6; font-size: 31px; font-weight: 600; letter-spacing: -1px; line-height: 1.2; margin: 0; }
+.patient-case-meta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; color: #93a5b8; font-size: 12px; margin: 12px 0 0; }
+.patient-case-meta span { color: #364557; }
+.patient-case-actions { display: flex; align-items: flex-end; gap: 12px; flex-shrink: 0; }
+.patient-case-visit { color: #93a5b8; font-size: 11px; display: grid; gap: 6px; }
+.patient-case-visit select { margin-top: 0; min-width: 156px; height: 40px; background: #111c29; border-color: #223141; border-radius: 7px; color: #e7eef6; font-size: 12px; padding-block: 8px; color-scheme: dark; }
+.patient-case-actions > .button { min-height: 40px; background: #111c29; border-color: #223141; color: #e7eef6; border-radius: 7px; box-shadow: none; font-size: 12px; }
+.patient-case-actions > .button:hover { background: #142231; border-color: #345365; }
+.patient-case-links { display: flex; gap: 30px; border-bottom: 1px solid #223141; margin-bottom: 24px; overflow-x: auto; }
+.patient-case-links a { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 0 14px; color: #93a5b8; border-bottom: 2px solid transparent; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.patient-case-links a[aria-current] { color: #66dfd2; border-bottom-color: #66dfd2; }
+.patient-case-links a:hover { color: #e7eef6; }
+.patient-case-links a:focus-visible, .patient-case-actions > .button:focus-visible { outline: 2px solid #66dfd2; outline-offset: 4px; }
+.patient-case-section, #patient-reports { scroll-margin-top: 90px; }
+.patient-case-provenance { color: #93a5b8; font-size: 12px; line-height: 1.6; margin: 0 0 16px; }
+@media (max-width: 960px) {
+  .patient-case-header { align-items: flex-start; flex-wrap: wrap; gap: 18px; }
+  .patient-case-actions { width: 100%; }
+  .patient-case-visit { max-width: 280px; }
+}
+@media (max-width: 700px) {
+  .patient-case-identity h1 { font-size: 27px; }
+  .patient-case-links { gap: 22px; }
+  .patient-case-actions { gap: 10px; }
+  .patient-case-visit { min-width: 0; }
+  .patient-case-visit select { min-width: 0; width: 100%; }
+  .patient-case-meta { gap: 8px; }
+}

@@ -1,5 +1,50 @@
 # Next.js UI Specification
 
+## Visible guided assessment entry (D084)
+
+Place the full existing cognitive assessment card directly beneath the patient
+section links, before the long MRI workspace. Uploaded cases show Start/Resume
+assessment for the selected visit, opening the existing guided task, scoring,
+draft and completion dialog. The empty card is titled `MMSE-style assessment`
+and describes guided questions, point scoring and review. Imported OASIS cases
+show their preserved score with an explanation that new assessments are
+conducted on uploaded cases. Keep the same component keys, original palette,
+saved score links, API/scoring logic and persistent MRI viewer.
+
+## Saved cognitive score visibility (D083)
+
+Show compact score links beside the patient details for the selected visit when
+saved data exists. Recorded/standard MMSE is labeled `Recorded MMSE`; the demo
+result is labeled `Demo cognitive score`. Both use a /30 scale and link to the
+existing Assessment section (moved above MRI by D084). Preserve zero and show no
+score for absent, nonfinite or out-of-range values. Read existing metadata and
+completed assessment summaries only; do not infer a value from a draft or another
+visit. The original assessment card, completion workflow and MRI viewer remain.
+
+## First prototype colors restored (D082)
+
+Use the original global dark navy surfaces, muted blue-gray text, teal actions
+and original status colors for the sidebar, topbar, patient cards and dialogs.
+The added patient stylesheet retains the approved D081 geometry and typography
+while inheriting the prototype palette. Header/actions, section navigation and
+the persistent MRI workspace remain unchanged.
+
+## Approved patient dashboard design (D081)
+
+The working default patient workspace uses the approved Superdesign patient
+template: a compact identity header, grouped MRI visit/Add visit controls and
+Overview, MRI Workspace, Assessment and Reports section links. The MRI workspace
+appears first, followed by assessment and available anatomy/source observations.
+Pending visits use the same MRI section link to reach their upload form. D082
+supersedes the original implementation's slate-blue sidebar and light palette.
+
+Section links scroll to existing mounted content. Preserve the live patient-keyed
+MRI viewer, its original dark styling, rendering, controls, highlights and
+forecast artifacts. A temporary patient polling error shows an error alongside
+already loaded content rather than replacing the viewer. Existing patient/visit
+changes and explicit pause/retry retain their original cleanup behavior. Design
+preview fixtures, static viewer images and preview controls are excluded.
+
 ## Guided English cognitive demo (D073)
 
 Both patient workspace modes include Start/Resume assessment for the selected
